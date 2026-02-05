@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Lock, User, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import api from "@/services/api";
 
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
@@ -28,11 +29,26 @@ const AdminLogin = () => {
 
     setIsLoading(true);
     
-    // Simulate authentication
-    setTimeout(() => {
+    try {
+      // Tenta autenticação via API
+      const response = await api.auth.login(email, password);
+      
+      // Salvar token/sessão se necessário (ex: localStorage)
+      localStorage.setItem('admin_token', response.token);
+      
+      toast({
+        title: "Login realizado com sucesso!",
+        description: "Redirecionando para o painel administrativo...",
+      });
+      navigate("/admin/dashboard");
+    } catch (error) {
+      // Fallback para credenciais de teste (caso a API falhe ou não esteja rodando)
       if (email === "admin@centerplaza.com" && password === "admin123") {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simula delay
+        localStorage.setItem('admin_token', 'dev-token');
+        
         toast({
-          title: "Login realizado com sucesso!",
+          title: "Login realizado (Modo Teste)!",
           description: "Redirecionando para o painel administrativo...",
         });
         navigate("/admin/dashboard");
@@ -43,8 +59,9 @@ const AdminLogin = () => {
           variant: "destructive",
         });
       }
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +38,15 @@ const AdminDashboard = () => {
     { id: "RS001236", guest: "Ana Costa", accommodation: "Refúgio de Pedra", dates: "25-28 Dez", status: "confirmada", value: "R$ 1.140" },
   ];
 
+  useEffect(() => {
+    const token = localStorage.getItem('admin_token');
+    if (!token) {
+      navigate("/admin");
+    }
+  }, [navigate]);
+
   const handleLogout = () => {
+    localStorage.removeItem('admin_token');
     navigate("/admin");
   };
 

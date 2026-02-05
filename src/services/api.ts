@@ -2,9 +2,9 @@
 
 // Configuração dinâmica da URL da API baseada no ambiente
 const getApiBaseUrl = () => {
-  // Em produção, usar dados mockados (sem API externa)
-  if (import.meta.env.PROD) {
-    return null; // Indica que deve usar dados mockados
+  // Priorizar variável de ambiente se definida
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
   }
   // Em desenvolvimento, usar API local
   return 'http://localhost:3001/api';
@@ -44,11 +44,12 @@ export interface Reservation {
   guest_name: string;
   guest_email: string;
   guest_phone?: string;
+  guest_document?: string;
   check_in_date: string;
   check_out_date: string;
-  guests_count: number;
-  total_price: number;
-  status: 'pending' | 'confirmed' | 'cancelled';
+  number_of_guests: number;
+  total_amount: number;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   special_requests?: string;
   created_at?: string;
   updated_at?: string;
@@ -379,7 +380,7 @@ export const reservationService = {
   async getByCodeAndName(code: string, guestName: string): Promise<Reservation | null> {
     try {
       const reservations = await apiRequest<Reservation[]>(
-        `/reservations?code=${encodeURIComponent(code)}&guest_name=${encodeURIComponent(guestName)}`
+        `/reservations?id=${encodeURIComponent(code)}&guest_name=${encodeURIComponent(guestName)}`
       );
       return reservations.length > 0 ? reservations[0] : null;
     } catch (error) {

@@ -4,7 +4,7 @@ const router = express.Router();
 // GET /api/reservations - Buscar todas as reservas
 router.get('/', async (req, res) => {
   try {
-    const { hotel_id, status, guest_email } = req.query;
+    const { hotel_id, status, guest_email, id, guest_name } = req.query;
     
     let query = `
       SELECT r.*, h.name as hotel_name, rt.name as room_type_name, rt.price_per_night
@@ -28,6 +28,16 @@ router.get('/', async (req, res) => {
     if (guest_email) {
       query += ' AND r.guest_email = ?';
       params.push(guest_email);
+    }
+    
+    if (id) {
+      query += ' AND r.id = ?';
+      params.push(id);
+    }
+
+    if (guest_name) {
+      query += ' AND r.guest_name LIKE ?';
+      params.push(`%${guest_name}%`);
     }
     
     query += ' ORDER BY r.created_at DESC';
@@ -110,6 +120,8 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/reservations - Criar nova reserva
 router.post('/', async (req, res) => {
+  const connection = await req.db.getConnection();
+
   try {
     const {
       hotel_id,
@@ -126,19 +138,23 @@ router.post('/', async (req, res) => {
     } = req.body;
     
     // Validações básicas
-    if (!hotel_id || !room_type_id || !guest_name || !guest_email || !check_in_date || !check_out_date || !total_amount) {
+    if (!hotel_id || !room_type_id || !guest_name || !guest_email || !check_in_date || !check_out_date) {
       return res.status(400).json({ error: 'Campos obrigatórios não preenchidos' });
     }
     
+    await connection.beginTransaction();
+
     // Verificar se o hotel existe
-    const [hotels] = await req.db.execute('SELECT id FROM hotels WHERE id = ?', [hotel_id]);
+    const [hotels] = await connection.execute('SELECT id FROM hotels WHERE id = ?', [hotel_id]);
     if (hotels.length === 0) {
+      await connection.rollback();
       return res.status(400).json({ error: 'Hotel não encontrado' });
     }
     
-    // Verificar se o tipo de quarto existe
-    const [roomTypes] = await req.db.execute('SELECT id FROM room_types WHERE id = ? AND hotel_id = ?', [room_type_id, hotel_id]);
+    // Verificar se o tipo de quarto existe e sua capacidade
+    const [roomTypes] = await connection.execute('SELECT id, max_occupancy FROM room_types WHERE id = ? AND hotel_id = ?', [room_type_id, hotel_id]);
     if (roomTypes.length === 0) {
+      await connection.rollback();
       return res.status(400).json({ error: 'Tipo de quarto não encontrado para este hotel' });
     }
     
@@ -147,13 +163,39 @@ router.post('/', async (req, res) => {
     const checkOut = new Date(check_out_date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
+      await connection.rollback();
+      return res.status(400).json({ error: 'Datas inválidas fornecidas' });
+    }
+
+    // Validar capacidade
+    if (number_of_guests && number_of_guests > roomTypes[0].max_occupancy) {
+      await connection.rollback();
+      return res.status(400).json({ error: `Número de hóspedes (${number_of_guests}) excede a capacidade do quarto (${roomTypes[0].max_occupancy})` });
+    }
     
     if (checkIn < today) {
+      await connection.rollback();
       return res.status(400).json({ error: 'Data de check-in não pode ser anterior a hoje' });
     }
     
     if (checkOut <= checkIn) {
+      await connection.rollback();
       return res.status(400).json({ error: 'Data de check-out deve ser posterior à data de check-in' });
+    }
+
+    // Verificar disponibilidade (conflitos de data)
+    const [conflicts] = await connection.execute(`
+      SELECT COUNT(*) as count FROM reservations 
+      WHERE room_type_id = ? 
+      AND status IN ('confirmed', 'pending')
+      AND check_in_date < ? AND check_out_date > ?
+    `, [room_type_id, check_out_date, check_in_date]);
+
+    if (conflicts[0].count > 0) {
+      await connection.rollback();
+      return res.status(400).json({ error: 'Quarto indisponível para as datas selecionadas' });
     }
     
     const query = `
@@ -164,14 +206,16 @@ router.post('/', async (req, res) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
-    const [result] = await req.db.execute(query, [
+    const [result] = await connection.execute(query, [
       hotel_id, room_type_id, guest_name, guest_email, guest_phone,
       guest_document, check_in_date, check_out_date, number_of_guests || 1,
       total_amount, special_requests
     ]);
     
+    await connection.commit();
+
     // Buscar a reserva criada com informações completas
-    const [newReservation] = await req.db.execute(`
+    const [newReservation] = await connection.execute(`
       SELECT r.*, h.name as hotel_name, rt.name as room_type_name
       FROM reservations r
       JOIN hotels h ON r.hotel_id = h.id
@@ -181,8 +225,11 @@ router.post('/', async (req, res) => {
     
     res.status(201).json(newReservation[0]);
   } catch (error) {
+    await connection.rollback();
     console.error('Erro ao criar reserva:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
+  } finally {
+    connection.release();
   }
 });
 
