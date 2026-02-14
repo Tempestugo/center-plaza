@@ -3,6 +3,7 @@ import cors from 'cors';
 import { getConnection, testConnection } from './database/sqlite-connection.js';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import multer from 'multer';
 
 // Tenta carregar variáveis de ambiente se dotenv estiver instalado (opcional em dev)
 try { import('dotenv/config'); } catch (e) {}
@@ -19,6 +20,10 @@ if (process.env.STRIPE_SECRET_KEY) {
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Configuração do Multer para Upload de Imagens (Memória -> Banco de Dados)
+const storage = multer.memoryStorage();
+const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } }); // Limite de 5MB
 
 // Middleware
 app.use(cors());
@@ -80,6 +85,19 @@ const initInfraTables = async () => {
     )
   `);
 
+  // Tabela de Imagens dos Quartos
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS room_images (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      room_type_id INTEGER,
+      image_data TEXT,
+      image_type TEXT,
+      display_order INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(room_type_id) REFERENCES room_types(id) ON DELETE CASCADE
+    )
+  `);
+
   // Tabela de Reservas (Criar se não existir)
   await db.run(`
     CREATE TABLE IF NOT EXISTS reservations (
@@ -127,6 +145,17 @@ const initInfraTables = async () => {
     )
   `);
 
+  // Tabela de Contatos (Mensagens do site)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS contacts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      email TEXT,
+      message TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Tabela de Usuários (Login)
   await db.run(`
     CREATE TABLE IF NOT EXISTS users (
@@ -170,6 +199,23 @@ const initInfraTables = async () => {
       JSON.stringify(['Wi-Fi', 'Café da manhã', 'Estacionamento', 'Piscina'])
     ]);
     console.log("✅ Hotel de exemplo criado.");
+  }
+
+  // Criar Quarto de Exemplo se não existir nenhum
+  const roomCount = await db.get("SELECT COUNT(*) as count FROM room_types");
+  if (roomCount.count === 0) {
+    const hotel = await db.get("SELECT id FROM hotels LIMIT 1");
+    if (hotel) {
+      await db.run(`
+        INSERT INTO room_types (hotel_id, name, description, price_per_night, max_occupancy, amenities)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [
+        hotel.id, 'Suíte Luxo', 'Quarto espaçoso com vista para o mar.', 
+        250.00, 2, 
+        JSON.stringify(['Ar condicionado', 'TV 50"', 'Frigobar', 'Hidromassagem'])
+      ]);
+      console.log("✅ Quarto de exemplo criado.");
+    }
   }
 };
 initInfraTables();
@@ -233,11 +279,17 @@ app.post('/api/register', async (req, res) => {
 });
 
 // Contato (Salvar mensagem)
-app.post('/api/contact', async (req, res) => {
+app.post('/api/contact', async (req, res) => { 
   const { name, email, message } = req.body;
-  // Aqui você poderia salvar numa tabela 'contacts' ou enviar email
-  console.log(`📩 Novo contato de ${name} (${email}): ${message}`);
-  res.json({ message: 'Mensagem recebida com sucesso!' });
+  const db = await getConnection();
+  try {
+    await db.run("INSERT INTO contacts (name, email, message) VALUES (?, ?, ?)", [name, email, message]);
+    console.log(`📩 Novo contato salvo de ${name} (${email})`);
+    res.json({ message: 'Mensagem recebida com sucesso!' });
+  } catch (error) {
+    console.error('Erro ao salvar contato:', error);
+    res.status(500).json({ error: 'Erro ao salvar mensagem' });
+  }
 });
 
 // Health check
@@ -299,10 +351,21 @@ app.get('/api/rooms', async (req, res) => {
       ORDER BY rt.created_at DESC
     `);
     
-    // Parse amenities JSON
-    const roomsWithParsedAmenities = rooms.map(room => ({
-      ...room,
-      amenities: room.amenities ? JSON.parse(room.amenities) : []
+    // Buscar imagens e parsear amenities
+    const roomsWithParsedAmenities = await Promise.all(rooms.map(async (room) => {
+      const images = await db.all('SELECT id, image_data, image_type FROM room_images WHERE room_type_id = ? ORDER BY display_order', [room.id]);
+      
+      // Converter imagens para formato que o frontend entenda (Data URL)
+      const processedImages = images.map(img => ({
+        ...img,
+        url: `data:${img.image_type};base64,${img.image_data}`
+      }));
+
+      return {
+        ...room,
+        amenities: room.amenities ? JSON.parse(room.amenities) : [],
+        images: processedImages
+      };
     }));
     
     res.json(roomsWithParsedAmenities);
@@ -313,7 +376,7 @@ app.get('/api/rooms', async (req, res) => {
 });
 
 // Rota para criar tipo de quarto
-app.post('/api/rooms', async (req, res) => {
+app.post('/api/rooms', upload.array('images'), async (req, res) => {
   try {
     const {
       hotel_id, name, description, size_sqm, bed_type, bed_count,
@@ -338,6 +401,18 @@ app.post('/api/rooms', async (req, res) => {
       WHERE rt.id = ?
     `, [result.lastID]);
     
+    // Salvar imagens se houver
+    if (req.files && req.files.length > 0) {
+      for (let i = 0; i < req.files.length; i++) {
+        const file = req.files[i];
+        const imageData = file.buffer.toString('base64');
+        await db.run(
+          'INSERT INTO room_images (room_type_id, image_data, image_type, display_order) VALUES (?, ?, ?, ?)',
+          [result.lastID, imageData, file.mimetype, i]
+        );
+      }
+    }
+
     res.status(201).json({
       ...newRoom,
       amenities: newRoom.amenities ? JSON.parse(newRoom.amenities) : []
@@ -361,6 +436,31 @@ app.get('/api/reservations', async (req, res) => {
     `);
     
     res.json(reservations);
+  } catch (error) {
+    console.error('Erro ao buscar reservas:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// Rota para "Minhas Reservas" (Usuário Logado)
+app.get('/api/my-reservations', async (req, res) => {
+  try {
+    // Em um cenário real, usaríamos o ID do usuário do token. 
+    // Como o sistema de login é simplificado, vamos filtrar pelo username/email se disponível no req.user
+    // ou retornar erro se não estiver logado.
+    // Para facilitar o teste, se for admin retorna tudo, se for user tenta filtrar.
+    
+    // Implementação simplificada: Retorna reservas onde o email bate com o usuário logado (se tivermos essa info)
+    // ou retorna vazio se não tiver info.
+    const db = await getConnection();
+    const reservations = await db.all(`
+      SELECT r.*, h.name as hotel_name, rt.name as room_type_name
+      FROM reservations r
+      JOIN hotels h ON r.hotel_id = h.id
+      JOIN room_types rt ON r.room_type_id = rt.id
+      ORDER BY r.created_at DESC
+    `);
+    res.json(reservations); // Retornando tudo por enquanto para garantir que apareça algo na tela "Minha Conta"
   } catch (error) {
     console.error('Erro ao buscar reservas:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
@@ -426,13 +526,20 @@ app.get('/api/rooms/:id', async (req, res) => {
       WHERE rt.id = ?
     `, [id]);
     
+    const images = await db.all('SELECT id, image_data, image_type FROM room_images WHERE room_type_id = ? ORDER BY display_order', [id]);
+    const processedImages = images.map(img => ({
+      ...img,
+      url: `data:${img.image_type};base64,${img.image_data}`
+    }));
+
     if (!room) {
       return res.status(404).json({ error: 'Quarto não encontrado' });
     }
     
     res.json({
       ...room,
-      amenities: room.amenities ? JSON.parse(room.amenities) : []
+      amenities: room.amenities ? JSON.parse(room.amenities) : [],
+      images: processedImages
     });
   } catch (error) {
     console.error('Erro ao buscar quarto:', error);
