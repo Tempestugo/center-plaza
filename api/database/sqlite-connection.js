@@ -1,8 +1,9 @@
-import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 
+const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -15,6 +16,15 @@ let db = null;
 export async function getConnection() {
   if (!db) {
     try {
+      // Carregamento preguiçoso (lazy load) do sqlite3 para evitar crash na inicialização
+      // se o binário não for compatível com o sistema (comum em deploys)
+      let sqlite3;
+      try {
+        sqlite3 = require('sqlite3');
+      } catch (e) {
+        throw new Error(`Falha ao carregar módulo sqlite3: ${e.message}. Tente rodar 'npm rebuild sqlite3'.`);
+      }
+
       db = await open({
         filename: dbPath,
         driver: sqlite3.Database
