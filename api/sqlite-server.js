@@ -6,8 +6,16 @@ import path from 'path';
 import multer from 'multer';
 import fs from 'fs';
 
+// Tratamento de erros globais para evitar crash silencioso na inicialização
+process.on('uncaughtException', (err) => {
+  console.error('❌ Erro Crítico (Uncaught Exception):', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Erro Crítico (Unhandled Rejection):', reason);
+});
+
 // Tenta carregar variáveis de ambiente se dotenv estiver instalado (opcional em dev)
-try { import('dotenv/config'); } catch (e) {}
+try { await import('dotenv/config'); } catch (e) {}
 
 // Configuração do Stripe (Híbrido: Real se tiver chave, Mock se não tiver)
 // Para produção: npm install stripe
@@ -356,7 +364,7 @@ app.get('/api/room-images/:id', async (req, res) => {
       return res.status(404).send('Imagem não encontrada');
     }
     
-    let base64Data = image.image_data;
+    let base64Data = image.image_data || '';
     // Limpeza de segurança: se o banco tiver o prefixo data:image/..., removemos para não quebrar o Buffer
     if (base64Data.includes('base64,')) {
         base64Data = base64Data.split('base64,')[1];
