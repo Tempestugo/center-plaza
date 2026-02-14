@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
+    outDir: "dist",
     // Aumenta o limite do aviso para 1000kb (o padrão é 500kb)
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
