@@ -1,6 +1,40 @@
 # 🚀 Guia de Deploy na Hostinger
 
-Este guia explica como colocar seu sistema Center Plaza no ar usando a hospedagem da Hostinger.
+## 📋 Stack Tecnológico do Projeto
+- **Backend:** Node.js + **Express**
+- **Frontend:** **React** (Vite)
+- **Banco de Dados:** SQLite
+
+Este guia explica como colocar seu sistema Center Plaza no ar.
+
+## 🤖 Opção Automática (Recomendada: GitHub Actions)
+
+Esta opção atualiza seu site automaticamente toda vez que você envia o código para o GitHub.
+
+### 1. Configurar o Repositório no GitHub
+1. Crie um repositório no GitHub e suba seu código.
+2. No seu repositório, vá em **Settings** -> **Secrets and variables** -> **Actions**.
+3. Clique em **New repository secret** e adicione as seguintes chaves (pegue os dados no painel da Hostinger em "Contas FTP"):
+   - `FTP_SERVER`: O hostname do FTP (ex: `ftp.seusite.com` ou um IP).
+   - `FTP_USERNAME`: Seu usuário FTP (ex: `u123456789`).
+   - `FTP_PASSWORD`: Sua senha do FTP.
+
+### 2. O que o script faz?
+O arquivo `.github/workflows/deploy.yml` que criamos fará o seguinte:
+1. Entra na pasta `web`, instala e constrói o site (gera a pasta `dist`).
+2. Envia o conteúdo de `dist` para a pasta `public_html` da Hostinger (seu site visível).
+3. Envia a pasta `api` para a pasta `api` da Hostinger.
+
+### 3. Pós-Deploy (Apenas na primeira vez ou se mudar dependências)
+Após o GitHub terminar o envio:
+1. Vá no painel da Hostinger -> **Setup Node.js App**.
+2. Se for a primeira vez, certifique-se de que a **Application Root** está como `api`.
+3. Clique em **Install NPM Packages** (para instalar as bibliotecas do backend).
+4. Clique em **Restart**.
+
+---
+
+## 🖐️ Opção Manual (Via Upload de Arquivos)
 
 ## 1. Backend (API Node.js)
 
