@@ -1216,52 +1216,51 @@ app.get('*', (req, res) => {
 
 // Inicialização do Stripe (Assíncrona para evitar Top-Level Await)
 const initStripe = async () => {
-  console.log('💳 Inicializando Stripe...');
   if (process.env.STRIPE_SECRET_KEY) {
     try {
+      console.log('💳 Inicializando Stripe...');
       // Tenta importar dinamicamente para não quebrar se o pacote não estiver instalado
       const { default: Stripe } = await import('stripe');
       stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
       console.log('💳 Stripe inicializado com sucesso');
     } catch (e) {
-      console.warn("⚠️ STRIPE_SECRET_KEY definida, mas pacote 'stripe' não instalado. Usando Mock.");
+      console.warn("⚠️ Erro ao carregar Stripe (usando Mock):", e.message);
     }
   }
 };
 
+// Rota raiz para verificação rápida de status (evita 404/503 em health checks simples)
+app.get('/', (req, res) => {
+  res.status(200).send('Backend Center Plaza Online 🚀');
+});
+
 // Inicializar servidor
 export async function startServer() {
-  console.log('🚀 startServer iniciado');
-  await initStripe();
-
-  // Garantir que o diretório do banco de dados existe
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-  const dbDir = path.join(__dirname, 'database');
-  
-  if (!fs.existsSync(dbDir)) {
-    console.log(`📁 Criando diretório do banco de dados: ${dbDir}`);
-    try {
-      fs.mkdirSync(dbDir, { recursive: true });
-    } catch (e) {
-      console.error('❌ Erro ao criar diretório do banco:', e);
-    }
-  }
+  console.log('🚀 startServer: Iniciando processo...');
 
   // Iniciar o servidor IMEDIATAMENTE para evitar timeout (Erro 503)
-  const server = app.listen(PORT, async () => {
-    console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  const server = app.listen(PORT, () => {
+    console.log(`🚀 Servidor HTTP ouvindo na porta ${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
     
-    // Inicializar banco de dados em segundo plano
-    try {
-      console.log('🗄️ Tentando inicializar tabelas do banco de dados...');
-      await initInfraTables();
-      console.log('✅ Banco de dados inicializado com sucesso');
-    } catch (error) {
-      console.error('❌ Erro ao inicializar banco de dados:', error);
-      dbInitializationError = error;
-    }
+    // Inicializar serviços pesados em segundo plano (não bloqueia o servidor)
+    (async () => {
+      try {
+        // 1. Criar diretório do banco
+        const __filename = fileURLToPath(import.meta.url);
+        const dbDir = path.join(path.dirname(__filename), 'database');
+        if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+
+        // 2. Iniciar Stripe e Banco
+        await initStripe();
+        console.log('🗄️ Inicializando banco de dados...');
+        await initInfraTables();
+        console.log('✅ Banco de dados pronto!');
+      } catch (error) {
+        console.error('❌ Erro na inicialização assíncrona:', error);
+        dbInitializationError = error;
+      }
+    })();
   });
 
   server.on('error', (err) => {

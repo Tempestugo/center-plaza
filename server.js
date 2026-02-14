@@ -1,6 +1,6 @@
 // Este arquivo é o ponto de entrada para a hospedagem (Vercel, Hostinger, etc)
 
-console.log('🚀 Iniciando loader do servidor...');
+console.log('🚀 LOADER: Iniciando server.js...');
 
 // Captura erros síncronos de inicialização
 process.on('uncaughtException', (err) => {
@@ -16,7 +16,7 @@ process.on('unhandledRejection', (reason, promise) => {
   try {
     console.log('📦 Carregando módulo da API (sqlite-server.js)...');
     const { startServer } = await import('./api/sqlite-server.js');
-    console.log('🔄 Executando startServer()...');
+    console.log('🔄 Módulo carregado. Executando startServer()...');
     await startServer();
   } catch (err) {
     console.error('❌ FALHA FATAL ao carregar o servidor:', err);
