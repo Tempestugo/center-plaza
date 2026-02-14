@@ -345,6 +345,30 @@ app.get('/api/debug', async (req, res) => {
   res.json(debugInfo);
 });
 
+// Rota para servir imagens dos quartos (evita payload gigante de base64)
+app.get('/api/room-images/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = await getConnection();
+    const image = await db.get('SELECT image_data, image_type FROM room_images WHERE id = ?', [id]);
+    
+    if (!image) {
+      return res.status(404).send('Imagem não encontrada');
+    }
+    
+    const imgBuffer = Buffer.from(image.image_data, 'base64');
+    res.writeHead(200, {
+      'Content-Type': image.image_type,
+      'Content-Length': imgBuffer.length,
+      'Cache-Control': 'public, max-age=86400' // Cache por 1 dia
+    });
+    res.end(imgBuffer);
+  } catch (error) {
+    console.error('Erro ao servir imagem:', error);
+    res.status(500).send('Erro interno');
+  }
+});
+
 // Rota para listar hotéis
 app.get('/api/hotels', async (req, res) => {
   try {
@@ -405,11 +429,11 @@ app.get('/api/rooms', async (req, res) => {
     `);
     
     const roomsWithParsedAmenities = await Promise.all(rooms.map(async (room) => {
-      const images = await db.all('SELECT id, image_data, image_type FROM room_images WHERE room_type_id = ? ORDER BY display_order', [room.id]);
+      const images = await db.all('SELECT id FROM room_images WHERE room_type_id = ? ORDER BY display_order', [room.id]);
       
       const processedImages = images.map(img => ({
-        ...img,
-        url: `data:${img.image_type};base64,${img.image_data}`
+        id: img.id,
+        url: `/api/room-images/${img.id}`
       }));
 
       return {
@@ -453,13 +477,6 @@ app.post('/api/rooms', (req, res, next) => {
       max_occupancy, JSON.stringify(amenities || []), bathroom_type, smoking_allowed ? 1 : 0, price_per_night
     ]);
     
-    const newRoom = await db.get(`
-      SELECT rt.*, h.name as hotel_name 
-      FROM room_types rt 
-      JOIN hotels h ON rt.hotel_id = h.id 
-      WHERE rt.id = ?
-    `, [result.lastID]);
-    
     if (req.files && req.files.length > 0) {
       for (let i = 0; i < req.files.length; i++) {
         const file = req.files[i];
@@ -471,9 +488,24 @@ app.post('/api/rooms', (req, res, next) => {
       }
     }
 
+    const newRoom = await db.get(`
+      SELECT rt.*, h.name as hotel_name 
+      FROM room_types rt 
+      JOIN hotels h ON rt.hotel_id = h.id 
+      WHERE rt.id = ?
+    `, [result.lastID]);
+
+    // Buscar imagens recém criadas para retornar URLs
+    const images = await db.all('SELECT id FROM room_images WHERE room_type_id = ? ORDER BY display_order', [result.lastID]);
+    const processedImages = images.map(img => ({
+      id: img.id,
+      url: `/api/room-images/${img.id}`
+    }));
+
     res.status(201).json({
       ...newRoom,
-      amenities: newRoom.amenities ? JSON.parse(newRoom.amenities) : []
+      amenities: newRoom.amenities ? JSON.parse(newRoom.amenities) : [],
+      images: processedImages
     });
   } catch (error) {
     console.error('Erro ao criar quarto:', error);
@@ -553,9 +585,17 @@ app.get('/api/hotels/:hotelId/rooms', async (req, res) => {
       ORDER BY rt.created_at DESC
     `, [hotelId]);
     
-    const roomsWithParsedAmenities = rooms.map(room => ({
-      ...room,
-      amenities: room.amenities ? JSON.parse(room.amenities) : []
+    const roomsWithParsedAmenities = await Promise.all(rooms.map(async (room) => {
+      const images = await db.all('SELECT id FROM room_images WHERE room_type_id = ? ORDER BY display_order', [room.id]);
+      const processedImages = images.map(img => ({
+        id: img.id,
+        url: `/api/room-images/${img.id}`
+      }));
+      return {
+        ...room,
+        amenities: room.amenities ? JSON.parse(room.amenities) : [],
+        images: processedImages
+      };
     }));
     
     res.json(roomsWithParsedAmenities);
@@ -577,10 +617,10 @@ app.get('/api/rooms/:id', async (req, res) => {
       WHERE rt.id = ?
     `, [id]);
     
-    const images = await db.all('SELECT id, image_data, image_type FROM room_images WHERE room_type_id = ? ORDER BY display_order', [id]);
+    const images = await db.all('SELECT id FROM room_images WHERE room_type_id = ? ORDER BY display_order', [id]);
     const processedImages = images.map(img => ({
-      ...img,
-      url: `data:${img.image_type};base64,${img.image_data}`
+      id: img.id,
+      url: `/api/room-images/${img.id}`
     }));
 
     if (!room) {
@@ -1043,6 +1083,28 @@ app.delete('/api/reservations/:id', async (req, res) => {
 });
 
 // --- Rotas de Chat (Comunicação Admin <-> Usuário) ---
+
+// Rota para admin ver todas as conversas (agrupadas por reserva)
+app.get('/api/admin/chat-threads', async (req, res) => {
+  try {
+    const db = await getConnection();
+    // Lista reservas que possuem mensagens, ordenadas pela mensagem mais recente
+    const threads = await db.all(`
+      SELECT DISTINCT r.id as reservation_id, r.guest_name, r.guest_email, h.name as hotel_name,
+      (SELECT content FROM messages m2 WHERE m2.reservation_id = r.id ORDER BY created_at DESC LIMIT 1) as last_message,
+      (SELECT created_at FROM messages m2 WHERE m2.reservation_id = r.id ORDER BY created_at DESC LIMIT 1) as last_message_at,
+      (SELECT COUNT(*) FROM messages m2 WHERE m2.reservation_id = r.id AND m2.read = 0 AND m2.sender_role = 'guest') as unread_count
+      FROM reservations r
+      JOIN messages m ON r.id = m.reservation_id
+      JOIN hotels h ON r.hotel_id = h.id
+      ORDER BY last_message_at DESC
+    `);
+    res.json(threads);
+  } catch (error) {
+    console.error('Erro ao buscar conversas:', error);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
 
 // Listar mensagens de uma reserva
 app.get('/api/chat/:reservationId', async (req, res) => {
