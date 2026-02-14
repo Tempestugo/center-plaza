@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import { getConnection, testConnection } from './database/sqlite-connection.js';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import multer from 'multer';
@@ -78,6 +77,8 @@ app.use('/api', (req, res, next) => {
 
 // Inicializar tabelas auxiliares de infraestrutura
 const initInfraTables = async () => {
+  // Importação dinâmica para evitar crash na inicialização se o módulo falhar
+  const { getConnection } = await import('./database/sqlite-connection.js');
   const db = await getConnection();
   
   // 1. Tabelas de Negócio (Garantir que existem)
@@ -280,6 +281,7 @@ app.get('/api/auth/me', (req, res) => {
 // Login
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
+  const { getConnection } = await import('./database/sqlite-connection.js');
   const db = await getConnection();
   
   const user = await db.get("SELECT * FROM users WHERE username = ? AND password = ?", [username, password]);
@@ -295,6 +297,7 @@ app.post('/api/login', async (req, res) => {
 // Criar Conta (Register)
 app.post('/api/register', async (req, res) => {
   const { username, password } = req.body;
+  const { getConnection } = await import('./database/sqlite-connection.js');
   const db = await getConnection();
   
   try {
@@ -308,6 +311,7 @@ app.post('/api/register', async (req, res) => {
 // Contato (Salvar mensagem)
 app.post('/api/contact', async (req, res) => { 
   const { name, email, message } = req.body;
+  const { getConnection } = await import('./database/sqlite-connection.js');
   const db = await getConnection();
   try {
     await db.run("INSERT INTO contacts (name, email, message) VALUES (?, ?, ?)", [name, email, message]);
@@ -322,6 +326,7 @@ app.post('/api/contact', async (req, res) => {
 // Rota para listar mensagens de contato (Painel Admin)
 app.get('/api/contacts', async (req, res) => {
   try {
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     const contacts = await db.all('SELECT * FROM contacts ORDER BY created_at DESC');
     res.json(contacts);
@@ -354,6 +359,7 @@ app.get('/api/debug', async (req, res) => {
   };
 
   try {
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table'");
     const counts = {};
@@ -373,6 +379,7 @@ app.get('/api/debug', async (req, res) => {
 app.get('/api/room-images/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     const image = await db.get('SELECT image_data, image_type FROM room_images WHERE id = ?', [id]);
     
@@ -402,6 +409,7 @@ app.get('/api/room-images/:id', async (req, res) => {
 // Rota para listar hotéis
 app.get('/api/hotels', async (req, res) => {
   try {
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     let hotels = await db.all('SELECT * FROM hotels ORDER BY created_at DESC');
     
@@ -429,6 +437,7 @@ app.post('/api/hotels', async (req, res) => {
   try {
     const { name, address, city, state, zip_code, phone, email, website, description, amenities } = req.body;
     
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     const result = await db.run(`
       INSERT INTO hotels (name, address, city, state, zip_code, phone, email, website, description, amenities)
@@ -450,6 +459,7 @@ app.post('/api/hotels', async (req, res) => {
 // Rota para listar tipos de quartos
 app.get('/api/rooms', async (req, res) => {
   try {
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     const rooms = await db.all(`
       SELECT rt.*, h.name as hotel_name 
@@ -496,6 +506,7 @@ app.post('/api/rooms', (req, res, next) => {
       max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night
     } = req.body;
     
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     const result = await db.run(`
       INSERT INTO room_types (
@@ -546,6 +557,7 @@ app.post('/api/rooms', (req, res, next) => {
 // Rota para listar reservas
 app.get('/api/reservations', async (req, res) => {
   try {
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     const reservations = await db.all(`
       SELECT r.*, h.name as hotel_name, rt.name as room_type_name
@@ -565,6 +577,7 @@ app.get('/api/reservations', async (req, res) => {
 // Rota para "Minhas Reservas" (Usuário Logado)
 app.get('/api/my-reservations', async (req, res) => {
   try {
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     const reservations = await db.all(`
       SELECT r.*, h.name as hotel_name, rt.name as room_type_name
@@ -584,6 +597,7 @@ app.get('/api/my-reservations', async (req, res) => {
 app.get('/api/hotels/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     const hotel = await db.get('SELECT * FROM hotels WHERE id = ?', [id]);
     
@@ -606,6 +620,7 @@ app.get('/api/hotels/:id', async (req, res) => {
 app.get('/api/hotels/:hotelId/rooms', async (req, res) => {
   try {
     const { hotelId } = req.params;
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     const rooms = await db.all(`
       SELECT rt.*, h.name as hotel_name 
@@ -639,6 +654,7 @@ app.get('/api/hotels/:hotelId/rooms', async (req, res) => {
 app.get('/api/rooms/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     const room = await db.get(`
       SELECT rt.*, h.name as hotel_name 
@@ -674,6 +690,7 @@ app.put('/api/hotels/:id', async (req, res) => {
     const { id } = req.params;
     const { name, address, city, state, zip_code, phone, email, website, description, amenities } = req.body;
     
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     
     const existingHotel = await db.get('SELECT * FROM hotels WHERE id = ?', [id]);
@@ -728,6 +745,7 @@ app.put('/api/rooms/:id', async (req, res) => {
       max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night
     } = req.body;
     
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     
     const existingRoom = await db.get('SELECT id FROM room_types WHERE id = ?', [id]);
@@ -768,6 +786,7 @@ app.put('/api/rooms/:id', async (req, res) => {
 app.get('/api/reservations', async (req, res) => {
   try {
     const { guest_email, code, guest_name } = req.query;
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     
     let query = `
@@ -808,6 +827,7 @@ app.get('/api/reservations', async (req, res) => {
 app.get('/api/reservations/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     const reservation = await db.get(`
       SELECT r.*, h.name as hotel_name, rt.name as room_type_name
@@ -839,6 +859,7 @@ app.post('/api/reservations', async (req, res) => {
 
     const idempotencyKey = req.headers['idempotency-key'];
     
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
 
     if (idempotencyKey) {
@@ -954,6 +975,7 @@ app.put('/api/reservations/:id', async (req, res) => {
       total_amount, special_requests, status
     } = req.body;
     
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     
     const existingReservation = await db.get('SELECT id FROM reservations WHERE id = ?', [id]);
@@ -1012,6 +1034,7 @@ app.patch('/api/reservations/:id/status', async (req, res) => {
       return res.status(400).json({ error: 'Status inválido' });
     }
     
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     await db.run('UPDATE reservations SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [status, id]);
     
@@ -1038,6 +1061,7 @@ app.patch('/api/reservations/:id/status', async (req, res) => {
 app.delete('/api/hotels/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     
     const existingHotel = await db.get('SELECT id FROM hotels WHERE id = ?', [id]);
@@ -1069,6 +1093,7 @@ app.delete('/api/hotels/:id', async (req, res) => {
 app.delete('/api/rooms/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     
     const existingRoom = await db.get('SELECT id FROM room_types WHERE id = ?', [id]);
@@ -1095,6 +1120,7 @@ app.delete('/api/rooms/:id', async (req, res) => {
 app.delete('/api/reservations/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     
     const existingReservation = await db.get('SELECT id FROM reservations WHERE id = ?', [id]);
@@ -1117,6 +1143,7 @@ app.delete('/api/reservations/:id', async (req, res) => {
 // Rota para admin ver todas as conversas (agrupadas por reserva)
 app.get('/api/admin/chat-threads', async (req, res) => {
   try {
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     // Lista reservas que possuem mensagens, ordenadas pela mensagem mais recente
     const threads = await db.all(`
@@ -1140,6 +1167,7 @@ app.get('/api/admin/chat-threads', async (req, res) => {
 app.get('/api/chat/:reservationId', async (req, res) => {
   try {
     const { reservationId } = req.params;
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     
     const messages = await db.all(
@@ -1159,6 +1187,7 @@ app.post('/api/chat/:reservationId', async (req, res) => {
     const { content } = req.body;
     const senderRole = req.user.role;
 
+    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     const result = await db.run(
       'INSERT INTO messages (reservation_id, sender_role, content) VALUES (?, ?, ?)',
