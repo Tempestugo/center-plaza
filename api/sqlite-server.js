@@ -1216,6 +1216,7 @@ app.get('*', (req, res) => {
 
 // Inicialização do Stripe (Assíncrona para evitar Top-Level Await)
 const initStripe = async () => {
+  console.log('💳 Inicializando Stripe...');
   if (process.env.STRIPE_SECRET_KEY) {
     try {
       // Tenta importar dinamicamente para não quebrar se o pacote não estiver instalado
@@ -1230,11 +1231,13 @@ const initStripe = async () => {
 
 // Inicializar servidor
 export async function startServer() {
+  console.log('🚀 startServer iniciado');
   await initStripe();
   try {
     // Garantir que o diretório do banco de dados existe
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
+    console.log(`📂 Diretório base da API: ${__dirname}`);
     const dbDir = path.join(__dirname, 'database');
     
     if (!fs.existsSync(dbDir)) {
@@ -1243,6 +1246,7 @@ export async function startServer() {
     }
 
     // Tentar inicializar o banco de dados
+    console.log('🗄️ Tentando inicializar tabelas do banco de dados...');
     await initInfraTables();
     console.log('✅ Banco de dados inicializado com sucesso');
   } catch (error) {
