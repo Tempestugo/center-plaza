@@ -44,7 +44,7 @@ A API é o "cérebro" do sistema e precisa rodar em um processo Node.js.
 1. Vá para a seção **Site** ou **Hospedagem**.
 2. Procure por **Setup Node.js App** (ou Aplicação Node.js).
 3. Clique em **Criar Nova Aplicação**:
-   - **Versão Node.js:** Escolha a 18 ou superior (Recomendado).
+   - **Versão Node.js:** Escolha a 18 (Recomendado para compatibilidade).
    - **Modo:** Production.
    - **Application Root:** `api` (ou o nome da pasta que você vai criar).
    - **Application Startup File:** `sqlite-server.js`.
