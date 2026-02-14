@@ -1240,7 +1240,7 @@ export async function startServer() {
 
   // Iniciar o servidor IMEDIATAMENTE para evitar timeout (Erro 503)
   const server = app.listen(PORT, () => {
-    console.log(`🚀 Servidor HTTP ouvindo na porta ${PORT}`);
+    console.log(`🚀 Servidor HTTP ouvindo na porta ${PORT} (PID: ${process.pid})`);
     console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
     
     // Inicializar serviços pesados em segundo plano (não bloqueia o servidor)
