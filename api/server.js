@@ -34,11 +34,11 @@ const upload = multer({
 
 // Configuração da conexão MySQL
 const dbConfig = {
-  host: 'host.neuratek.com.br',
-  port: 3307,
-  user: 'usermac',
-  password: 'TH1460-d3v@',
-  database: 'centerplaza',
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT || 3306,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
