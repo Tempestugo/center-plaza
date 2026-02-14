@@ -34,6 +34,8 @@ if (process.env.STRIPE_SECRET_KEY) {
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+let dbInitializationError = null;
+
 // Configuração do Multer para Upload de Imagens (Memória -> Banco de Dados)
 const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } }); // Limite de 5MB
 
@@ -60,6 +62,17 @@ app.use((req, res, next) => {
 // Middleware de log
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
+// Middleware de verificação de saúde do banco para rotas de API
+app.use('/api', (req, res, next) => {
+  if (dbInitializationError && req.path !== '/health' && req.path !== '/debug') {
+    return res.status(500).json({ 
+      error: 'Serviço de banco de dados indisponível', 
+      details: dbInitializationError.message 
+    });
+  }
   next();
 });
 
@@ -320,7 +333,10 @@ app.get('/api/contacts', async (req, res) => {
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ message: 'API do Center Plaza funcionando com SQLite' });
+  res.json({ 
+    message: 'API do Center Plaza funcionando com SQLite',
+    dbStatus: dbInitializationError ? 'error' : 'connected'
+  });
 });
 
 // Rota de Diagnóstico
@@ -347,7 +363,7 @@ app.get('/api/debug', async (req, res) => {
     }
     debugInfo.database = { connected: true, tables: counts };
   } catch (error) {
-    debugInfo.database = { connected: false, error: error.message };
+    debugInfo.database = { connected: false, error: error.message, initError: dbInitializationError?.message };
   }
   
   res.json(debugInfo);
@@ -1179,28 +1195,38 @@ app.get('*', (req, res) => {
 // Inicializar servidor
 export async function startServer() {
   try {
-    // Inicializar banco de dados antes de abrir a porta
-    await initInfraTables();
+    // Garantir que o diretório do banco de dados existe
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const dbDir = path.join(__dirname, 'database');
+    
+    if (!fs.existsSync(dbDir)) {
+      console.log(`📁 Criando diretório do banco de dados: ${dbDir}`);
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
 
+    // Tentar inicializar o banco de dados
+    await initInfraTables();
+    console.log('✅ Banco de dados inicializado com sucesso');
+  } catch (error) {
+    console.error('❌ Erro ao inicializar banco de dados (o servidor continuará):', error);
+    dbInitializationError = error;
+  }
+
+  try {
     // Iniciar o servidor
     app.listen(PORT, async () => {
       console.log(`🚀 Servidor rodando na porta ${PORT}`);
       console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
       
-      // Tentar conectar ao banco em segundo plano (verificação extra)
-      try {
-        const isConnected = await testConnection();
-        if (!isConnected) {
-          console.error('❌ ALERTA: Banco de dados não conectado. Verifique /api/debug');
-        } else {
-          console.log('✅ Banco de dados conectado com sucesso');
-        }
-      } catch (e) {
-        console.error('❌ Erro ao testar conexão:', e.message);
+      if (dbInitializationError) {
+        console.warn('⚠️ AVISO: O servidor iniciou, mas o banco de dados falhou. As rotas de API retornarão erro 500.');
       }
     });
   } catch (error) {
-    console.error('❌ Erro ao iniciar servidor:', error);
+    console.error('❌ Erro FATAL ao iniciar servidor HTTP:', error);
+    // Se não conseguir abrir a porta, aí sim o processo deve falhar
+    process.exit(1);
   }
 }
 
