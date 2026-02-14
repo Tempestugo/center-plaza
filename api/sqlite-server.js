@@ -4,6 +4,7 @@ import { getConnection, testConnection } from './database/sqlite-connection.js';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import multer from 'multer';
+import fs from 'fs';
 
 // Tenta carregar variáveis de ambiente se dotenv estiver instalado (opcional em dev)
 try { import('dotenv/config'); } catch (e) {}
@@ -313,6 +314,18 @@ app.get('/api/health', (req, res) => {
 
 // Rota de Diagnóstico (Para verificar se o banco está vivo na Hostinger)
 app.get('/api/debug', async (req, res) => {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const dbDir = path.join(__dirname, 'database');
+  
+  const debugInfo = {
+    status: 'online',
+    timestamp: new Date().toISOString(),
+    cwd: process.cwd(),
+    dbDirExists: fs.existsSync(dbDir),
+    dbDirContents: fs.existsSync(dbDir) ? fs.readdirSync(dbDir) : 'N/A'
+  };
+
   try {
     const db = await getConnection();
     const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table'");
@@ -321,10 +334,12 @@ app.get('/api/debug', async (req, res) => {
       const count = await db.get(`SELECT COUNT(*) as c FROM ${t.name}`);
       counts[t.name] = count.c;
     }
-    res.json({ status: 'online', tables: counts });
+    debugInfo.database = { connected: true, tables: counts };
   } catch (error) {
-    res.status(500).json({ error: error.message, stack: error.stack });
+    debugInfo.database = { connected: false, error: error.message };
   }
+  
+  res.json(debugInfo);
 });
 
 // Rota para listar hotéis
@@ -1139,23 +1154,25 @@ app.get('*', (req, res) => {
 // Inicializar servidor
 export async function startServer() {
   try {
-    // Testar conexão com banco
-    const isConnected = await testConnection();
-    if (!isConnected) {
-      console.error('❌ Não foi possível conectar ao banco de dados');
-      process.exit(1);
-    }
-    
-    app.listen(PORT, () => {
+    // Iniciar o servidor PRIMEIRO, independentemente do banco
+    app.listen(PORT, async () => {
       console.log(`🚀 Servidor rodando na porta ${PORT}`);
       console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-      console.log(`🏨 Hotéis: http://localhost:${PORT}/api/hotels`);
-      console.log(`🛏️  Quartos: http://localhost:${PORT}/api/rooms`);
-      console.log(`📅 Reservas: http://localhost:${PORT}/api/reservations`);
+      
+      // Tentar conectar ao banco em segundo plano
+      try {
+        const isConnected = await testConnection();
+        if (!isConnected) {
+          console.error('❌ ALERTA: Banco de dados não conectado. Verifique /api/debug');
+        } else {
+          console.log('✅ Banco de dados conectado com sucesso');
+        }
+      } catch (e) {
+        console.error('❌ Erro ao testar conexão:', e.message);
+      }
     });
   } catch (error) {
     console.error('❌ Erro ao iniciar servidor:', error);
-    process.exit(1);
   }
 }
 
