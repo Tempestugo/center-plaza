@@ -4,6 +4,9 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import multer from 'multer';
 import fs from 'fs';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 
 // Tratamento de erros globais para evitar crash silencioso na inicialização
 process.on('uncaughtException', (err) => {
@@ -14,21 +17,11 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // Tenta carregar variáveis de ambiente se dotenv estiver instalado (opcional em dev)
-try { await import('dotenv/config'); } catch (e) {}
+try { require('dotenv').config(); } catch (e) {}
 
 // Configuração do Stripe (Híbrido: Real se tiver chave, Mock se não tiver)
 // Para produção: npm install stripe
 let stripe = { paymentIntents: { create: async () => ({ client_secret: 'mock_secret_dev' }) } };
-
-if (process.env.STRIPE_SECRET_KEY) {
-  try {
-    // Tenta importar dinamicamente para não quebrar se o pacote não estiver instalado
-    const { default: Stripe } = await import('stripe');
-    stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-  } catch (e) {
-    console.warn("⚠️ STRIPE_SECRET_KEY definida, mas pacote 'stripe' não instalado. Usando Mock.");
-  }
-}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -1221,8 +1214,23 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
+// Inicialização do Stripe (Assíncrona para evitar Top-Level Await)
+const initStripe = async () => {
+  if (process.env.STRIPE_SECRET_KEY) {
+    try {
+      // Tenta importar dinamicamente para não quebrar se o pacote não estiver instalado
+      const { default: Stripe } = await import('stripe');
+      stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+      console.log('💳 Stripe inicializado com sucesso');
+    } catch (e) {
+      console.warn("⚠️ STRIPE_SECRET_KEY definida, mas pacote 'stripe' não instalado. Usando Mock.");
+    }
+  }
+};
+
 // Inicializar servidor
 export async function startServer() {
+  await initStripe();
   try {
     // Garantir que o diretório do banco de dados existe
     const __filename = fileURLToPath(import.meta.url);
