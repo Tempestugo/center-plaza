@@ -1,7 +1,7 @@
 // Este arquivo é o ponto de entrada para a hospedagem (Vercel, Hostinger, etc)
 
-console.log('🚀 LOADER: Iniciando server.js...');
-console.log('📂 CWD (Diretório Atual):', process.cwd());
+console.log('🚀 LOADER: Iniciando server.js... (Node ' + process.version + ')');
+console.log('📂 CWD (Diretório Atual):', process.cwd(), '(Esperado terminar em /center-plaza)');
 
 // Captura erros síncronos de inicialização
 process.on('uncaughtException', (err) => {

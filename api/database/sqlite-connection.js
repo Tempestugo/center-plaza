@@ -35,7 +35,7 @@ export async function getConnection() {
       await db.exec('PRAGMA journal_mode = WAL');
       await db.exec('PRAGMA synchronous = NORMAL');
       
-      console.log(`✅ Conectado ao banco SQLite em: ${dbPath}`);
+      console.log(`✅ Conectado ao banco SQLite em: ${dbPath} (Driver carregado)`);
     } catch (error) {
       console.error('❌ Erro ao conectar com SQLite:', error);
       throw error;
