@@ -844,7 +844,7 @@ app.get('*', (req, res) => {
 });
 
 // Inicializar servidor
-async function startServer() {
+export async function startServer() {
   try {
     // Testar conexão com banco
     const isConnected = await testConnection();
