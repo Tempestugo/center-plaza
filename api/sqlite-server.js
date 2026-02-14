@@ -1233,42 +1233,41 @@ const initStripe = async () => {
 export async function startServer() {
   console.log('🚀 startServer iniciado');
   await initStripe();
-  try {
-    // Garantir que o diretório do banco de dados existe
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    console.log(`📂 Diretório base da API: ${__dirname}`);
-    const dbDir = path.join(__dirname, 'database');
-    
-    if (!fs.existsSync(dbDir)) {
-      console.log(`📁 Criando diretório do banco de dados: ${dbDir}`);
+
+  // Garantir que o diretório do banco de dados existe
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const dbDir = path.join(__dirname, 'database');
+  
+  if (!fs.existsSync(dbDir)) {
+    console.log(`📁 Criando diretório do banco de dados: ${dbDir}`);
+    try {
       fs.mkdirSync(dbDir, { recursive: true });
+    } catch (e) {
+      console.error('❌ Erro ao criar diretório do banco:', e);
     }
-
-    // Tentar inicializar o banco de dados
-    console.log('🗄️ Tentando inicializar tabelas do banco de dados...');
-    await initInfraTables();
-    console.log('✅ Banco de dados inicializado com sucesso');
-  } catch (error) {
-    console.error('❌ Erro ao inicializar banco de dados (o servidor continuará):', error);
-    dbInitializationError = error;
   }
 
-  try {
-    // Iniciar o servidor
-    app.listen(PORT, async () => {
-      console.log(`🚀 Servidor rodando na porta ${PORT}`);
-      console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-      
-      if (dbInitializationError) {
-        console.warn('⚠️ AVISO: O servidor iniciou, mas o banco de dados falhou. As rotas de API retornarão erro 500.');
-      }
-    });
-  } catch (error) {
-    console.error('❌ Erro FATAL ao iniciar servidor HTTP:', error);
-    // Se não conseguir abrir a porta, aí sim o processo deve falhar
+  // Iniciar o servidor IMEDIATAMENTE para evitar timeout (Erro 503)
+  const server = app.listen(PORT, async () => {
+    console.log(`🚀 Servidor rodando na porta ${PORT}`);
+    console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+    
+    // Inicializar banco de dados em segundo plano
+    try {
+      console.log('🗄️ Tentando inicializar tabelas do banco de dados...');
+      await initInfraTables();
+      console.log('✅ Banco de dados inicializado com sucesso');
+    } catch (error) {
+      console.error('❌ Erro ao inicializar banco de dados:', error);
+      dbInitializationError = error;
+    }
+  });
+
+  server.on('error', (err) => {
+    console.error('❌ Erro FATAL no servidor HTTP:', err);
     process.exit(1);
-  }
+  });
 }
 
 // Apenas inicia o servidor se este arquivo for executado diretamente (node sqlite-server.js)
