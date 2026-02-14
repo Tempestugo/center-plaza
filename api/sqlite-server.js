@@ -218,7 +218,9 @@ const initInfraTables = async () => {
     }
   }
 };
-initInfraTables();
+
+// Executar inicialização e logar erro se falhar
+initInfraTables().catch(err => console.error("❌ Erro crítico na inicialização do banco:", err));
 
 // Middleware de Autenticação Simulado (Zero Trust)
 // Em produção, isso validaria um JWT ou Sessão real.
@@ -309,12 +311,35 @@ app.get('/api/health', (req, res) => {
   res.json({ message: 'API do Center Plaza funcionando com SQLite' });
 });
 
+// Rota de Diagnóstico (Para verificar se o banco está vivo na Hostinger)
+app.get('/api/debug', async (req, res) => {
+  try {
+    const db = await getConnection();
+    const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table'");
+    const counts = {};
+    for (const t of tables) {
+      const count = await db.get(`SELECT COUNT(*) as c FROM ${t.name}`);
+      counts[t.name] = count.c;
+    }
+    res.json({ status: 'online', tables: counts });
+  } catch (error) {
+    res.status(500).json({ error: error.message, stack: error.stack });
+  }
+});
+
 // Rota para listar hotéis
 app.get('/api/hotels', async (req, res) => {
   try {
     const db = await getConnection();
-    const hotels = await db.all('SELECT * FROM hotels ORDER BY created_at DESC');
+    let hotels = await db.all('SELECT * FROM hotels ORDER BY created_at DESC');
     
+    // Fallback: Se não tiver hotéis (banco vazio/novo), tenta criar os dados padrão
+    if (hotels.length === 0) {
+      console.log('📭 Nenhum hotel encontrado. Tentando repopular o banco...');
+      await initInfraTables();
+      hotels = await db.all('SELECT * FROM hotels ORDER BY created_at DESC');
+    }
+
     // Parse amenities JSON and add location field
     const hotelsWithParsedAmenities = hotels.map(hotel => ({
       ...hotel,
@@ -388,7 +413,16 @@ app.get('/api/rooms', async (req, res) => {
 });
 
 // Rota para criar tipo de quarto
-app.post('/api/rooms', upload.array('images'), async (req, res) => {
+// Com tratamento de erro explícito para o Multer
+app.post('/api/rooms', (req, res, next) => {
+  upload.array('images')(req, res, (err) => {
+    if (err) {
+      console.error('❌ Erro no Upload (Multer):', err);
+      return res.status(400).json({ error: 'Erro no upload de imagem: ' + err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
     const {
       hotel_id, name, description, size_sqm, bed_type, bed_count,
@@ -1095,6 +1129,43 @@ const distPath = path.join(__dirname, '../dist');
 app.use(express.static(distPath));
 
 // Qualquer rota não-API retorna o index.html do React (SPA)
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'Rota não encontrada' });
+  }
+  res.sendFile(path.join(distPath, 'index.html'));
+});
+
+// Inicializar servidor
+export async function startServer() {
+  try {
+    // Testar conexão com banco
+    const isConnected = await testConnection();
+    if (!isConnected) {
+      console.error('❌ Não foi possível conectar ao banco de dados');
+      process.exit(1);
+    }
+    
+    app.listen(PORT, () => {
+      console.log(`🚀 Servidor rodando na porta ${PORT}`);
+      console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+      console.log(`🏨 Hotéis: http://localhost:${PORT}/api/hotels`);
+      console.log(`🛏️  Quartos: http://localhost:${PORT}/api/rooms`);
+      console.log(`📅 Reservas: http://localhost:${PORT}/api/reservations`);
+    });
+  } catch (error) {
+    console.error('❌ Erro ao iniciar servidor:', error);
+    process.exit(1);
+  }
+}
+
+// Apenas inicia o servidor se este arquivo for executado diretamente (node sqlite-server.js)
+// Se for importado por um teste, não inicia automaticamente.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  startServer();
+}
+
+export { app };a não-API retorna o index.html do React (SPA)
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) {
     return res.status(404).json({ error: 'Rota não encontrada' });
