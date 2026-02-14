@@ -11,23 +11,35 @@ try { import('dotenv/config'); } catch (e) {}
 
 // Configuração do Stripe (Híbrido: Real se tiver chave, Mock se não tiver)
 // Para produção: npm install stripe
-let stripe;
+let stripe = { paymentIntents: { create: async () => ({ client_secret: 'mock_secret_dev' }) } };
+
 if (process.env.STRIPE_SECRET_KEY) {
-  // import Stripe from 'stripe'; // Descomente esta linha em produção real
-  // stripe = new Stripe(process.env.STRIPE_SECRET_KEY); // Descomente esta linha
-} else {
-  stripe = { paymentIntents: { create: async () => ({ client_secret: 'mock_secret_dev' }) } };
+  try {
+    // Tenta importar dinamicamente para não quebrar se o pacote não estiver instalado
+    const { default: Stripe } = await import('stripe');
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  } catch (e) {
+    console.warn("⚠️ STRIPE_SECRET_KEY definida, mas pacote 'stripe' não instalado. Usando Mock.");
+  }
 }
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Configuração do Multer para Upload de Imagens (Memória -> Banco de Dados)
-const storage = multer.memoryStorage();
 const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } }); // Limite de 5MB
 
 // Middleware
 app.use(cors());
+
+// ⚠️ IMPORTANTE: Webhook do Stripe deve vir ANTES do express.json global
+// para garantir que o corpo da requisição não seja processado incorretamente.
+app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), (req, res) => {
+  // Em produção: Validar assinatura do webhook para garantir que veio do Stripe
+  console.log('Webhook do Stripe recebido');
+  res.json({received: true});
+});
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -168,7 +180,6 @@ const initInfraTables = async () => {
   `);
 
   // Adicionar colunas de pagamento à tabela de reservas se não existirem (migração simplificada)
-  // Em produção, use uma ferramenta de migração real.
   try {
     await db.run("ALTER TABLE reservations ADD COLUMN stripe_payment_intent_id TEXT");
     await db.run("ALTER TABLE reservations ADD COLUMN payment_status TEXT DEFAULT 'pending'");
@@ -220,20 +231,15 @@ const initInfraTables = async () => {
   }
 };
 
-// Executar inicialização e logar erro se falhar
-initInfraTables().catch(err => console.error("❌ Erro crítico na inicialização do banco:", err));
-
 // Middleware de Autenticação Simulado (Zero Trust)
-// Em produção, isso validaria um JWT ou Sessão real.
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const adminSecret = process.env.ADMIN_SECRET || 'Admin-Secret-123';
   
-  // Verifica se o header bate com o segredo (do .env ou padrão)
   if (authHeader === adminSecret || authHeader === 'Bearer admin-token') {
     req.user = { role: 'admin', id: 1 };
   } else {
-    req.user = { role: 'guest', id: 0 }; // ID 0 ou IP para guests anônimos
+    req.user = { role: 'guest', id: 0 };
   }
   next();
 };
@@ -242,13 +248,11 @@ app.use(authMiddleware);
 
 // Rota para o Frontend decidir se mostra o botão de Admin
 app.get('/api/auth/me', (req, res) => {
-  // O frontend chama isso ao carregar. Se role for 'guest', esconde o botão.
   res.json({ 
     role: req.user.role,
     permissions: req.user.role === 'admin' ? ['view_admin', 'manage_reservations'] : ['view_public']
-  `);
-};
-initInfraTables();
+  });
+});
 
 // --- Rotas de Autenticação e Contato ---
 
@@ -260,7 +264,6 @@ app.post('/api/login', async (req, res) => {
   const user = await db.get("SELECT * FROM users WHERE username = ? AND password = ?", [username, password]);
   
   if (user) {
-    // Em produção, gere um JWT real.
     const token = user.role === 'admin' ? 'Bearer admin-token' : 'Bearer user-token';
     res.json({ token, role: user.role, username: user.username });
   } else {
@@ -312,7 +315,7 @@ app.get('/api/health', (req, res) => {
   res.json({ message: 'API do Center Plaza funcionando com SQLite' });
 });
 
-// Rota de Diagnóstico (Para verificar se o banco está vivo na Hostinger)
+// Rota de Diagnóstico
 app.get('/api/debug', async (req, res) => {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
@@ -348,17 +351,15 @@ app.get('/api/hotels', async (req, res) => {
     const db = await getConnection();
     let hotels = await db.all('SELECT * FROM hotels ORDER BY created_at DESC');
     
-    // Fallback: Se não tiver hotéis (banco vazio/novo), tenta criar os dados padrão
     if (hotels.length === 0) {
       console.log('📭 Nenhum hotel encontrado. Tentando repopular o banco...');
       await initInfraTables();
       hotels = await db.all('SELECT * FROM hotels ORDER BY created_at DESC');
     }
 
-    // Parse amenities JSON and add location field
     const hotelsWithParsedAmenities = hotels.map(hotel => ({
       ...hotel,
-      location: hotel.address, // Adicionar campo location para compatibilidade
+      location: hotel.address,
       amenities: hotel.amenities ? JSON.parse(hotel.amenities) : []
     }));
     
@@ -403,11 +404,9 @@ app.get('/api/rooms', async (req, res) => {
       ORDER BY rt.created_at DESC
     `);
     
-    // Buscar imagens e parsear amenities
     const roomsWithParsedAmenities = await Promise.all(rooms.map(async (room) => {
       const images = await db.all('SELECT id, image_data, image_type FROM room_images WHERE room_type_id = ? ORDER BY display_order', [room.id]);
       
-      // Converter imagens para formato que o frontend entenda (Data URL)
       const processedImages = images.map(img => ({
         ...img,
         url: `data:${img.image_type};base64,${img.image_data}`
@@ -428,7 +427,6 @@ app.get('/api/rooms', async (req, res) => {
 });
 
 // Rota para criar tipo de quarto
-// Com tratamento de erro explícito para o Multer
 app.post('/api/rooms', (req, res, next) => {
   upload.array('images')(req, res, (err) => {
     if (err) {
@@ -462,7 +460,6 @@ app.post('/api/rooms', (req, res, next) => {
       WHERE rt.id = ?
     `, [result.lastID]);
     
-    // Salvar imagens se houver
     if (req.files && req.files.length > 0) {
       for (let i = 0; i < req.files.length; i++) {
         const file = req.files[i];
@@ -506,13 +503,6 @@ app.get('/api/reservations', async (req, res) => {
 // Rota para "Minhas Reservas" (Usuário Logado)
 app.get('/api/my-reservations', async (req, res) => {
   try {
-    // Em um cenário real, usaríamos o ID do usuário do token. 
-    // Como o sistema de login é simplificado, vamos filtrar pelo username/email se disponível no req.user
-    // ou retornar erro se não estiver logado.
-    // Para facilitar o teste, se for admin retorna tudo, se for user tenta filtrar.
-    
-    // Implementação simplificada: Retorna reservas onde o email bate com o usuário logado (se tivermos essa info)
-    // ou retorna vazio se não tiver info.
     const db = await getConnection();
     const reservations = await db.all(`
       SELECT r.*, h.name as hotel_name, rt.name as room_type_name
@@ -521,7 +511,7 @@ app.get('/api/my-reservations', async (req, res) => {
       JOIN room_types rt ON r.room_type_id = rt.id
       ORDER BY r.created_at DESC
     `);
-    res.json(reservations); // Retornando tudo por enquanto para garantir que apareça algo na tela "Minha Conta"
+    res.json(reservations);
   } catch (error) {
     console.error('Erro ao buscar reservas:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
@@ -541,7 +531,7 @@ app.get('/api/hotels/:id', async (req, res) => {
     
     res.json({
       ...hotel,
-      location: hotel.address, // Adicionar campo location para compatibilidade
+      location: hotel.address,
       amenities: hotel.amenities ? JSON.parse(hotel.amenities) : []
     });
   } catch (error) {
@@ -616,13 +606,11 @@ app.put('/api/hotels/:id', async (req, res) => {
     
     const db = await getConnection();
     
-    // Verificar se hotel existe e buscar dados atuais
     const existingHotel = await db.get('SELECT * FROM hotels WHERE id = ?', [id]);
     if (!existingHotel) {
       return res.status(404).json({ error: 'Hotel não encontrado' });
     }
     
-    // Usar valores existentes se não fornecidos
     const updatedData = {
       name: name !== undefined ? name : existingHotel.name,
       address: address !== undefined ? address : existingHotel.address,
@@ -652,7 +640,7 @@ app.put('/api/hotels/:id', async (req, res) => {
     
     res.json({
       ...updatedHotel,
-      location: updatedHotel.address, // Adicionar campo location para compatibilidade
+      location: updatedHotel.address,
       amenities: updatedHotel.amenities ? JSON.parse(updatedHotel.amenities) : []
     });
   } catch (error) {
@@ -670,12 +658,8 @@ app.put('/api/rooms/:id', async (req, res) => {
       max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night
     } = req.body;
     
-    console.log('🔄 Atualizando quarto ID:', id);
-    console.log('📝 Dados recebidos:', req.body);
-    
     const db = await getConnection();
     
-    // Verificar se quarto existe
     const existingRoom = await db.get('SELECT id FROM room_types WHERE id = ?', [id]);
     if (!existingRoom) {
       return res.status(404).json({ error: 'Quarto não encontrado' });
@@ -699,8 +683,6 @@ app.put('/api/rooms/:id', async (req, res) => {
       JOIN hotels h ON rt.hotel_id = h.id 
       WHERE rt.id = ?
     `, [id]);
-    
-    console.log('✅ Quarto atualizado:', updatedRoom);
     
     res.json({
       ...updatedRoom,
@@ -789,7 +771,6 @@ app.post('/api/reservations', async (req, res) => {
     
     const db = await getConnection();
 
-    // RESILIÊNCIA: Verificação de Idempotência (Antes de qualquer processamento)
     if (idempotencyKey) {
       const cached = await db.get('SELECT * FROM idempotency_keys WHERE key = ?', [idempotencyKey]);
       if (cached) {
@@ -798,17 +779,14 @@ app.post('/api/reservations', async (req, res) => {
       }
     }
 
-    // 0. SEGURANÇA: Validação de entrada (OWASP - Business Logic)
     const today = new Date().toISOString().split('T')[0];
     if (check_in_date < today) {
       return res.status(400).json({ error: 'A data de check-in não pode ser no passado.' });
     }
 
-    // INTEGRIDADE DE DADOS: Iniciar Transação ACID (Prevent Race Conditions)
     await db.run('BEGIN EXCLUSIVE TRANSACTION');
 
     try {
-      // 1. REGRA DE NEGÓCIO: Verificar conflito de datas (Overbooking) dentro da transação
       const conflict = await db.get(`
         SELECT COUNT(*) as count FROM reservations 
         WHERE room_type_id = ? 
@@ -824,7 +802,6 @@ app.post('/api/reservations', async (req, res) => {
          return res.status(409).json({ error: 'Quarto indisponível para as datas selecionadas' });
       }
 
-      // 2. SEGURANÇA: Recalcular o valor total no backend
       const room = await db.get('SELECT price_per_night FROM room_types WHERE id = ?', [room_type_id]);
       if (!room) {
         await db.run('ROLLBACK');
@@ -856,7 +833,6 @@ app.post('/api/reservations', async (req, res) => {
         WHERE r.id = ?
       `, [result.lastID]);
       
-      // Salvar chave de idempotência dentro da transação para garantir consistência
       if (idempotencyKey) {
         await db.run(`
           INSERT INTO idempotency_keys (key, response, status_code)
@@ -864,11 +840,11 @@ app.post('/api/reservations', async (req, res) => {
         `, [idempotencyKey, JSON.stringify(newReservation), 201]);
       }
 
-      await db.run('COMMIT'); // Confirma a transação
+      await db.run('COMMIT');
       res.status(201).json(newReservation);
 
     } catch (error) {
-      await db.run('ROLLBACK'); // Reverte em caso de erro
+      await db.run('ROLLBACK');
       console.error('Erro ao criar reserva:', error);
       res.status(500).json({ error: 'Erro interno do servidor' });
     }
@@ -879,16 +855,12 @@ app.post('/api/reservations', async (req, res) => {
 });
 
 // Rota para criar Intenção de Pagamento (Stripe)
-// Padrão PCI-DSS: O backend cria a intenção, o frontend coleta o cartão e confirma diretamente com o Stripe.
 app.post('/api/create-payment-intent', async (req, res) => {
   try {
     const { amount, currency = 'brl', reservation_id } = req.body;
 
-    // 1. Validar se o valor corresponde à reserva no banco (Segurança)
-    // Aqui simplificado, mas em produção deve-se buscar a reserva e usar o valor dela.
-    
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Stripe usa centavos
+      amount: Math.round(amount * 100),
       currency,
       metadata: { reservation_id }
     });
@@ -900,13 +872,6 @@ app.post('/api/create-payment-intent', async (req, res) => {
     console.error('Erro no Stripe:', error);
     res.status(500).send({ error: error.message });
   }
-});
-
-// Webhook do Stripe (Essencial para confirmar pagamentos assíncronos como Boleto/Pix)
-app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), (req, res) => {
-  // Em produção: Validar assinatura do webhook para garantir que veio do Stripe
-  console.log('Webhook do Stripe recebido');
-  res.json({received: true});
 });
 
 // Rota para atualizar reserva completa
@@ -921,18 +886,15 @@ app.put('/api/reservations/:id', async (req, res) => {
     
     const db = await getConnection();
     
-    // Verificar se a reserva existe
     const existingReservation = await db.get('SELECT id FROM reservations WHERE id = ?', [id]);
     if (!existingReservation) {
       return res.status(404).json({ error: 'Reserva não encontrada' });
     }
     
-    // Validar status se fornecido
     if (status && !['pending', 'confirmed', 'cancelled'].includes(status)) {
       return res.status(400).json({ error: 'Status inválido' });
     }
     
-    // Atualizar reserva
     await db.run(`
       UPDATE reservations SET 
         hotel_id = COALESCE(?, hotel_id),
@@ -955,7 +917,6 @@ app.put('/api/reservations/:id', async (req, res) => {
       total_amount, special_requests, status, id
     ]);
     
-    // Buscar reserva atualizada
     const updatedReservation = await db.get(`
       SELECT r.*, h.name as hotel_name, rt.name as room_type_name
       FROM reservations r
@@ -1009,25 +970,21 @@ app.delete('/api/hotels/:id', async (req, res) => {
     const { id } = req.params;
     const db = await getConnection();
     
-    // Verificar se hotel existe
     const existingHotel = await db.get('SELECT id FROM hotels WHERE id = ?', [id]);
     if (!existingHotel) {
       return res.status(404).json({ error: 'Hotel não encontrado' });
     }
     
-    // Verificar se há quartos associados
     const roomsCount = await db.get('SELECT COUNT(*) as count FROM room_types WHERE hotel_id = ?', [id]);
     if (roomsCount.count > 0) {
       return res.status(400).json({ error: 'Não é possível excluir hotel com quartos cadastrados. Exclua os quartos primeiro.' });
     }
     
-    // Verificar se há reservas associadas
     const reservationsCount = await db.get('SELECT COUNT(*) as count FROM reservations WHERE hotel_id = ?', [id]);
     if (reservationsCount.count > 0) {
       return res.status(400).json({ error: 'Não é possível excluir hotel com reservas. Cancele as reservas primeiro.' });
     }
     
-    // Deletar hotel
     await db.run('DELETE FROM hotels WHERE id = ?', [id]);
     
     console.log(`✅ Hotel ID ${id} deletado com sucesso`);
@@ -1044,19 +1001,16 @@ app.delete('/api/rooms/:id', async (req, res) => {
     const { id } = req.params;
     const db = await getConnection();
     
-    // Verificar se quarto existe
     const existingRoom = await db.get('SELECT id FROM room_types WHERE id = ?', [id]);
     if (!existingRoom) {
       return res.status(404).json({ error: 'Quarto não encontrado' });
     }
     
-    // Verificar se há reservas associadas
     const reservationsCount = await db.get('SELECT COUNT(*) as count FROM reservations WHERE room_type_id = ?', [id]);
     if (reservationsCount.count > 0) {
       return res.status(400).json({ error: 'Não é possível excluir quarto com reservas. Cancele as reservas primeiro.' });
     }
     
-    // Deletar quarto
     await db.run('DELETE FROM room_types WHERE id = ?', [id]);
     
     console.log(`✅ Quarto ID ${id} deletado com sucesso`);
@@ -1073,13 +1027,11 @@ app.delete('/api/reservations/:id', async (req, res) => {
     const { id } = req.params;
     const db = await getConnection();
     
-    // Verificar se reserva existe
     const existingReservation = await db.get('SELECT id FROM reservations WHERE id = ?', [id]);
     if (!existingReservation) {
       return res.status(404).json({ error: 'Reserva não encontrada' });
     }
     
-    // Deletar reserva
     await db.run('DELETE FROM reservations WHERE id = ?', [id]);
     
     console.log(`✅ Reserva ID ${id} deletada com sucesso`);
@@ -1098,9 +1050,6 @@ app.get('/api/chat/:reservationId', async (req, res) => {
     const { reservationId } = req.params;
     const db = await getConnection();
     
-    // Segurança: Verificar se o usuário tem permissão para ver essas mensagens
-    // (Se é admin ou se é o dono da reserva)
-
     const messages = await db.all(
       'SELECT * FROM messages WHERE reservation_id = ? ORDER BY created_at ASC',
       [reservationId]
@@ -1116,7 +1065,7 @@ app.post('/api/chat/:reservationId', async (req, res) => {
   try {
     const { reservationId } = req.params;
     const { content } = req.body;
-    const senderRole = req.user.role; // 'admin' ou 'guest' (do middleware)
+    const senderRole = req.user.role;
 
     const db = await getConnection();
     const result = await db.run(
@@ -1154,12 +1103,15 @@ app.get('*', (req, res) => {
 // Inicializar servidor
 export async function startServer() {
   try {
-    // Iniciar o servidor PRIMEIRO, independentemente do banco
+    // Inicializar banco de dados antes de abrir a porta
+    await initInfraTables();
+
+    // Iniciar o servidor
     app.listen(PORT, async () => {
       console.log(`🚀 Servidor rodando na porta ${PORT}`);
       console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
       
-      // Tentar conectar ao banco em segundo plano
+      // Tentar conectar ao banco em segundo plano (verificação extra)
       try {
         const isConnected = await testConnection();
         if (!isConnected) {
@@ -1177,46 +1129,6 @@ export async function startServer() {
 }
 
 // Apenas inicia o servidor se este arquivo for executado diretamente (node sqlite-server.js)
-// Se for importado por um teste, não inicia automaticamente.
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  startServer();
-}
-
-export { app };a não-API retorna o index.html do React (SPA)
-app.get('*', (req, res) => {
-  if (req.path.startsWith('/api')) {
-    return res.status(404).json({ error: 'Rota não encontrada' });
-  }
-  res.sendFile(path.join(distPath, 'index.html'));
-});
-
-// Inicializar servidor
-export async function startServer() {
-  try {
-    // Iniciar o servidor PRIMEIRO, independentemente do banco
-    app.listen(PORT, async () => {
-      console.log(`🚀 Servidor rodando na porta ${PORT}`);
-      console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-      
-      // Tentar conectar ao banco em segundo plano
-      try {
-        const isConnected = await testConnection();
-        if (!isConnected) {
-          console.error('❌ ALERTA: Banco de dados não conectado. Verifique /api/debug');
-        } else {
-          console.log('✅ Banco de dados conectado com sucesso');
-        }
-      } catch (e) {
-        console.error('❌ Erro ao testar conexão:', e.message);
-      }
-    });
-  } catch (error) {
-    console.error('❌ Erro ao iniciar servidor:', error);
-  }
-}
-
-// Apenas inicia o servidor se este arquivo for executado diretamente (node sqlite-server.js)
-// Se for importado por um teste, não inicia automaticamente.
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   startServer();
 }
