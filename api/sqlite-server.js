@@ -356,7 +356,13 @@ app.get('/api/room-images/:id', async (req, res) => {
       return res.status(404).send('Imagem não encontrada');
     }
     
-    const imgBuffer = Buffer.from(image.image_data, 'base64');
+    let base64Data = image.image_data;
+    // Limpeza de segurança: se o banco tiver o prefixo data:image/..., removemos para não quebrar o Buffer
+    if (base64Data.includes('base64,')) {
+        base64Data = base64Data.split('base64,')[1];
+    }
+
+    const imgBuffer = Buffer.from(base64Data, 'base64');
     res.writeHead(200, {
       'Content-Type': image.image_type,
       'Content-Length': imgBuffer.length,
