@@ -6,6 +6,10 @@ const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
+  // Em produção (Hostinger), usar caminho relativo para que o navegador use o domínio atual
+  if (import.meta.env.PROD) {
+    return '/api';
+  }
   // Em desenvolvimento, usar API local
   return 'http://localhost:3001/api';
 };
