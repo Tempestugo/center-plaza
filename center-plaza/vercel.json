@@ -1,0 +1,10 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/((?!assets/|favicon\\.svg|placeholder\\.svg|robots\\.txt).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
