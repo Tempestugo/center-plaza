@@ -40,6 +40,71 @@ app.use((req, res, next) => {
 // Inicializar tabelas auxiliares de infraestrutura
 const initInfraTables = async () => {
   const db = await getConnection();
+  
+  // 1. Tabelas de Negócio (Garantir que existem)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS hotels (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      address TEXT,
+      city TEXT,
+      state TEXT,
+      zip_code TEXT,
+      phone TEXT,
+      email TEXT,
+      website TEXT,
+      description TEXT,
+      amenities TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS room_types (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      hotel_id INTEGER,
+      name TEXT NOT NULL,
+      description TEXT,
+      size_sqm REAL,
+      bed_type TEXT,
+      bed_count INTEGER,
+      max_occupancy INTEGER,
+      amenities TEXT,
+      bathroom_type TEXT,
+      smoking_allowed BOOLEAN,
+      price_per_night REAL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(hotel_id) REFERENCES hotels(id)
+    )
+  `);
+
+  // Tabela de Reservas (Criar se não existir)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS reservations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      hotel_id INTEGER,
+      room_type_id INTEGER,
+      guest_name TEXT,
+      guest_email TEXT,
+      guest_phone TEXT,
+      guest_document TEXT,
+      check_in_date DATE,
+      check_out_date DATE,
+      number_of_guests INTEGER,
+      total_amount REAL,
+      special_requests TEXT,
+      status TEXT DEFAULT 'pending',
+      stripe_payment_intent_id TEXT,
+      payment_status TEXT DEFAULT 'pending',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(hotel_id) REFERENCES hotels(id),
+      FOREIGN KEY(room_type_id) REFERENCES room_types(id)
+    )
+  `);
+
   await db.run(`
     CREATE TABLE IF NOT EXISTS idempotency_keys (
       key TEXT PRIMARY KEY,
@@ -81,11 +146,30 @@ const initInfraTables = async () => {
     // Colunas já existem ou erro ignorável em dev
   }
 
-  // Criar usuário ADMIN padrão se não existir
-  const adminExists = await db.get("SELECT * FROM users WHERE username = 'admin'");
-  if (!adminExists) {
-    // Em produção, use bcrypt para hashear a senha! Aqui é texto plano para simplificar o exemplo.
-    await db.run("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", ['admin', 'admin', 'admin']);
+  // Criar/Atualizar usuário ADMIN para formato de email
+  const adminUser = await db.get("SELECT * FROM users WHERE username = 'admin' OR username = 'admin@centerplaza.com'");
+  
+  if (!adminUser) {
+    await db.run("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", ['admin@centerplaza.com', 'admin', 'admin']);
+    console.log("✅ Usuário admin criado: admin@centerplaza.com / admin");
+  } else if (adminUser.username === 'admin') {
+    // Migrar usuário antigo para email
+    await db.run("UPDATE users SET username = ? WHERE id = ?", ['admin@centerplaza.com', adminUser.id]);
+    console.log("✅ Usuário admin atualizado para: admin@centerplaza.com");
+  }
+
+  // Criar Hotel de Exemplo se não existir nenhum
+  const hotelCount = await db.get("SELECT COUNT(*) as count FROM hotels");
+  if (hotelCount.count === 0) {
+    await db.run(`
+      INSERT INTO hotels (name, address, city, state, description, amenities)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [
+      'Center Plaza Hotel', 'Av. Central, 100', 'São Paulo', 'SP', 
+      'O melhor hotel da região com conforto e qualidade.', 
+      JSON.stringify(['Wi-Fi', 'Café da manhã', 'Estacionamento', 'Piscina'])
+    ]);
+    console.log("✅ Hotel de exemplo criado.");
   }
 };
 initInfraTables();
