@@ -1193,23 +1193,25 @@ app.get('*', (req, res) => {
 // Inicializar servidor
 export async function startServer() {
   try {
-    // Testar conexão com banco
-    const isConnected = await testConnection();
-    if (!isConnected) {
-      console.error('❌ Não foi possível conectar ao banco de dados');
-      process.exit(1);
-    }
-    
-    app.listen(PORT, () => {
+    // Iniciar o servidor PRIMEIRO, independentemente do banco
+    app.listen(PORT, async () => {
       console.log(`🚀 Servidor rodando na porta ${PORT}`);
       console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-      console.log(`🏨 Hotéis: http://localhost:${PORT}/api/hotels`);
-      console.log(`🛏️  Quartos: http://localhost:${PORT}/api/rooms`);
-      console.log(`📅 Reservas: http://localhost:${PORT}/api/reservations`);
+      
+      // Tentar conectar ao banco em segundo plano
+      try {
+        const isConnected = await testConnection();
+        if (!isConnected) {
+          console.error('❌ ALERTA: Banco de dados não conectado. Verifique /api/debug');
+        } else {
+          console.log('✅ Banco de dados conectado com sucesso');
+        }
+      } catch (e) {
+        console.error('❌ Erro ao testar conexão:', e.message);
+      }
     });
   } catch (error) {
     console.error('❌ Erro ao iniciar servidor:', error);
-    process.exit(1);
   }
 }
 
