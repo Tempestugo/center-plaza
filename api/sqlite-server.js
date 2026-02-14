@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { getConnection, testConnection } from './database/sqlite-connection.js';
 import { fileURLToPath } from 'url';
+import path from 'path';
 
 // Tenta carregar variáveis de ambiente se dotenv estiver instalado (opcional em dev)
 try { import('dotenv/config'); } catch (e) {}
@@ -827,9 +828,19 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Erro interno do servidor' });
 });
 
-// Rota 404
-app.use('*', (req, res) => {
-  res.status(404).json({ error: 'Rota não encontrada' });
+// Servir arquivos estáticos do Frontend (React/Vite)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const distPath = path.join(__dirname, '../dist');
+
+app.use(express.static(distPath));
+
+// Qualquer rota não-API retorna o index.html do React (SPA)
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'Rota não encontrada' });
+  }
+  res.sendFile(path.join(distPath, 'index.html'));
 });
 
 // Inicializar servidor
