@@ -62,6 +62,16 @@ const initInfraTables = async () => {
     )
   `);
 
+  // Tabela de Usuários (Login)
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE,
+      password TEXT,
+      role TEXT DEFAULT 'user'
+    )
+  `);
+
   // Adicionar colunas de pagamento à tabela de reservas se não existirem (migração simplificada)
   // Em produção, use uma ferramenta de migração real.
   try {
@@ -69,6 +79,13 @@ const initInfraTables = async () => {
     await db.run("ALTER TABLE reservations ADD COLUMN payment_status TEXT DEFAULT 'pending'");
   } catch (e) {
     // Colunas já existem ou erro ignorável em dev
+  }
+
+  // Criar usuário ADMIN padrão se não existir
+  const adminExists = await db.get("SELECT * FROM users WHERE username = 'admin'");
+  if (!adminExists) {
+    // Em produção, use bcrypt para hashear a senha! Aqui é texto plano para simplificar o exemplo.
+    await db.run("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", ['admin', 'admin', 'admin']);
   }
 };
 initInfraTables();
@@ -80,7 +97,7 @@ const authMiddleware = (req, res, next) => {
   const adminSecret = process.env.ADMIN_SECRET || 'Admin-Secret-123';
   
   // Verifica se o header bate com o segredo (do .env ou padrão)
-  if (authHeader === adminSecret) {
+  if (authHeader === adminSecret || authHeader === 'Bearer admin-token') {
     req.user = { role: 'admin', id: 1 };
   } else {
     req.user = { role: 'guest', id: 0 }; // ID 0 ou IP para guests anônimos
@@ -99,6 +116,45 @@ app.get('/api/auth/me', (req, res) => {
   `);
 };
 initInfraTables();
+
+// --- Rotas de Autenticação e Contato ---
+
+// Login
+app.post('/api/login', async (req, res) => {
+  const { username, password } = req.body;
+  const db = await getConnection();
+  
+  const user = await db.get("SELECT * FROM users WHERE username = ? AND password = ?", [username, password]);
+  
+  if (user) {
+    // Em produção, gere um JWT real.
+    const token = user.role === 'admin' ? 'Bearer admin-token' : 'Bearer user-token';
+    res.json({ token, role: user.role, username: user.username });
+  } else {
+    res.status(401).json({ error: 'Credenciais inválidas' });
+  }
+});
+
+// Criar Conta (Register)
+app.post('/api/register', async (req, res) => {
+  const { username, password } = req.body;
+  const db = await getConnection();
+  
+  try {
+    await db.run("INSERT INTO users (username, password, role) VALUES (?, ?, 'user')", [username, password]);
+    res.status(201).json({ message: 'Usuário criado com sucesso' });
+  } catch (error) {
+    res.status(400).json({ error: 'Usuário já existe ou erro nos dados' });
+  }
+});
+
+// Contato (Salvar mensagem)
+app.post('/api/contact', async (req, res) => {
+  const { name, email, message } = req.body;
+  // Aqui você poderia salvar numa tabela 'contacts' ou enviar email
+  console.log(`📩 Novo contato de ${name} (${email}): ${message}`);
+  res.json({ message: 'Mensagem recebida com sucesso!' });
+});
 
 // Health check
 app.get('/api/health', (req, res) => {
