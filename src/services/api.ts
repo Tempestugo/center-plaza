@@ -39,6 +39,7 @@ export interface RoomType {
   amenities?: string[];
   created_at?: string;
   updated_at?: string;
+  images?: { id: number; url: string }[];
 }
 
 export interface Reservation {
