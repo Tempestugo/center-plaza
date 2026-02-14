@@ -292,6 +292,18 @@ app.post('/api/contact', async (req, res) => {
   }
 });
 
+// Rota para listar mensagens de contato (Painel Admin)
+app.get('/api/contacts', async (req, res) => {
+  try {
+    const db = await getConnection();
+    const contacts = await db.all('SELECT * FROM contacts ORDER BY created_at DESC');
+    res.json(contacts);
+  } catch (error) {
+    console.error('Erro ao buscar contatos:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ message: 'API do Center Plaza funcionando com SQLite' });
