@@ -19,7 +19,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async initializeDatabase() {
-    const dbDir = path.join(process.cwd(), 'api', 'database');
+    // Ajuste de caminho para garantir funcionamento na Hostinger e Local
+    const dbDir = path.join(process.cwd(), 'database');
     if (!fs.existsSync(dbDir)) {
       fs.mkdirSync(dbDir, { recursive: true });
     }
@@ -50,7 +51,6 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async initInfraTables() {
-    // Migração da lógica de criação de tabelas do sqlite-server.js
     await this.db.run(`
       CREATE TABLE IF NOT EXISTS hotels (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -126,23 +126,11 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     `);
 
     await this.db.run(`
-      CREATE TABLE IF NOT EXISTS idempotency_keys (
-        key TEXT PRIMARY KEY,
-        response TEXT,
-        status_code INTEGER,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await this.db.run(`
-      CREATE TABLE IF NOT EXISTS messages (
+      CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        reservation_id INTEGER,
-        sender_role TEXT CHECK(sender_role IN ('admin', 'guest')),
-        content TEXT,
-        read BOOLEAN DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(reservation_id) REFERENCES reservations(id)
+        username TEXT UNIQUE,
+        password TEXT,
+        role TEXT DEFAULT 'user'
       )
     `);
 
@@ -156,16 +144,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       )
     `);
 
-    await this.db.run(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE,
-        password TEXT,
-        role TEXT DEFAULT 'user'
-      )
-    `);
-
-    // Seed inicial se necessário (Admin)
+    // Seed Admin
     const adminUser = await this.db.get("SELECT * FROM users WHERE username = 'admin@centerplaza.com'");
     if (!adminUser) {
       await this.db.run("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", ['admin@centerplaza.com', 'admin', 'admin']);
