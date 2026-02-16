@@ -1,3 +1,2 @@
-// Entry point para Hostinger Node.js Apps
-// Aponta para o build compilado do NestJS
+// Entry point para a Hostinger
 require('./dist/main');
