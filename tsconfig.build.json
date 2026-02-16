@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "test",
+    "dist",
+    "**/*spec.ts",
+    "src/**/*.tsx",
+    "src/components",
+    "src/pages",
+    "src/hooks",
+    "src/contexts",
+    "src/lib",
+    "src/services/api.ts",
+    "src/services/mockData.ts",
+    "vite.config.ts",
+    "tailwind.config.ts",
+    "postcss.config.js"
+  ]
+}
