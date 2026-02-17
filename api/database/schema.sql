@@ -3,7 +3,7 @@
 
 -- Tabela de hotéis
 CREATE TABLE IF NOT EXISTS hotels (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   name VARCHAR(255) NOT NULL,
   address TEXT NOT NULL,
   city VARCHAR(100) NOT NULL,
@@ -15,14 +15,12 @@ CREATE TABLE IF NOT EXISTS hotels (
   description TEXT,
   amenities JSON,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  INDEX idx_city (city),
-  INDEX idx_name (name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 -- Tabela de tipos de quartos
 CREATE TABLE IF NOT EXISTS room_types (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   hotel_id INT NOT NULL,
   name VARCHAR(255) NOT NULL,
   description TEXT,
@@ -30,30 +28,26 @@ CREATE TABLE IF NOT EXISTS room_types (
   bed_type VARCHAR(100),
   bed_count INT DEFAULT 1,
   max_occupancy INT DEFAULT 2,
+  total_rooms INT DEFAULT 5,
   amenities JSON,
   bathroom_type VARCHAR(100),
-  smoking_allowed BOOLEAN DEFAULT FALSE,
+  smoking_allowed BOOLEAN DEFAULT 0,
   price_per_night DECIMAL(10,2),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (hotel_id) REFERENCES hotels(id) ON DELETE CASCADE,
-  INDEX idx_hotel_id (hotel_id),
-  INDEX idx_name (name),
-  INDEX idx_price (price_per_night)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (hotel_id) REFERENCES hotels(id) ON DELETE CASCADE
+);
 
 -- Tabela de imagens dos quartos
 CREATE TABLE IF NOT EXISTS room_images (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   room_type_id INT NOT NULL,
   image_data LONGTEXT NOT NULL, -- Base64 encoded image
   image_type VARCHAR(50) NOT NULL, -- MIME type (image/jpeg, image/png, etc.)
   display_order INT DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (room_type_id) REFERENCES room_types(id) ON DELETE CASCADE,
-  INDEX idx_room_type_id (room_type_id),
-  INDEX idx_display_order (display_order)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  FOREIGN KEY (room_type_id) REFERENCES room_types(id) ON DELETE CASCADE
+);
 
 -- Inserir dados iniciais do Center Plaza Hotel
 INSERT INTO hotels (
@@ -93,18 +87,7 @@ INSERT INTO hotels (
     'Concierge',
     'Transfer aeroporto'
   )
-) ON DUPLICATE KEY UPDATE
-  name = VALUES(name),
-  address = VALUES(address),
-  city = VALUES(city),
-  state = VALUES(state),
-  zip_code = VALUES(zip_code),
-  phone = VALUES(phone),
-  email = VALUES(email),
-  website = VALUES(website),
-  description = VALUES(description),
-  amenities = VALUES(amenities),
-  updated_at = CURRENT_TIMESTAMP;
+);
 
 -- Inserir tipos de quartos padrão do Center Plaza
 INSERT INTO room_types (
@@ -115,6 +98,7 @@ INSERT INTO room_types (
   bed_type,
   bed_count,
   max_occupancy,
+  total_rooms,
   amenities,
   bathroom_type,
   smoking_allowed,
@@ -128,6 +112,7 @@ SELECT
   'Cama de Solteiro',
   1,
   1,
+  10,
   JSON_ARRAY(
     'Wi-Fi gratuito',
     'Ar-condicionado',
@@ -139,20 +124,9 @@ SELECT
     'Secador de cabelo'
   ),
   'Banheiro privativo com chuveiro',
-  FALSE,
+  0,
   120.00
-FROM hotels h WHERE h.name = 'Center Plaza Hotel'
-ON DUPLICATE KEY UPDATE
-  description = VALUES(description),
-  size_sqm = VALUES(size_sqm),
-  bed_type = VALUES(bed_type),
-  bed_count = VALUES(bed_count),
-  max_occupancy = VALUES(max_occupancy),
-  amenities = VALUES(amenities),
-  bathroom_type = VALUES(bathroom_type),
-  smoking_allowed = VALUES(smoking_allowed),
-  price_per_night = VALUES(price_per_night),
-  updated_at = CURRENT_TIMESTAMP;
+FROM hotels h WHERE h.name = 'Center Plaza Hotel';
 
 INSERT INTO room_types (
   hotel_id,
@@ -162,6 +136,7 @@ INSERT INTO room_types (
   bed_type,
   bed_count,
   max_occupancy,
+  total_rooms,
   amenities,
   bathroom_type,
   smoking_allowed,
@@ -175,6 +150,7 @@ SELECT
   'Cama de Casal',
   1,
   2,
+  15,
   JSON_ARRAY(
     'Wi-Fi gratuito',
     'Ar-condicionado',
@@ -188,20 +164,9 @@ SELECT
     'Varanda'
   ),
   'Banheiro privativo com chuveiro e banheira',
-  FALSE,
+  0,
   180.00
-FROM hotels h WHERE h.name = 'Center Plaza Hotel'
-ON DUPLICATE KEY UPDATE
-  description = VALUES(description),
-  size_sqm = VALUES(size_sqm),
-  bed_type = VALUES(bed_type),
-  bed_count = VALUES(bed_count),
-  max_occupancy = VALUES(max_occupancy),
-  amenities = VALUES(amenities),
-  bathroom_type = VALUES(bathroom_type),
-  smoking_allowed = VALUES(smoking_allowed),
-  price_per_night = VALUES(price_per_night),
-  updated_at = CURRENT_TIMESTAMP;
+FROM hotels h WHERE h.name = 'Center Plaza Hotel';
 
 INSERT INTO room_types (
   hotel_id,
@@ -211,6 +176,7 @@ INSERT INTO room_types (
   bed_type,
   bed_count,
   max_occupancy,
+  total_rooms,
   amenities,
   bathroom_type,
   smoking_allowed,
@@ -224,6 +190,7 @@ SELECT
   'Cama de Solteiro',
   2,
   2,
+  8,
   JSON_ARRAY(
     'Wi-Fi gratuito',
     'Ar-condicionado',
@@ -236,20 +203,9 @@ SELECT
     'Armário amplo'
   ),
   'Banheiro privativo com chuveiro',
-  FALSE,
+  0,
   160.00
-FROM hotels h WHERE h.name = 'Center Plaza Hotel'
-ON DUPLICATE KEY UPDATE
-  description = VALUES(description),
-  size_sqm = VALUES(size_sqm),
-  bed_type = VALUES(bed_type),
-  bed_count = VALUES(bed_count),
-  max_occupancy = VALUES(max_occupancy),
-  amenities = VALUES(amenities),
-  bathroom_type = VALUES(bathroom_type),
-  smoking_allowed = VALUES(smoking_allowed),
-  price_per_night = VALUES(price_per_night),
-  updated_at = CURRENT_TIMESTAMP;
+FROM hotels h WHERE h.name = 'Center Plaza Hotel';
 
 INSERT INTO room_types (
   hotel_id,
@@ -259,6 +215,7 @@ INSERT INTO room_types (
   bed_type,
   bed_count,
   max_occupancy,
+  total_rooms,
   amenities,
   bathroom_type,
   smoking_allowed,
@@ -272,6 +229,7 @@ SELECT
   'Cama de Casal + Cama de Solteiro',
   2,
   3,
+  5,
   JSON_ARRAY(
     'Wi-Fi gratuito',
     'Ar-condicionado',
@@ -286,20 +244,9 @@ SELECT
     'Armário amplo'
   ),
   'Banheiro privativo com chuveiro e banheira',
-  FALSE,
+  0,
   220.00
-FROM hotels h WHERE h.name = 'Center Plaza Hotel'
-ON DUPLICATE KEY UPDATE
-  description = VALUES(description),
-  size_sqm = VALUES(size_sqm),
-  bed_type = VALUES(bed_type),
-  bed_count = VALUES(bed_count),
-  max_occupancy = VALUES(max_occupancy),
-  amenities = VALUES(amenities),
-  bathroom_type = VALUES(bathroom_type),
-  smoking_allowed = VALUES(smoking_allowed),
-  price_per_night = VALUES(price_per_night),
-  updated_at = CURRENT_TIMESTAMP;
+FROM hotels h WHERE h.name = 'Center Plaza Hotel';
 
 INSERT INTO room_types (
   hotel_id,
@@ -309,6 +256,7 @@ INSERT INTO room_types (
   bed_type,
   bed_count,
   max_occupancy,
+  total_rooms,
   amenities,
   bathroom_type,
   smoking_allowed,
@@ -322,6 +270,7 @@ SELECT
   'Cama de Solteiro',
   3,
   3,
+  5,
   JSON_ARRAY(
     'Wi-Fi gratuito',
     'Ar-condicionado',
@@ -333,24 +282,13 @@ SELECT
     'Secador de cabelo'
   ),
   'Banheiro privativo com chuveiro',
-  FALSE,
+  0,
   200.00
-FROM hotels h WHERE h.name = 'Center Plaza Hotel'
-ON DUPLICATE KEY UPDATE
-  description = VALUES(description),
-  size_sqm = VALUES(size_sqm),
-  bed_type = VALUES(bed_type),
-  bed_count = VALUES(bed_count),
-  max_occupancy = VALUES(max_occupancy),
-  amenities = VALUES(amenities),
-  bathroom_type = VALUES(bathroom_type),
-  smoking_allowed = VALUES(smoking_allowed),
-  price_per_night = VALUES(price_per_night),
-  updated_at = CURRENT_TIMESTAMP;
+FROM hotels h WHERE h.name = 'Center Plaza Hotel';
 
 -- Criar tabela de reservas
 CREATE TABLE IF NOT EXISTS reservations (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     hotel_id INT NOT NULL,
     room_type_id INT NOT NULL,
     guest_name VARCHAR(255) NOT NULL,
@@ -361,24 +299,15 @@ CREATE TABLE IF NOT EXISTS reservations (
     check_out_date DATE NOT NULL,
     number_of_guests INT NOT NULL DEFAULT 1,
     total_amount DECIMAL(10,2) NOT NULL,
-    status ENUM('pending', 'confirmed', 'cancelled', 'completed') DEFAULT 'pending',
+    status TEXT DEFAULT 'pending',
     special_requests TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
     -- Chaves estrangeiras
     FOREIGN KEY (hotel_id) REFERENCES hotels(id) ON DELETE CASCADE,
-    FOREIGN KEY (room_type_id) REFERENCES room_types(id) ON DELETE CASCADE,
-    
-    -- Índices para otimização
-    INDEX idx_hotel_id (hotel_id),
-    INDEX idx_room_type_id (room_type_id),
-    INDEX idx_check_in_date (check_in_date),
-    INDEX idx_check_out_date (check_out_date),
-    INDEX idx_status (status),
-    INDEX idx_guest_email (guest_email)
+    FOREIGN KEY (room_type_id) REFERENCES room_types(id) ON DELETE CASCADE
 );
-
 -- Verificar se as tabelas foram criadas corretamente
 SELECT 'Tabelas criadas com sucesso!' as status;
 SELECT COUNT(*) as total_hotels FROM hotels;
