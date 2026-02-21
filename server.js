@@ -39,7 +39,10 @@ app.use(express.static(distPath, {
   }
 }));
 
-app.get('/assets/*', (req, res) => res.status(404).send('Asset não encontrado'));
+app.get('/assets/*', (req, res) => {
+  console.log('⚠️ 404 Asset não encontrado:', req.path);
+  res.status(404).send('Asset não encontrado');
+});
 
 app.get('*', (req, res) => {
   const indexPath = path.join(distPath, 'index.html');
