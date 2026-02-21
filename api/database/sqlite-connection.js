@@ -1,11 +1,5 @@
-import { open } from 'sqlite';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const { open } = require('sqlite');
+const path = require('path');
 
 // Caminho do banco SQLite
 const dbPath = path.join(__dirname, 'centerplaza.db');
@@ -13,7 +7,7 @@ const dbPath = path.join(__dirname, 'centerplaza.db');
 let db = null;
 
 // Função para obter conexão com SQLite
-export async function getConnection() {
+async function getConnection() {
   if (!db) {
     try {
       // Carregamento preguiçoso (lazy load) do sqlite3 para evitar crash na inicialização
@@ -45,7 +39,7 @@ export async function getConnection() {
 }
 
 // Função para testar conexão
-export async function testConnection() {
+async function testConnection() {
   try {
     const connection = await getConnection();
     await connection.get('SELECT 1');
@@ -58,7 +52,7 @@ export async function testConnection() {
 }
 
 // Função para executar queries
-export async function executeQuery(sql, params = []) {
+async function executeQuery(sql, params = []) {
   try {
     const connection = await getConnection();
     
@@ -74,7 +68,7 @@ export async function executeQuery(sql, params = []) {
 }
 
 // Função para fechar conexão
-export async function closeConnection() {
+async function closeConnection() {
   if (db) {
     await db.close();
     db = null;
@@ -83,7 +77,7 @@ export async function closeConnection() {
 }
 
 // Exportar como default para compatibilidade
-export default {
+module.exports = {
   getConnection,
   testConnection,
   executeQuery,

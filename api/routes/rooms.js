@@ -1,5 +1,5 @@
-import express from 'express';
-import multer from 'multer';
+const express = require('express');
+const multer = require('multer');
 
 // Configuração do multer para upload de imagens
 const storage = multer.memoryStorage();
@@ -550,4 +550,4 @@ router.delete('/:id/images/:imageId', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;
