@@ -86,10 +86,7 @@ router.use((req, res, next) => {
 });
 
 // Inicializar tabelas auxiliares de infraestrutura
-const initInfraTables = async () => {
-  // Importação dinâmica para evitar crash na inicialização se o módulo falhar
-  // Mantemos import() dinâmico aqui pois sqlite-connection.js pode ser ESM ou para lazy loading
-  const { getConnection } = await import('./database/sqlite-connection.js');
+async function initInfraTables() {
   const db = await getConnection();
   
   // 1. Tabelas de Negócio (Garantir que existem)
@@ -262,7 +259,7 @@ const initInfraTables = async () => {
       console.log("✅ Quarto de exemplo criado.");
     }
   }
-};
+}
 
 // Middleware de Autenticação Simulado (Zero Trust)
 const authMiddleware = (req, res, next) => {
@@ -378,7 +375,6 @@ router.get('/debug', async (req, res) => {
   };
 
   try {
-    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table'");
     const counts = {};
@@ -530,7 +526,6 @@ router.post('/rooms', (req, res, next) => {
       max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night
     } = req.body;
     
-    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     const result = await db.run(`
       INSERT INTO room_types (
@@ -893,7 +888,6 @@ router.post('/reservations', async (req, res) => {
 
     const idempotencyKey = req.headers['idempotency-key'];
     
-    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
 
     if (idempotencyKey) {
@@ -1071,7 +1065,6 @@ router.patch('/reservations/:id/status', async (req, res) => {
       return res.status(400).json({ error: 'Status inválido' });
     }
     
-    const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
     await db.run('UPDATE reservations SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [status, id]);
     
