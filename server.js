@@ -21,8 +21,13 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // API
-const apiRouter = require('./api/sqlite-server.js');
-app.use('/api', apiRouter);
+try {
+  const apiRouter = require('./api/sqlite-server.js');
+  app.use('/api', apiRouter);
+} catch (error) {
+  console.error('❌ CRITICAL: Failed to load API router:', error);
+  // Do not crash, allow frontend to load at least
+}
 
 // Frontend estático
 if (!fs.existsSync(distPath)) {
