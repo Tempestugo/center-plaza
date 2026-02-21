@@ -1211,15 +1211,29 @@ if (!fs.existsSync(distPath)) {
   console.error('Certifique-se de que "npm run build" foi executado.');
 } else {
   console.log(`📂 Servindo arquivos estáticos de: ${distPath}`);
+  try {
+    console.log('   Arquivos encontrados:', fs.readdirSync(distPath));
+  } catch (e) {}
 }
 
 app.use(express.static(distPath));
+
+// Proteção: Se o navegador pedir um asset (js/css) e não achar, retorna 404 em vez de index.html
+app.use('/assets', (req, res) => {
+  res.status(404).send('Asset não encontrado');
+});
 
 // Qualquer rota não-API retorna o index.html do React (SPA)
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) {
     return res.status(404).json({ error: 'Rota não encontrada' });
   }
+  
+  // Se a rota tiver um ponto (ex: imagem.jpg, script.js) e não for o index.html, retorna 404
+  if (req.path.includes('.') && !req.path.endsWith('.html')) {
+    return res.status(404).send('Arquivo não encontrado');
+  }
+
   const indexPath = path.join(distPath, 'index.html');
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
