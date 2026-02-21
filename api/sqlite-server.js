@@ -46,9 +46,7 @@ app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), (req, 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Configurar charset UTF-8 para todas as respostas
-app.use((req, res, next) => {
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+// Configurar charset UTF-8 e', 'application/json; charset=utf-8');
   next();
 });
 
