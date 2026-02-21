@@ -1203,7 +1203,15 @@ app.use((err, req, res, next) => {
 // Servir arquivos estáticos do Frontend (React/Vite)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const distPath = path.join(__dirname, '../dist');
+const distPath = path.join(__dirname, '../client');
+
+// Verificar se a pasta existe para evitar erros silenciosos
+if (!fs.existsSync(distPath)) {
+  console.error(`❌ ERRO CRÍTICO: Pasta de build do frontend não encontrada em: ${distPath}`);
+  console.error('Certifique-se de que "npm run build" foi executado.');
+} else {
+  console.log(`📂 Servindo arquivos estáticos de: ${distPath}`);
+}
 
 app.use(express.static(distPath));
 
@@ -1212,7 +1220,12 @@ app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) {
     return res.status(404).json({ error: 'Rota não encontrada' });
   }
-  res.sendFile(path.join(distPath, 'index.html'));
+  const indexPath = path.join(distPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send('Aplicação em construção. Tente novamente em instantes.');
+  }
 });
 
 // Inicialização do Stripe (Assíncrona para evitar Top-Level Await)
