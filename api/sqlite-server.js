@@ -5,6 +5,11 @@ import path from 'path';
 import multer from 'multer';
 import fs from 'fs';
 import { createRequire } from 'module';
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
 
 const require = createRequire(import.meta.url);
 
@@ -18,6 +23,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Tenta carregar variáveis de ambiente se dotenv estiver instalado (opcional em dev)
 const envPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '../.env');
+const envPath = path.join(__dirname, '../.env');
 try { require('dotenv').config({ path: envPath }); } catch (e) {}
 
 // Configuração do Stripe (Híbrido: Real se tiver chave, Mock se não tiver)
@@ -26,6 +32,7 @@ let stripe = { paymentIntents: { create: async () => ({ client_secret: 'mock_sec
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const router = express.Router();
 
 let dbInitializationError = null;
 
@@ -34,10 +41,13 @@ const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } }); // Limite de 5
 
 // Middleware
 app.use(cors());
+// CORS já configurado no server.js principal, mas mantendo aqui para segurança se montado isoladamente
+router.use(cors());
 
 // ⚠️ IMPORTANTE: Webhook do Stripe deve vir ANTES do express.json global
 // para garantir que o corpo da requisição não seja processado incorretamente.
 app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), (req, res) => {
+router.post('/webhooks/stripe', express.raw({type: 'application/json'}), (req, res) => {
   // Em produção: Validar assinatura do webhook para garantir que veio do Stripe
   console.log('Webhook do Stripe recebido');
   res.json({received: true});
@@ -45,19 +55,27 @@ app.post('/api/webhooks/stripe', express.raw({type: 'application/json'}), (req, 
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// Parsers de corpo são tratados no server.js ou aqui se necessário para rotas específicas
+// router.use(express.json({ limit: '50mb' }));
+// router.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Configurar charset UTF-8 e', 'application/json; charset=utf-8');
+// Configurar charset UTF-8 apenas para rotas da API
+app.use('/api', (req, res, next) => {
+router.use((req, res, next) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
   next();
 });
 
 // Middleware de log
 app.use((req, res, next) => {
+router.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
 
 // Middleware de verificação de saúde do banco para rotas de API
 app.use('/api', (req, res, next) => {
+router.use((req, res, next) => {
   if (dbInitializationError && req.path !== '/health' && req.path !== '/debug') {
     return res.status(500).json({ 
       error: 'Serviço de banco de dados indisponível', 
@@ -70,6 +88,7 @@ app.use('/api', (req, res, next) => {
 // Inicializar tabelas auxiliares de infraestrutura
 const initInfraTables = async () => {
   // Importação dinâmica para evitar crash na inicialização se o módulo falhar
+  // Mantemos import() dinâmico aqui pois sqlite-connection.js pode ser ESM ou para lazy loading
   const { getConnection } = await import('./database/sqlite-connection.js');
   const db = await getConnection();
   
@@ -259,9 +278,11 @@ const authMiddleware = (req, res, next) => {
 };
 
 app.use(authMiddleware);
+router.use(authMiddleware);
 
 // Rota para o Frontend decidir se mostra o botão de Admin
 app.get('/api/auth/me', (req, res) => {
+router.get('/auth/me', (req, res) => {
   res.json({ 
     role: req.user.role,
     permissions: req.user.role === 'admin' ? ['view_admin', 'manage_reservations'] : ['view_public']
@@ -272,6 +293,7 @@ app.get('/api/auth/me', (req, res) => {
 
 // Login
 app.post('/api/login', async (req, res) => {
+router.post('/login', async (req, res) => {
   const { username, password } = req.body;
   const { getConnection } = await import('./database/sqlite-connection.js');
   const db = await getConnection();
@@ -288,6 +310,7 @@ app.post('/api/login', async (req, res) => {
 
 // Criar Conta (Register)
 app.post('/api/register', async (req, res) => {
+router.post('/register', async (req, res) => {
   const { username, password } = req.body;
   const { getConnection } = await import('./database/sqlite-connection.js');
   const db = await getConnection();
@@ -302,6 +325,7 @@ app.post('/api/register', async (req, res) => {
 
 // Contato (Salvar mensagem)
 app.post('/api/contact', async (req, res) => { 
+router.post('/contact', async (req, res) => { 
   const { name, email, message } = req.body;
   const { getConnection } = await import('./database/sqlite-connection.js');
   const db = await getConnection();
@@ -317,6 +341,7 @@ app.post('/api/contact', async (req, res) => {
 
 // Rota para listar mensagens de contato (Painel Admin)
 app.get('/api/contacts', async (req, res) => {
+router.get('/contacts', async (req, res) => {
   try {
     const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
@@ -330,6 +355,7 @@ app.get('/api/contacts', async (req, res) => {
 
 // Health check
 app.get('/api/health', (req, res) => {
+router.get('/health', (req, res) => {
   res.json({ 
     message: 'API do Center Plaza funcionando com SQLite',
     dbStatus: dbInitializationError ? 'error' : 'connected'
@@ -340,6 +366,7 @@ app.get('/api/health', (req, res) => {
 app.get('/api/debug', async (req, res) => {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
+router.get('/debug', async (req, res) => {
   const dbDir = path.join(__dirname, 'database');
   
   const debugInfo = {
@@ -369,6 +396,7 @@ app.get('/api/debug', async (req, res) => {
 
 // Rota para servir imagens dos quartos (evita payload gigante de base64)
 app.get('/api/room-images/:id', async (req, res) => {
+router.get('/room-images/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { getConnection } = await import('./database/sqlite-connection.js');
@@ -400,6 +428,7 @@ app.get('/api/room-images/:id', async (req, res) => {
 
 // Rota para listar hotéis
 app.get('/api/hotels', async (req, res) => {
+router.get('/hotels', async (req, res) => {
   try {
     const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
@@ -426,6 +455,7 @@ app.get('/api/hotels', async (req, res) => {
 
 // Rota para criar hotel
 app.post('/api/hotels', async (req, res) => {
+router.post('/hotels', async (req, res) => {
   try {
     const { name, address, city, state, zip_code, phone, email, website, description, amenities } = req.body;
     
@@ -450,6 +480,7 @@ app.post('/api/hotels', async (req, res) => {
 
 // Rota para listar tipos de quartos
 app.get('/api/rooms', async (req, res) => {
+router.get('/rooms', async (req, res) => {
   try {
     const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
@@ -484,6 +515,7 @@ app.get('/api/rooms', async (req, res) => {
 
 // Rota para criar tipo de quarto
 app.post('/api/rooms', (req, res, next) => {
+router.post('/rooms', (req, res, next) => {
   upload.array('images')(req, res, (err) => {
     if (err) {
       console.error('❌ Erro no Upload (Multer):', err);
@@ -548,6 +580,7 @@ app.post('/api/rooms', (req, res, next) => {
 
 // Rota para listar reservas
 app.get('/api/reservations', async (req, res) => {
+router.get('/reservations', async (req, res) => {
   try {
     const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
@@ -568,6 +601,7 @@ app.get('/api/reservations', async (req, res) => {
 
 // Rota para "Minhas Reservas" (Usuário Logado)
 app.get('/api/my-reservations', async (req, res) => {
+router.get('/my-reservations', async (req, res) => {
   try {
     const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
@@ -587,6 +621,7 @@ app.get('/api/my-reservations', async (req, res) => {
 
 // Rota para buscar hotel por ID
 app.get('/api/hotels/:id', async (req, res) => {
+router.get('/hotels/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { getConnection } = await import('./database/sqlite-connection.js');
@@ -610,6 +645,7 @@ app.get('/api/hotels/:id', async (req, res) => {
 
 // Rota para buscar quartos por hotel
 app.get('/api/hotels/:hotelId/rooms', async (req, res) => {
+router.get('/hotels/:hotelId/rooms', async (req, res) => {
   try {
     const { hotelId } = req.params;
     const { getConnection } = await import('./database/sqlite-connection.js');
@@ -644,6 +680,7 @@ app.get('/api/hotels/:hotelId/rooms', async (req, res) => {
 
 // Rota para buscar quarto por ID
 app.get('/api/rooms/:id', async (req, res) => {
+router.get('/rooms/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { getConnection } = await import('./database/sqlite-connection.js');
@@ -678,6 +715,7 @@ app.get('/api/rooms/:id', async (req, res) => {
 
 // Rota para atualizar hotel
 app.put('/api/hotels/:id', async (req, res) => {
+router.put('/hotels/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, address, city, state, zip_code, phone, email, website, description, amenities } = req.body;
@@ -730,6 +768,7 @@ app.put('/api/hotels/:id', async (req, res) => {
 
 // Rota para atualizar quarto
 app.put('/api/rooms/:id', async (req, res) => {
+router.put('/rooms/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -776,6 +815,7 @@ app.put('/api/rooms/:id', async (req, res) => {
 
 // Rota para listar reservas com filtros
 app.get('/api/reservations', async (req, res) => {
+router.get('/reservations', async (req, res) => {
   try {
     const { guest_email, code, guest_name } = req.query;
     const { getConnection } = await import('./database/sqlite-connection.js');
@@ -817,6 +857,7 @@ app.get('/api/reservations', async (req, res) => {
 
 // Rota para buscar reserva por ID
 app.get('/api/reservations/:id', async (req, res) => {
+router.get('/reservations/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { getConnection } = await import('./database/sqlite-connection.js');
@@ -842,6 +883,7 @@ app.get('/api/reservations/:id', async (req, res) => {
 
 // Rota para criar reserva
 app.post('/api/reservations', async (req, res) => {
+router.post('/reservations', async (req, res) => {
   try {
     const {
       hotel_id, room_type_id, guest_name, guest_email, guest_phone,
@@ -939,6 +981,7 @@ app.post('/api/reservations', async (req, res) => {
 
 // Rota para criar Intenção de Pagamento (Stripe)
 app.post('/api/create-payment-intent', async (req, res) => {
+router.post('/create-payment-intent', async (req, res) => {
   try {
     const { amount, currency = 'brl', reservation_id } = req.body;
 
@@ -959,6 +1002,7 @@ app.post('/api/create-payment-intent', async (req, res) => {
 
 // Rota para atualizar reserva completa
 app.put('/api/reservations/:id', async (req, res) => {
+router.put('/reservations/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -1018,6 +1062,7 @@ app.put('/api/reservations/:id', async (req, res) => {
 
 // Rota para atualizar status da reserva
 app.patch('/api/reservations/:id/status', async (req, res) => {
+router.patch('/reservations/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -1051,6 +1096,7 @@ app.patch('/api/reservations/:id/status', async (req, res) => {
 
 // Rota para deletar hotel
 app.delete('/api/hotels/:id', async (req, res) => {
+router.delete('/hotels/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { getConnection } = await import('./database/sqlite-connection.js');
@@ -1083,6 +1129,7 @@ app.delete('/api/hotels/:id', async (req, res) => {
 
 // Rota para deletar quarto
 app.delete('/api/rooms/:id', async (req, res) => {
+router.delete('/rooms/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { getConnection } = await import('./database/sqlite-connection.js');
@@ -1110,6 +1157,7 @@ app.delete('/api/rooms/:id', async (req, res) => {
 
 // Rota para deletar reserva
 app.delete('/api/reservations/:id', async (req, res) => {
+router.delete('/reservations/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { getConnection } = await import('./database/sqlite-connection.js');
@@ -1134,6 +1182,7 @@ app.delete('/api/reservations/:id', async (req, res) => {
 
 // Rota para admin ver todas as conversas (agrupadas por reserva)
 app.get('/api/admin/chat-threads', async (req, res) => {
+router.get('/admin/chat-threads', async (req, res) => {
   try {
     const { getConnection } = await import('./database/sqlite-connection.js');
     const db = await getConnection();
@@ -1157,6 +1206,7 @@ app.get('/api/admin/chat-threads', async (req, res) => {
 
 // Listar mensagens de uma reserva
 app.get('/api/chat/:reservationId', async (req, res) => {
+router.get('/chat/:reservationId', async (req, res) => {
   try {
     const { reservationId } = req.params;
     const { getConnection } = await import('./database/sqlite-connection.js');
@@ -1174,6 +1224,7 @@ app.get('/api/chat/:reservationId', async (req, res) => {
 
 // Enviar mensagem
 app.post('/api/chat/:reservationId', async (req, res) => {
+router.post('/chat/:reservationId', async (req, res) => {
   try {
     const { reservationId } = req.params;
     const { content } = req.body;
@@ -1194,6 +1245,7 @@ app.post('/api/chat/:reservationId', async (req, res) => {
 
 // Middleware de tratamento de erros
 app.use((err, req, res, next) => {
+router.use((err, req, res, next) => {
   console.error('Erro não tratado:', err);
   res.status(500).json({ error: 'Erro interno do servidor' });
 });
@@ -1210,8 +1262,14 @@ if (!fs.existsSync(distPath)) {
 } else {
   console.log(`📂 Servindo arquivos estáticos de: ${distPath}`);
   try {
-    console.log('   Arquivos encontrados:', fs.readdirSync(distPath));
-  } catch (e) {}
+    const files = fs.readdirSync(distPath);
+    console.log('   📄 Arquivos na raiz do client:', files);
+    if (files.includes('assets')) {
+       console.log('   📂 Conteúdo de assets:', fs.readdirSync(path.join(distPath, 'assets')));
+    }
+  } catch (e) {
+    console.error('   ❌ Erro ao listar arquivos:', e.message);
+  }
 }
 
 app.use(express.static(distPath));
@@ -1267,6 +1325,8 @@ app.get('/', (req, res) => {
 // Inicializar servidor
 export async function startServer() {
   console.log('🚀 startServer iniciado');
+// Inicializar banco de dados e Stripe
+(async () => {
   await initStripe();
 
   // Garantir que o diretório do banco de dados existe
@@ -1298,6 +1358,16 @@ export async function startServer() {
       dbInitializationError = error;
     }
   });
+  // Inicializar banco de dados
+  try {
+    console.log('🗄️ Tentando inicializar tabelas do banco de dados...');
+    await initInfraTables();
+    console.log('✅ Banco de dados inicializado com sucesso');
+  } catch (error) {
+    console.error('❌ Erro ao inicializar banco de dados:', error);
+    dbInitializationError = error;
+  }
+})();
 
   server.on('error', (err) => {
     console.error('❌ Erro FATAL no servidor HTTP:', err);
@@ -1311,3 +1381,4 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 }
 
 export { app };
+module.exports = router;
