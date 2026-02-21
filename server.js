@@ -50,9 +50,14 @@ app.get('/assets/*', (req, res) => {
 });
 
 app.get('*', (req, res) => {
-  const indexPath = path.join(distPath, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
+  // Tenta servir app.html (novo padrão) ou index.html (fallback)
+  const appHtml = path.join(distPath, 'app.html');
+  const indexHtml = path.join(distPath, 'index.html');
+  
+  if (fs.existsSync(appHtml)) {
+    res.sendFile(appHtml);
+  } else if (fs.existsSync(indexHtml)) {
+    res.sendFile(indexHtml);
   } else {
     res.status(503).send('dist/index.html não encontrado. Rode npm run build.');
   }
