@@ -1,5 +1,15 @@
+# Configurações do Passenger
 PassengerAppRoot /home/u556180082/domains/lightgrey-echidna-641630.hostingersite.com/public_html
 PassengerAppType node
-PassengerNodejs /opt/alt/alt-nodejs18/root/usr/bin/node
+PassengerNodejs /opt/alt/alt-nodejs18/root/bin/node
 PassengerStartupFile server.js
 PassengerBaseURI /
+
+DirectoryIndex disabled
+RewriteEngine On
+
+# 1. API: Passa direto para o Node.js
+RewriteRule ^api/ - [L]
+
+# 2. Deixa o Node.js (server.js) lidar com todo o resto.
+# O server.js já está configurado para servir a pasta 'public' e fazer o fallback do SPA.
