@@ -1,9 +1,13 @@
 DirectoryIndex disabled
 RewriteEngine On
 
-# Proxy reverso para o Node.js na porta 3000
-# Use isso APENAS se você estiver rodando o node manualmente via SSH
-RewriteRule ^$ http://127.0.0.1:3000/ [P,L]
+# 1. Se a rota for /api, passe direto para o Node.js (não tente achar arquivo)
+RewriteRule ^api/ - [L]
+
+# 2. Se o arquivo ou diretório existir fisicamente, sirva-o (imagens, css, js)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ http://127.0.0.1:3000/$1 [P,L]
+
+# 3. Caso contrário, envie para o index.html (SPA) ou deixe o Node tratar
+# Na Hostinger com Passenger, o Node assume aqui.
+RewriteRule . /index.html [L]
