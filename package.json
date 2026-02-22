@@ -5,11 +5,14 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
-  "scripts": {
-    "build": "npm install && vite build",
-    "start": "/opt/alt/alt-nodejs18/root/usr/bin/node server.js",
-    "start:dev": "node --watch server.js"
+"scripts": {
+  "dev": "vite",
+  "build": "npm install && vite build",
+  "start": "/opt/alt/alt-nodejs18/root/usr/bin/node server.js",
+  "start:dev": "node --watch server.js"
+
   },
+
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5",
