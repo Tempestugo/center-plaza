@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    outDir: "public", // Hostinger prefere 'public' para estáticos
+    outDir: "dist", // Alterado para 'dist' para evitar conflito com a pasta public de origem
     // Aumenta o limite do aviso para 1000kb (o padrão é 500kb)
     chunkSizeWarningLimit: 1000,
   },

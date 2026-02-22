@@ -15,7 +15,7 @@ const fs       = require('fs');
 
 const app      = express();
 const PORT     = process.env.PORT || 3000;
-const distPath = path.join(__dirname, 'public');
+const distPath = path.join(__dirname, 'dist');
 
 // Mapa manual de extensões -> MIME types (sem dependência externa)
 const MIME_TYPES = {
@@ -89,7 +89,7 @@ app.get('*', (req, res) => {
     return res.sendFile(indexPath);
   }
 
-  res.status(503).send('index.html não encontrado na pasta public');
+  res.status(503).send('index.html não encontrado na pasta dist');
 });
 
 app.listen(PORT, () => {
