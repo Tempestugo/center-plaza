@@ -1,10 +1,10 @@
 'use strict';
 
 process.on('uncaughtException', (err) => {
-  console.error('❌ Uncaught Exception:', err);
+  console.error('CRASH:', err.message, err.stack);
 });
 process.on('unhandledRejection', (reason) => {
-  console.error('❌ Unhandled Rejection:', reason);
+  console.error('REJECTION:', reason);
 });
 
 try { require('dotenv').config(); } catch (e) {}
@@ -17,61 +17,81 @@ const app      = express();
 const PORT     = process.env.PORT || 3000;
 const distPath = path.join(__dirname, 'dist');
 
+// Mapa manual de extensões -> MIME types (sem dependência externa)
+const MIME_TYPES = {
+  '.js':   'application/javascript; charset=utf-8',
+  '.mjs':  'application/javascript; charset=utf-8',
+  '.css':  'text/css; charset=utf-8',
+  '.html': 'text/html; charset=utf-8',
+  '.svg':  'image/svg+xml',
+  '.png':  'image/png',
+  '.jpg':  'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.ico':  'image/x-icon',
+  '.json': 'application/json',
+  '.woff':  'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf':   'font/ttf',
+};
+
+console.log('=== SERVER STARTING ===');
+console.log('Node:', process.version);
+console.log('CWD:', process.cwd());
+console.log('distPath:', distPath);
+console.log('dist exists:', fs.existsSync(distPath));
+if (fs.existsSync(path.join(distPath, 'assets'))) {
+  console.log('dist/assets:', fs.readdirSync(path.join(distPath, 'assets')).join(', '));
+}
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// ── API ───────────────────────────────────────────────────────────────────────
+// API
 try {
   const apiRouter = require('./api/sqlite-server.js');
   app.use('/api', apiRouter);
   console.log('✅ API router carregado');
 } catch (err) {
-  console.error('❌ Falha ao carregar API router:', err.message);
+  console.error('❌ API router falhou:', err.message);
 }
 
-// ── Frontend estático ─────────────────────────────────────────────────────────
-if (!fs.existsSync(distPath)) {
-  console.error('❌ Pasta dist/ não encontrada em: ' + distPath);
-} else {
-  const assets = fs.existsSync(path.join(distPath, 'assets'))
-    ? fs.readdirSync(path.join(distPath, 'assets'))
-    : [];
-  console.log('📂 dist/ encontrada. Assets: ' + assets.join(', '));
-}
+// Servir arquivos estáticos com MIME type manual garantido
+app.use((req, res, next) => {
+  const filePath = path.join(distPath, req.path);
 
-// IMPORTANTE: express.static ANTES de qualquer app.get que possa interceptar
-app.use(express.static(distPath, {
-  setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.js'))   res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-    if (filePath.endsWith('.mjs'))  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-    if (filePath.endsWith('.css'))  res.setHeader('Content-Type', 'text/css; charset=utf-8');
-    if (filePath.endsWith('.svg'))  res.setHeader('Content-Type', 'image/svg+xml');
-    if (filePath.endsWith('.png'))  res.setHeader('Content-Type', 'image/png');
-    if (filePath.endsWith('.jpg'))  res.setHeader('Content-Type', 'image/jpeg');
-    if (filePath.endsWith('.webp')) res.setHeader('Content-Type', 'image/webp');
+  try {
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+      const ext      = path.extname(filePath).toLowerCase();
+      const mimeType = MIME_TYPES[ext] || 'application/octet-stream';
+      console.log('SERVING:', req.path, '->', mimeType);
+      res.setHeader('Content-Type', mimeType);
+      return res.sendFile(filePath);
+    }
+  } catch (e) {
+    console.error('STATIC ERR:', e.message);
   }
-}));
 
-// ── SPA catch-all (React Router) ─────────────────────────────────────────────
-// Apenas para rotas sem extensão (não intercepta .js, .css, .png, etc.)
+  next();
+});
+
+// SPA fallback — apenas para rotas sem extensão
 app.get('*', (req, res) => {
-  // Se a rota tem extensão de arquivo, retorna 404 (o static já deveria ter servido)
-  if (path.extname(req.path) !== '') {
-    console.log('⚠️ Arquivo não encontrado: ' + req.path);
-    return res.status(404).send('Arquivo não encontrado: ' + req.path);
+  const ext = path.extname(req.path);
+  if (ext !== '') {
+    console.log('404 asset:', req.path);
+    return res.status(404).send('Not found: ' + req.path);
   }
 
   const indexPath = path.join(distPath, 'index.html');
   if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.status(503).send('❌ dist/index.html não encontrado. A dist/ está commitada no repositório?');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.sendFile(indexPath);
   }
+
+  res.status(503).send('dist/index.html não encontrado');
 });
 
-// ── Start ─────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log('✅ Servidor rodando na porta ' + PORT);
-  console.log('📊 Health: http://localhost:' + PORT + '/api/health');
-  console.log('🌐 Frontend: http://localhost:' + PORT);
+  console.log('=== SERVER UP on port', PORT, '===');
 });
