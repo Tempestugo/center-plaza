@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
 "scripts": {
   "dev": "vite",
-  "build": "npm install && vite build && cp dist/index.html index.html",
+  "build": "/opt/alt/alt-nodejs18/root/bin/npm install && vite build && cp dist/index.html index.html",
   "start": "/opt/alt/alt-nodejs18/root/usr/bin/node server.js",
   "start:dev": "node --watch server.js"
 
