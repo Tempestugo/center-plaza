@@ -15,20 +15,40 @@ const fs       = require('fs');
 
 const app      = express();
 const PORT     = process.env.PORT || 3000;
-// Ajustado para 'public' conforme seu vite.config.ts
 const distPath = path.join(__dirname, 'public');
+
+// Mapa manual de extensões -> MIME types (sem dependência externa)
+const MIME_TYPES = {
+  '.js':   'application/javascript; charset=utf-8',
+  '.mjs':  'application/javascript; charset=utf-8',
+  '.css':  'text/css; charset=utf-8',
+  '.html': 'text/html; charset=utf-8',
+  '.svg':  'image/svg+xml',
+  '.png':  'image/png',
+  '.jpg':  'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.ico':  'image/x-icon',
+  '.json': 'application/json',
+  '.woff':  'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf':   'font/ttf',
+};
 
 console.log('=== SERVER STARTING ===');
 console.log('Node:', process.version);
 console.log('CWD:', process.cwd());
 console.log('distPath:', distPath);
+console.log('dist exists:', fs.existsSync(distPath));
+if (fs.existsSync(path.join(distPath, 'assets'))) {
+  console.log('dist/assets:', fs.readdirSync(path.join(distPath, 'assets')).join(', '));
+}
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // API
 try {
-  // Aponta para a nova pasta 'backend' para evitar conflito com rota /api
   const apiRouter = require('./backend/sqlite-server.js');
   app.use('/api', apiRouter);
   console.log('✅ API router carregado');
@@ -36,9 +56,24 @@ try {
   console.error('❌ API router falhou:', err.message);
 }
 
-// Servir arquivos estáticos corretamente usando o middleware nativo
-// Isso resolve problemas de MIME type e performance
-app.use(express.static(distPath));
+// Servir arquivos estáticos com MIME type manual garantido
+app.use((req, res, next) => {
+  const filePath = path.join(distPath, req.path);
+
+  try {
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+      const ext      = path.extname(filePath).toLowerCase();
+      const mimeType = MIME_TYPES[ext] || 'application/octet-stream';
+      console.log('SERVING:', req.path, '->', mimeType);
+      res.setHeader('Content-Type', mimeType);
+      return res.sendFile(filePath);
+    }
+  } catch (e) {
+    console.error('STATIC ERR:', e.message);
+  }
+
+  next();
+});
 
 // SPA fallback — apenas para rotas sem extensão
 app.get('*', (req, res) => {
@@ -54,7 +89,7 @@ app.get('*', (req, res) => {
     return res.sendFile(indexPath);
   }
 
-  res.status(503).send('index.html não encontrado na pasta public. Verifique o build.');
+  res.status(503).send('index.html não encontrado na pasta public');
 });
 
 app.listen(PORT, () => {
