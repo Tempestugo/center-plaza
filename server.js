@@ -95,3 +95,4 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log('=== SERVER UP on port', PORT, '===');
 });
+// atualizando para ele puxar tudo
