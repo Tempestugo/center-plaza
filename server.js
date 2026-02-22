@@ -15,7 +15,7 @@ const fs       = require('fs');
 
 const app      = express();
 const PORT     = process.env.PORT || 3000;
-const distPath = path.join(__dirname, 'dist');
+const distPath = path.join(__dirname, 'dist'); // Mantendo 'dist' como padrão seguro
 
 // Mapa manual de extensões -> MIME types (sem dependência externa)
 const MIME_TYPES = {
@@ -89,10 +89,9 @@ app.get('*', (req, res) => {
     return res.sendFile(indexPath);
   }
 
-  res.status(503).send('index.html não encontrado na pasta dist');
+  res.status(503).send('index.html não encontrado na pasta dist. Execute "npm run build".');
 });
 
 app.listen(PORT, () => {
   console.log('=== SERVER UP on port', PORT, '===');
 });
-// atualizando para ele puxar o index.html da pasta public, onde o vite build coloca os arquivos, e não mais da pasta dist

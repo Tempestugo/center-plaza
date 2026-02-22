@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    outDir: "dist", // Alterado para 'dist' para evitar conflito com a pasta public de origem
+    outDir: "dist", // Mantém o build na pasta dist
     // Aumenta o limite do aviso para 1000kb (o padrão é 500kb)
     chunkSizeWarningLimit: 1000,
   },
