@@ -99,28 +99,29 @@ const HospedagemDetalhes = () => {
   }
 
   // Parse amenities
-  let amenities: string[] = [];
-  if (room.amenities) {
-    if (typeof room.amenities === 'string') {
-      try {
-        amenities = JSON.parse(room.amenities);
-      } catch {
-        amenities = room.amenities.split(',').map(a => a.trim());
-      }
-    } else if (Array.isArray(room.amenities)) {
-      amenities = room.amenities;
+let amenities: string[] = [];
+if (room.amenities) {
+  if (Array.isArray(room.amenities)) {
+    amenities = room.amenities;
+  } else {
+    try {
+      const parsed = JSON.parse(room.amenities as unknown as string);
+      amenities = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      amenities = (room.amenities as unknown as string).split(',').map(a => a.trim());
     }
   }
+}
 
   const accommodation = {
     id: room.id,
     name: room.name,
-    location: room.hotel_name || 'Center Plaza Hotel',
+    location: "Centro, São Paulo",
     rating: 4.8,
     reviewCount: 45,
     price: room.price_per_night,
-    maxGuests: room.max_occupancy,
-    bedrooms: Math.ceil(room.max_occupancy / 2),
+    maxGuests: room.capacity,
+    bedrooms: Math.ceil(room.capacity / 2),
     bathrooms: 1,
     amenities: amenities.slice(0, 3).map(a => a.toLowerCase().replace(/\s+/g, '')),
     images: [accommodation1, accommodation2, accommodation3],
@@ -488,7 +489,7 @@ const HospedagemDetalhes = () => {
       <ShareModal 
         open={shareModalOpen} 
         onOpenChange={setShareModalOpen}
-        title={accommodation.name}
+        title={accommodation?.name ?? ''}
         url={window.location.href}
       />
       <BookingFlow 
