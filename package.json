@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "vite build",
-    "start": "node server.js",
+    "start": "/opt/alt/alt-nodejs18/root/usr/bin/node server.js",
     "start:dev": "node --watch server.js"
   },
   "dependencies": {
