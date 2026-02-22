@@ -1,21 +1,5 @@
-# --- Configurações do Passenger (Obrigatório para o Node rodar) ---
 PassengerAppRoot /home/u556180082/domains/lightgrey-echidna-641630.hostingersite.com/public_html
 PassengerAppType node
-PassengerNodejs /opt/alt/alt-nodejs18/root/bin/node
+PassengerNodejs /opt/alt/alt-nodejs18/root/usr/bin/node
 PassengerStartupFile server.js
 PassengerBaseURI /
-
-# --- Regras de Roteamento ---
-DirectoryIndex disabled
-RewriteEngine On
-
-# 1. API: Passa direto para o Node.js (não procura arquivo físico)
-RewriteRule ^api/ - [L]
-
-# 2. Estáticos: Se o arquivo existe, serve ele (JS, CSS, Imagens)
-RewriteCond %{REQUEST_FILENAME} -f [OR]
-RewriteCond %{REQUEST_FILENAME} -d
-RewriteRule . - [L]
-
-# 3. SPA: Todo o resto vai para o index.html (React Router)
-RewriteRule ^ index.html [L]
