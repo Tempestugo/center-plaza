@@ -487,10 +487,10 @@ if (room.amenities) {
       {/* Modals */}
       <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
       <ShareModal 
-        open={shareModalOpen} 
+        open={shareModalOpen}
         onOpenChange={setShareModalOpen}
-        title={accommodation?.name ?? ''}
-        url={window.location.href}
+        accommodationName={accommodation.name}
+        accommodationUrl={window.location.pathname}
       />
       <BookingFlow 
         open={bookingFlowOpen}
