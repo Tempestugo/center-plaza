@@ -132,7 +132,7 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
         amenities: accommodation.amenities,
       };
       
-      const newBookingId = await addReservation(reservationData);
+      const newBookingId = await addReservation(reservationData as any);
       setBookingId(newBookingId);
       
       setCurrentStep("confirmation");
