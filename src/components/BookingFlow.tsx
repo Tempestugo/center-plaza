@@ -565,3 +565,5 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
     </Dialog>
   );
 }
+
+export default BookingFlow;

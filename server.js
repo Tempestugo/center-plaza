@@ -95,4 +95,4 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log('=== SERVER UP on port', PORT, '===');
 });
-// atualizando para ele puxar tudo
+// atualizando para ele puxar o index.html da pasta public, onde o vite build coloca os arquivos, e não mais da pasta dist
