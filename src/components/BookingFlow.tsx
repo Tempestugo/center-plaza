@@ -15,17 +15,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { 
   Calendar as CalendarIcon, 
-  Users, 
-  CreditCard, 
   Check, 
   ArrowLeft, 
   ArrowRight,
-  MapPin,
-  Clock,
-  Shield,
-  Wifi,
-  Car,
-  Coffee
+  MapPin
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -36,7 +29,7 @@ interface BookingFlowProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   accommodation: {
-    id: number;
+    id: number | string;
     name: string;
     location: string;
     price: number;
@@ -48,7 +41,7 @@ interface BookingFlowProps {
 
 type BookingStep = "dates" | "guests" | "details" | "payment" | "confirmation";
 
-export const BookingFlow = ({ open, onOpenChange, accommodation }: BookingFlowProps) => {
+export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowProps) {
   const { user, isAuthenticated } = useAuth();
   const { addReservation } = useReservations();
   const [currentStep, setCurrentStep] = useState<BookingStep>("dates");
@@ -115,9 +108,6 @@ export const BookingFlow = ({ open, onOpenChange, accommodation }: BookingFlowPr
   const handleConfirmBooking = async () => {
     setLoading(true);
     try {
-      // Processamento do pagamento (em produção, integrar com gateway de pagamento)
-      
-      // Criar dados da reserva
       const reservationData = {
         accommodationId: accommodation.id,
         accommodationName: accommodation.name,
@@ -130,7 +120,7 @@ export const BookingFlow = ({ open, onOpenChange, accommodation }: BookingFlowPr
         pricePerNight: accommodation.price,
         subtotal,
         serviceFee,
-        total: paymentMethod === 'pix' ? total * 0.95 : total, // Desconto de 5% para PIX
+        total: paymentMethod === 'pix' ? total * 0.95 : total,
         guestName: guestDetails.name,
         email: guestDetails.email,
         phone: guestDetails.phone,
@@ -142,7 +132,6 @@ export const BookingFlow = ({ open, onOpenChange, accommodation }: BookingFlowPr
         amenities: accommodation.amenities,
       };
       
-      // Salvar reserva no contexto (agora é assíncrono)
       const newBookingId = await addReservation(reservationData);
       setBookingId(newBookingId);
       
@@ -179,9 +168,7 @@ export const BookingFlow = ({ open, onOpenChange, accommodation }: BookingFlowPr
     onOpenChange(false);
   };
 
-  if (!isAuthenticated) {
-    return null;
-  }
+  if (!isAuthenticated) return null;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -191,7 +178,6 @@ export const BookingFlow = ({ open, onOpenChange, accommodation }: BookingFlowPr
         </DialogHeader>
 
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Resumo da Reserva */}
           <div className="lg:col-span-1">
             <Card>
               <CardHeader>
@@ -256,9 +242,7 @@ export const BookingFlow = ({ open, onOpenChange, accommodation }: BookingFlowPr
             </Card>
           </div>
 
-          {/* Formulário de Reserva */}
           <div className="lg:col-span-2">
-            {/* Progress Steps */}
             <div className="flex items-center justify-between mb-6">
               {steps.map((step, index) => (
                 <div key={step.id} className="flex items-center">
@@ -278,7 +262,6 @@ export const BookingFlow = ({ open, onOpenChange, accommodation }: BookingFlowPr
               ))}
             </div>
 
-            {/* Step Content */}
             <div className="space-y-6">
               {currentStep === "dates" && (
                 <div className="space-y-4">
@@ -535,7 +518,6 @@ export const BookingFlow = ({ open, onOpenChange, accommodation }: BookingFlowPr
               )}
             </div>
 
-            {/* Navigation Buttons */}
             {currentStep !== "confirmation" && (
               <div className="flex justify-between mt-8">
                 <Button 
@@ -582,4 +564,4 @@ export const BookingFlow = ({ open, onOpenChange, accommodation }: BookingFlowPr
       </DialogContent>
     </Dialog>
   );
-};
+}
