@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "vite build",
+    "build": "npm install && vite build",
     "start": "/opt/alt/alt-nodejs18/root/usr/bin/node server.js",
     "start:dev": "node --watch server.js"
   },
