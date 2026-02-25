@@ -120,8 +120,8 @@ if (room.amenities) {
     rating: 4.8,
     reviewCount: 45,
     price: room.price_per_night,
-    maxGuests: room.capacity,
-    bedrooms: Math.ceil(room.capacity / 2),
+    maxGuests: room.max_occupancy ?? room.capacity ?? 2,
+    bedrooms: Math.ceil((room.max_occupancy ?? room.capacity ?? 2) / 2),
     bathrooms: 1,
     amenities: amenities.slice(0, 3).map(a => a.toLowerCase().replace(/\s+/g, '')),
     images: [accommodation1, accommodation2, accommodation3],
@@ -341,6 +341,7 @@ if (room.amenities) {
                 <div className="flex gap-4">
                   {accommodation.amenities.map((amenity) => {
                     const Icon = amenityIcons[amenity as keyof typeof amenityIcons];
+                    if (!Icon) return null;
                     return (
                       <div key={amenity} className="flex items-center gap-2 p-3 border rounded-lg">
                         <Icon className="w-5 h-5 text-primary" />

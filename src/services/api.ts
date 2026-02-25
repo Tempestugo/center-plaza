@@ -35,6 +35,8 @@ export interface RoomType {
   name: string;
   description?: string;
   capacity: number;
+  max_occupancy?: number;
+  hotel_name?: string;
   price_per_night: number;
   amenities?: string[];
   created_at?: string;
