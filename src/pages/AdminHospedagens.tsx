@@ -1,855 +1,596 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { hotelService, roomService, Hotel, RoomType } from "@/services/api";
+import { hotelService, roomService } from "@/services/api";
+import type { Hotel, RoomType } from "@/services/api";
 import ImageUpload from "@/components/admin/ImageUpload";
-import { 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2, 
-  Eye,
-  Home,
-  Calendar,
-  BarChart3,
-  TrendingUp,
-  ArrowLeft,
-  Upload,
-  MapPin,
-  Users,
-  Star,
-  Bed
+import AdminLayout from "@/components/admin/AdminLayout";
+import {
+  Plus, Search, Edit, Trash2, Home, MapPin, Bed,
+  Loader2, RefreshCw, X
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+
+// ─── Tipos de formulário ──────────────────────────────────────────────────────
+
+const EMPTY_HOTEL = { name: "", address: "", city: "São Paulo", state: "SP", description: "" };
+const EMPTY_ROOM  = {
+  hotel_id: "",  name: "", description: "", size_sqm: "",
+  bed_type: "", bed_count: 1, max_occupancy: 2,
+  bathroom_type: "", smoking_allowed: false, price_per_night: "",
+};
+
+// ─── Componente ───────────────────────────────────────────────────────────────
 
 const AdminHospedagens = () => {
-  const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedAccommodation, setSelectedAccommodation] = useState(null);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isEditHotelDialogOpen, setIsEditHotelDialogOpen] = useState(false);
-  const [selectedHotel, setSelectedHotel] = useState<Hotel | null>(null);
-  const [selectedRoom, setSelectedRoom] = useState<RoomType | null>(null);
-  const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [hotels,    setHotels]    = useState<Hotel[]>([]);
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    location: "",
-    description: "",
-    maxGuests: "",
-    price: "",
-    rooms: ""
-  });
-  const [roomFormData, setRoomFormData] = useState({
-    hotel_id: '',
-    name: '',
-    description: '',
-    size_sqm: '',
-    bed_type: '',
-    bed_count: 1,
-    max_occupancy: 2,
-    amenities: [],
-    bathroom_type: '',
-    smoking_allowed: false,
-    price_per_night: ''
-  });
-  const [roomImages, setRoomImages] = useState<{id?: number; preview: string; displayOrder: number; isFeatured: boolean}[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [saving,    setSaving]    = useState(false);
+  const [search,    setSearch]    = useState("");
 
-  // Carregar dados do backend
-  useEffect(() => {
-    loadData();
+  // Modais
+  const [hotelModal, setHotelModal] = useState<"create" | "edit" | null>(null);
+  const [roomModal,  setRoomModal]  = useState<"create" | "edit" | null>(null);
+
+  // Dados selecionados
+  const [selectedHotel, setSelectedHotel] = useState<Hotel | null>(null);
+  const [selectedRoom,  setSelectedRoom]  = useState<RoomType | null>(null);
+
+  // Forms
+  const [hotelForm, setHotelForm] = useState(EMPTY_HOTEL);
+  const [roomForm,  setRoomForm]  = useState(EMPTY_ROOM);
+  const [roomImages, setRoomImages] = useState<{id?: number; preview: string; displayOrder: number; isFeatured: boolean; file?: File}[]>([]);
+
+  // ── Carregar dados ──────────────────────────────────────────────────────────
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [h, r] = await Promise.all([hotelService.getAll(), roomService.getAll()]);
+      setHotels(h);
+      setRoomTypes(r);
+    } catch {
+      toast.error("Erro ao carregar hospedagens");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const [hotelsData, roomTypesData] = await Promise.all([
-        hotelService.getAll(),
-        roomService.getAll()
-      ]);
-      setHotels(hotelsData);
-      setRoomTypes(roomTypesData);
-    } catch (err) {
-      setError('Erro ao carregar dados');
-      toast.error('Erro ao carregar hospedagens');
-      console.error('Erro ao carregar dados:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => { loadData(); }, [loadData]);
 
-  const handleCreateHotel = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const newHotel = {
-        name: formData.name,
-        address: formData.location,
-        city: 'São Paulo',
-        state: 'SP',
-        zip_code: '',
-        phone: '',
-        email: '',
-        website: '',
-        description: formData.description,
-        amenities: []
-      };
-      
-      await hotelService.create(newHotel);
-      toast.success('Hotel criado com sucesso!');
-      setIsCreateDialogOpen(false);
-      setFormData({
-        name: "",
-        location: "",
-        description: "",
-        maxGuests: "",
-        price: "",
-        rooms: ""
-      });
-      loadData();
-    } catch (err) {
-      toast.error('Erro ao criar hotel');
-      console.error('Erro ao criar hotel:', err);
-    }
+  // ── Helpers de formulário ───────────────────────────────────────────────────
+  const openCreateHotel = () => { setHotelForm(EMPTY_HOTEL); setHotelModal("create"); };
+  const openEditHotel   = (h: Hotel) => {
+    setSelectedHotel(h);
+    setHotelForm({ name: h.name || "", address: h.address || "", city: h.city || "São Paulo", state: h.state || "SP", description: h.description || "" });
+    setHotelModal("edit");
   };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { id, value } = e.target;
-    setFormData(prev => ({ ...prev, [id]: value }));
-  };
-
-  const handleEditHotel = (hotel: Hotel) => {
-    setSelectedHotel(hotel);
-    setFormData({
-      name: hotel.name || '',
-      location: hotel.address || '',
-      description: hotel.description || '',
-      maxGuests: '',
-      price: '',
-      rooms: ''
+  const openCreateRoom = () => { setRoomForm(EMPTY_ROOM); setRoomImages([]); setRoomModal("create"); };
+  const openEditRoom   = (r: RoomType) => {
+    setSelectedRoom(r);
+    setRoomForm({
+      hotel_id:       String(r.hotel_id ?? ""),
+      name:           r.name ?? "",
+      description:    r.description ?? "",
+      size_sqm:       String(r.size_sqm ?? ""),
+      bed_type:       r.bed_type ?? "",
+      bed_count:      r.bed_count ?? 1,
+      max_occupancy:  r.max_occupancy ?? 2,
+      bathroom_type:  r.bathroom_type ?? "",
+      smoking_allowed:r.smoking_allowed ?? false,
+      price_per_night:String(r.price_per_night ?? ""),
     });
-    setIsEditHotelDialogOpen(true);
-  };
-
-  const handleUpdateHotel = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedHotel) return;
-    
-    try {
-      const updatedHotel = {
-        name: formData.name,
-        address: formData.location,
-        city: selectedHotel.city || 'São Paulo',
-        state: selectedHotel.state || 'SP',
-        zip_code: selectedHotel.zip_code || '',
-        phone: selectedHotel.phone || '',
-        email: selectedHotel.email || '',
-        website: selectedHotel.website || '',
-        description: formData.description,
-        amenities: selectedHotel.amenities || []
-      };
-      
-      await hotelService.update(selectedHotel.id, updatedHotel);
-      toast.success('Hotel atualizado com sucesso!');
-      setIsEditHotelDialogOpen(false);
-      setSelectedHotel(null);
-      setFormData({
-        name: '',
-        location: '',
-        description: '',
-        maxGuests: '',
-        price: '',
-        rooms: ''
-      });
-      await loadData();
-    } catch (err) {
-      console.error('Erro ao atualizar hotel:', err);
-      toast.error('Erro ao atualizar hotel');
-    }
-  };
-
-  const handleDeleteHotel = async (hotel: Hotel) => {
-    if (!confirm(`Tem certeza que deseja excluir o hotel "${hotel.name}"?`)) {
-      return;
-    }
-    
-    try {
-      await hotelService.delete(hotel.id);
-      toast.success('Hotel excluído com sucesso!');
-      loadData();
-    } catch (error) {
-      console.error('Erro ao excluir hotel:', error);
-      toast.error('Erro ao excluir hotel');
-    }
-  };
-
-  const handleDeleteRoom = async (room: RoomType) => {
-    if (!confirm(`Tem certeza que deseja excluir o quarto "${room.name}"?`)) {
-      return;
-    }
-    
-    try {
-      await roomService.delete(room.id);
-      toast.success('Quarto excluído com sucesso!');
-      loadData();
-    } catch (error) {
-      console.error('Erro ao excluir quarto:', error);
-      toast.error('Erro ao excluir quarto');
-    }
-  };
-
-  const handleEditRoom = (room: RoomType) => {
-    setSelectedRoom(room);
-    setRoomFormData({
-      hotel_id: room.hotel_id || '',
-      name: room.name || '',
-      description: room.description || '',
-      size_sqm: room.size_sqm || '',
-      bed_type: room.bed_type || '',
-      bed_count: room.bed_count || 1,
-      max_occupancy: room.max_occupancy || 2,
-      amenities: room.amenities || [],
-      bathroom_type: room.bathroom_type || '',
-      smoking_allowed: room.smoking_allowed || false,
-      price_per_night: room.price_per_night || ''
-    });
-    
-    // Converter imagens existentes para o formato do componente
-     const existingImages = (room.images || []).map((img: {id: number; image_type: string; image_data: string; display_order?: number}, index: number) => ({
-       id: img.id,
-       preview: `data:${img.image_type};base64,${img.image_data}`,
-       displayOrder: img.display_order || index + 1,
-       isFeatured: img.display_order === 1
-     }));
-     
-     // Ordenar por display_order
-     existingImages.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-    setRoomImages(existingImages);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleRoomFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedRoom) return;
-    
-    setLoading(true);
-    setError(null);
-
-    try {
-      console.log('🔍 Dados sendo enviados:');
-      console.log('Room ID:', selectedRoom.id);
-      console.log('Form Data:', roomFormData);
-      console.log('Room Images:', roomImages);
-      
-      const roomData = {
-        hotel_id: parseInt(roomFormData.hotel_id),
-        name: roomFormData.name,
-        description: roomFormData.description,
-        size_sqm: parseFloat(roomFormData.size_sqm),
-        bed_type: roomFormData.bed_type,
-        bed_count: parseInt(roomFormData.bed_count),
-        max_occupancy: parseInt(roomFormData.max_occupancy),
-        amenities: roomFormData.amenities || [],
-        bathroom_type: roomFormData.bathroom_type,
-        smoking_allowed: roomFormData.smoking_allowed,
-        price_per_night: parseFloat(roomFormData.price_per_night)
-      };
-      
-      // Verificar se há novas imagens para enviar
-      const newImages = roomImages
-        .filter(img => img.file) // Apenas imagens que têm o arquivo original
-        .map(img => img.file as File);
-      
-      let updatedRoom;
-      
-      if (newImages.length > 0) {
-        console.log('📸 Enviando com imagens:', newImages.length);
-        updatedRoom = await roomService.updateWithImages(selectedRoom.id, roomData, newImages);
-      } else {
-        console.log('📝 Enviando apenas dados (sem imagens)');
-        updatedRoom = await roomService.update(selectedRoom.id, roomData);
-      }
-      
-      console.log('✅ Quarto atualizado:', updatedRoom);
-       
-      // Recarregar dados para garantir sincronização
-      await loadData();
-       
-      // Mostrar mensagem de sucesso
-      alert('Quarto atualizado com sucesso!');
-      
-      setIsEditDialogOpen(false);
-      setSelectedRoom(null);
-      setRoomImages([]);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
-      setError(errorMessage);
-      console.error('❌ Erro ao atualizar quarto:', err);
-      alert('Erro ao atualizar quarto: ' + errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRoomInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
-    setRoomFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+    const imgs = (r.images ?? []).map((img: any, i: number) => ({
+      id: img.id,
+      preview: `data:${img.image_type};base64,${img.image_data}`,
+      displayOrder: img.display_order ?? i + 1,
+      isFeatured: img.display_order === 1,
     }));
+    setRoomImages(imgs.sort((a, b) => a.displayOrder - b.displayOrder));
+    setRoomModal("edit");
   };
 
-  const filteredAccommodations = hotels.filter(hotel => 
-    hotel.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    hotel.location.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // ── CRUD Hotel ──────────────────────────────────────────────────────────────
+  const handleSaveHotel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const payload = {
+        name: hotelForm.name, address: hotelForm.address,
+        city: hotelForm.city, state: hotelForm.state,
+        zip_code: "", phone: "", email: "", website: "",
+        description: hotelForm.description, amenities: [],
+      };
+      if (hotelModal === "create") {
+        await hotelService.create(payload);
+        toast.success("Hotel criado com sucesso!");
+      } else {
+        await hotelService.update(selectedHotel!.id, payload);
+        toast.success("Hotel atualizado com sucesso!");
+      }
+      setHotelModal(null);
+      loadData();
+    } catch {
+      toast.error(`Erro ao ${hotelModal === "create" ? "criar" : "atualizar"} hotel`);
+    } finally {
+      setSaving(false);
+    }
+  };
 
+  const handleDeleteHotel = async (h: Hotel) => {
+    if (!confirm(`Excluir o hotel "${h.name}"? Esta ação não pode ser desfeita.`)) return;
+    try {
+      await hotelService.delete(h.id);
+      toast.success("Hotel excluído com sucesso!");
+      loadData();
+    } catch {
+      toast.error("Erro ao excluir hotel");
+    }
+  };
+
+  // ── CRUD Quarto ─────────────────────────────────────────────────────────────
+  const handleSaveRoom = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const payload = {
+        hotel_id:       parseInt(roomForm.hotel_id),
+        name:           roomForm.name,
+        description:    roomForm.description,
+        size_sqm:       parseFloat(roomForm.size_sqm) || 0,
+        bed_type:       roomForm.bed_type,
+        bed_count:      Number(roomForm.bed_count),
+        max_occupancy:  Number(roomForm.max_occupancy),
+        bathroom_type:  roomForm.bathroom_type,
+        smoking_allowed:roomForm.smoking_allowed,
+        price_per_night:parseFloat(roomForm.price_per_night),
+      };
+      const newImgs = roomImages.filter(i => i.file).map(i => i.file as File);
+
+      if (roomModal === "create") {
+        if (newImgs.length > 0) {
+          await roomService.createWithImages(payload, newImgs);
+        } else {
+          await roomService.create(payload);
+        }
+        toast.success("Quarto criado com sucesso!");
+      } else {
+        if (newImgs.length > 0) {
+          await roomService.updateWithImages(selectedRoom!.id, payload, newImgs);
+        } else {
+          await roomService.update(selectedRoom!.id, payload);
+        }
+        toast.success("Quarto atualizado com sucesso!");
+      }
+      setRoomModal(null);
+      setRoomImages([]);
+      loadData();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro desconhecido";
+      toast.error(`Erro ao salvar quarto: ${msg}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteRoom = async (r: RoomType) => {
+    if (!confirm(`Excluir o quarto "${r.name}"?`)) return;
+    try {
+      await roomService.delete(r.id);
+      toast.success("Quarto excluído com sucesso!");
+      loadData();
+    } catch {
+      toast.error("Erro ao excluir quarto");
+    }
+  };
+
+  // ── Filtro ──────────────────────────────────────────────────────────────────
+  const filteredHotels = hotels.filter(h => {
+    const t = search.toLowerCase();
+    return (
+      h.name?.toLowerCase().includes(t) ||
+      h.address?.toLowerCase().includes(t) ||
+      h.city?.toLowerCase().includes(t)
+    );
+  });
+
+  const filteredRooms = roomTypes.filter(r => {
+    const t = search.toLowerCase();
+    return r.name?.toLowerCase().includes(t) || r.hotel_name?.toLowerCase().includes(t);
+  });
+
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="flex h-16 items-center justify-between px-6">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/admin/dashboard")}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="text-2xl font-bold text-primary">Gerenciar Hospedagens</h1>
-          </div>
-          
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Nova Hospedagem
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Criar Nova Hospedagem</DialogTitle>
-                <DialogDescription>
-                  Adicione uma nova propriedade ao seu catálogo
-                </DialogDescription>
-              </DialogHeader>
-              <form className="space-y-4" onSubmit={handleCreateHotel}>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Nome da Hospedagem</Label>
-                    <Input 
-                      id="name" 
-                      placeholder="Ex: Chalé das Montanhas" 
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Localização</Label>
-                    <Input 
-                      id="location" 
-                      placeholder="Ex: Serra da Mantiqueira" 
-                      value={formData.location}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description">Descrição</Label>
-                  <Textarea 
-                    id="description" 
-                    placeholder="Descreva a hospedagem..." 
-                    rows={3}
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Imagens</Label>
-                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
-                    <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">Clique para fazer upload ou arraste as imagens</p>
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" type="button" onClick={() => setIsCreateDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit">Criar Hospedagem</Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+    <AdminLayout
+      headerRight={
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={openCreateRoom}>
+            <Plus className="h-4 w-4 mr-1.5" /> Novo Quarto
+          </Button>
+          <Button size="sm" onClick={openCreateHotel}>
+            <Plus className="h-4 w-4 mr-1.5" /> Novo Hotel
+          </Button>
         </div>
-      </header>
+      }
+    >
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Hospedagens</h2>
+          <p className="text-muted-foreground text-sm">
+            {hotels.length} hotel{hotels.length !== 1 ? "is" : ""} · {roomTypes.length} tipo{roomTypes.length !== 1 ? "s" : ""} de quarto
+          </p>
+        </div>
 
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className="w-64 border-r bg-background/95 h-[calc(100vh-4rem)] sticky top-16">
-          <nav className="p-4 space-y-2">
-            <Button variant="ghost" className="w-full justify-start" onClick={() => navigate("/admin/dashboard")}>
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Dashboard
-            </Button>
-            <Button variant="default" className="w-full justify-start">
-              <Home className="mr-2 h-4 w-4" />
-              Hospedagens
-            </Button>
-            <Button variant="ghost" className="w-full justify-start" onClick={() => navigate("/admin/reservas")}>
-              <Calendar className="mr-2 h-4 w-4" />
-              Reservas
-            </Button>
+        {/* Stats rápidas */}
+        <div className="grid gap-4 md:grid-cols-3">
+          {[
+            { label: "Total Hotéis",        value: hotels.length,    icon: Home, color: "text-blue-600" },
+            { label: "Tipos de Quarto",     value: roomTypes.length, icon: Bed,  color: "text-purple-600" },
+            { label: "Localizações únicas", value: new Set(hotels.map(h => h.city).filter(Boolean)).size, icon: MapPin, color: "text-green-600" },
+          ].map(s => (
+            <Card key={s.label}>
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                  <p className="text-2xl font-bold">{s.value}</p>
+                </div>
+                <s.icon className={`h-8 w-8 ${s.color}`} />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-            <Button variant="ghost" className="w-full justify-start" onClick={() => navigate("/admin/relatorios")}>
-              <TrendingUp className="mr-2 h-4 w-4" />
-              Relatórios
-            </Button>
-          </nav>
-        </aside>
+        {/* Busca */}
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Buscar por nome ou cidade..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          {search && (
+            <button className="absolute right-3 top-1/2 -translate-y-1/2" onClick={() => setSearch("")}>
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+          )}
+        </div>
 
-        {/* Main Content */}
-        <main className="flex-1 p-6">
-          <div className="space-y-6">
-            {/* Search */}
-            <div className="flex gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+        {/* ── Lista de Hotéis ──────────────────────────────────────────────── */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Hotéis ({filteredHotels.length})</CardTitle>
+            <CardDescription>Gerencie seus hotéis e propriedades</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredHotels.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">
+                {search ? "Nenhum hotel encontrado para essa busca." : "Nenhum hotel cadastrado ainda."}
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {filteredHotels.map(hotel => (
+                  <div key={hotel.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/20 transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center shrink-0">
+                        <Home className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm">{hotel.name}</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          {[hotel.address, hotel.city, hotel.state].filter(Boolean).join(", ")}
+                        </p>
+                        {hotel.description && (
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-xs">
+                            {hotel.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 ml-3 shrink-0">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditHotel(hotel)} title="Editar">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDeleteHotel(hotel)} title="Excluir">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ── Lista de Quartos ─────────────────────────────────────────────── */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Tipos de Quarto ({filteredRooms.length})</CardTitle>
+            <CardDescription>Gerencie os quartos disponíveis e seus preços</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredRooms.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">
+                {search ? "Nenhum quarto encontrado para essa busca." : "Nenhum quarto cadastrado ainda."}
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {filteredRooms.map(room => (
+                  <div key={room.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/20 transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-12 h-12 bg-muted rounded-lg overflow-hidden shrink-0">
+                        {room.images?.[0] ? (
+                          <img
+                            src={`data:${room.images[0].image_type};base64,${room.images[0].image_data}`}
+                            alt={room.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Bed className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm">{room.name}</p>
+                        {room.hotel_name && (
+                          <p className="text-xs text-muted-foreground">{room.hotel_name}</p>
+                        )}
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="outline" className="text-xs">
+                            R$ {Number(room.price_per_night).toFixed(2)}/noite
+                          </Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            {room.max_occupancy ?? room.capacity} hóspedes
+                          </Badge>
+                          {(room.images?.length ?? 0) > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              {room.images!.length} foto{room.images!.length !== 1 ? "s" : ""}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 ml-3 shrink-0">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditRoom(room)} title="Editar">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDeleteRoom(room)} title="Excluir">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Modal Hotel ───────────────────────────────────────────────────────── */}
+      <Dialog open={hotelModal !== null} onOpenChange={() => setHotelModal(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{hotelModal === "create" ? "Novo Hotel" : `Editar: ${selectedHotel?.name}`}</DialogTitle>
+            <DialogDescription>
+              {hotelModal === "create" ? "Adicione uma nova propriedade ao catálogo." : "Atualize as informações do hotel."}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSaveHotel} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2 space-y-1.5">
+                <Label>Nome do Hotel</Label>
                 <Input
-                  placeholder="Buscar hospedagens..."
-                  className="pl-10"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={hotelForm.name}
+                  onChange={e => setHotelForm(p => ({ ...p, name: e.target.value }))}
+                  placeholder="Ex: Center Plaza Premium"
+                  required
+                />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label>Endereço</Label>
+                <Input
+                  value={hotelForm.address}
+                  onChange={e => setHotelForm(p => ({ ...p, address: e.target.value }))}
+                  placeholder="Rua das Flores, 123"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Cidade</Label>
+                <Input
+                  value={hotelForm.city}
+                  onChange={e => setHotelForm(p => ({ ...p, city: e.target.value }))}
+                  placeholder="São Paulo"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Estado</Label>
+                <Input
+                  value={hotelForm.state}
+                  onChange={e => setHotelForm(p => ({ ...p, state: e.target.value }))}
+                  placeholder="SP"
+                  maxLength={2}
+                />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label>Descrição</Label>
+                <Textarea
+                  value={hotelForm.description}
+                  onChange={e => setHotelForm(p => ({ ...p, description: e.target.value }))}
+                  placeholder="Descreva o hotel..."
+                  rows={3}
                 />
               </div>
             </div>
-
-            {/* Stats Cards */}
-            <div className="grid gap-4 md:grid-cols-4">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total Hotéis</p>
-                      <p className="text-2xl font-bold">{hotels.length}</p>
-                    </div>
-                    <Home className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Tipos de Quarto</p>
-                      <p className="text-2xl font-bold text-blue-600">
-                        {roomTypes.length}
-                      </p>
-                    </div>
-                    <Bed className="h-8 w-8 text-blue-600" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Localizações</p>
-                      <p className="text-2xl font-bold">{new Set(hotels.map(h => h.location)).size}</p>
-                    </div>
-                    <MapPin className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Status</p>
-                      <p className="text-2xl font-bold text-green-600">Ativo</p>
-                    </div>
-                    <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                      <div className="h-3 w-3 bg-green-600 rounded-full" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Accommodations List */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Hotéis ({filteredAccommodations.length})</CardTitle>
-                <CardDescription>Gerencie seus hotéis e propriedades</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                    <span className="ml-2">Carregando hotéis...</span>
-                  </div>
-                ) : error ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground mb-4">{error}</p>
-                    <Button onClick={loadData} variant="outline">
-                      Tentar novamente
-                    </Button>
-                  </div>
-                ) : filteredAccommodations.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">Nenhum hotel encontrado.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {filteredAccommodations.map((hotel) => (
-                      <div key={hotel.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center gap-4">
-                          <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
-                            <Home className="h-8 w-8 text-muted-foreground" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold">{hotel.name}</h3>
-                            <p className="text-sm text-muted-foreground flex items-center gap-1">
-                              <MapPin className="h-3 w-3" />
-                              {hotel.location}
-                            </p>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {hotel.description}
-                            </p>
-                            <div className="flex items-center gap-4 mt-2">
-                              <Badge variant="default">
-                                Ativo
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                ID: {hotel.id}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="icon" title="Ver detalhes">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            title="Editar"
-                            onClick={() => handleEditHotel(hotel)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="text-destructive" 
-                            title="Excluir"
-                            onClick={() => handleDeleteHotel(hotel)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            
-            {/* Room Types Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Tipos de Quartos ({roomTypes.length})</CardTitle>
-                <CardDescription>Gerencie os tipos de quartos disponíveis</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {roomTypes.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">Nenhum tipo de quarto encontrado.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {roomTypes.map((room) => (
-                      <div key={room.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center gap-4">
-                          <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
-                            {room.images && room.images.length > 0 ? (
-                              <img 
-                                src={`data:${room.images[0].image_type};base64,${room.images[0].image_data}`}
-                                alt={room.name}
-                                className="w-full h-full object-cover rounded-lg"
-                              />
-                            ) : (
-                              <Bed className="h-8 w-8 text-muted-foreground" />
-                            )}
-                          </div>
-                          <div>
-                            <h3 className="font-semibold">{room.name}</h3>
-                            <p className="text-sm text-muted-foreground">
-                              {room.description}
-                            </p>
-                            <div className="flex items-center gap-4 mt-2">
-                              <Badge variant="outline">
-                                R$ {room.price_per_night}/noite
-                              </Badge>
-                              <Badge variant="secondary">
-                                {room.max_occupancy} hóspedes
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {room.images?.length || 0} imagens
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            title="Editar"
-                            onClick={() => handleEditRoom(room)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="text-destructive" 
-                            title="Excluir"
-                            onClick={() => handleDeleteRoom(room)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </main>
-      </div>
-      
-      {/* Edit Hotel Dialog */}
-      <Dialog open={isEditHotelDialogOpen} onOpenChange={setIsEditHotelDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Editar Hotel: {selectedHotel?.name}</DialogTitle>
-            <DialogDescription>
-              Edite as informações do hotel
-            </DialogDescription>
-          </DialogHeader>
-          
-          <form onSubmit={handleUpdateHotel} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome do Hotel</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="location">Endereço Completo</Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                placeholder="Ex: Rua das Flores, 123 - Centro"
-                required
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="description">Descrição</Label>
-              <Textarea
-                id="description"
-                rows={3}
-                value={formData.description}
-                onChange={handleInputChange}
-                placeholder="Descreva o hotel..."
-              />
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button 
-                variant="outline" 
-                type="button" 
-                onClick={() => setIsEditHotelDialogOpen(false)}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit">
-                Salvar Alterações
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" type="button" onClick={() => setHotelModal(null)}>Cancelar</Button>
+              <Button type="submit" disabled={saving}>
+                {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                {hotelModal === "create" ? "Criar Hotel" : "Salvar Alterações"}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Room Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      {/* ── Modal Quarto ──────────────────────────────────────────────────────── */}
+      <Dialog open={roomModal !== null} onOpenChange={() => setRoomModal(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Editar Quarto: {selectedRoom?.name}</DialogTitle>
+            <DialogTitle>{roomModal === "create" ? "Novo Quarto" : `Editar: ${selectedRoom?.name}`}</DialogTitle>
             <DialogDescription>
-              Edite as informações e imagens do quarto
+              {roomModal === "create" ? "Configure o novo tipo de quarto." : "Atualize as informações do quarto."}
             </DialogDescription>
           </DialogHeader>
-          
-          <form onSubmit={handleRoomFormSubmit} className="space-y-6">
+          <form onSubmit={handleSaveRoom} className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nome do Quarto</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={roomFormData.name}
-                  onChange={handleRoomInputChange}
+              {/* Hotel */}
+              <div className="space-y-1.5">
+                <Label>Hotel</Label>
+                <Select
+                  value={roomForm.hotel_id}
+                  onValueChange={v => setRoomForm(p => ({ ...p, hotel_id: v }))}
                   required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="price_per_night">Preço por Noite (R$)</Label>
-                <Input
-                  id="price_per_night"
-                  name="price_per_night"
-                  type="number"
-                  step="0.01"
-                  value={roomFormData.price_per_night}
-                  onChange={handleRoomInputChange}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="bed_type">Tipo de Cama</Label>
-                <Select 
-                  value={roomFormData.bed_type} 
-                  onValueChange={(value) => setRoomFormData(prev => ({ ...prev, bed_type: value }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione o tipo de cama" />
+                    <SelectValue placeholder="Selecione o hotel" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Cama de Solteiro">Cama de Solteiro</SelectItem>
-                    <SelectItem value="Cama de Casal">Cama de Casal</SelectItem>
-                    <SelectItem value="Cama King">Cama King</SelectItem>
-                    <SelectItem value="Cama Queen">Cama Queen</SelectItem>
-                    <SelectItem value="Beliche">Beliche</SelectItem>
+                    {hotels.map(h => (
+                      <SelectItem key={h.id} value={String(h.id)}>{h.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="max_occupancy">Ocupação Máxima</Label>
+
+              {/* Nome */}
+              <div className="space-y-1.5">
+                <Label>Nome do Quarto</Label>
                 <Input
-                  id="max_occupancy"
-                  name="max_occupancy"
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={roomFormData.max_occupancy}
-                  onChange={handleRoomInputChange}
+                  value={roomForm.name}
+                  onChange={e => setRoomForm(p => ({ ...p, name: e.target.value }))}
+                  placeholder="Ex: Suíte Luxo"
                   required
                 />
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="size_sqm">Área (m²)</Label>
+
+              {/* Preço */}
+              <div className="space-y-1.5">
+                <Label>Preço por Noite (R$)</Label>
                 <Input
-                  id="size_sqm"
-                  name="size_sqm"
-                  type="number"
-                  step="0.1"
-                  value={roomFormData.size_sqm}
-                  onChange={handleRoomInputChange}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="bed_count">Número de Camas</Label>
-                <Input
-                  id="bed_count"
-                  name="bed_count"
-                  type="number"
-                  min="1"
-                  max="5"
-                  value={roomFormData.bed_count}
-                  onChange={handleRoomInputChange}
+                  type="number" step="0.01" min="0"
+                  value={roomForm.price_per_night}
+                  onChange={e => setRoomForm(p => ({ ...p, price_per_night: e.target.value }))}
                   required
                 />
               </div>
+
+              {/* Ocupação */}
+              <div className="space-y-1.5">
+                <Label>Ocupação Máxima</Label>
+                <Input
+                  type="number" min="1" max="20"
+                  value={roomForm.max_occupancy}
+                  onChange={e => setRoomForm(p => ({ ...p, max_occupancy: Number(e.target.value) }))}
+                  required
+                />
+              </div>
+
+              {/* Tipo de cama */}
+              <div className="space-y-1.5">
+                <Label>Tipo de Cama</Label>
+                <Select
+                  value={roomForm.bed_type}
+                  onValueChange={v => setRoomForm(p => ({ ...p, bed_type: v }))}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {["Solteiro", "Casal", "Queen", "King", "Beliche"].map(t => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Nº camas */}
+              <div className="space-y-1.5">
+                <Label>Número de Camas</Label>
+                <Input
+                  type="number" min="1" max="5"
+                  value={roomForm.bed_count}
+                  onChange={e => setRoomForm(p => ({ ...p, bed_count: Number(e.target.value) }))}
+                />
+              </div>
+
+              {/* Área */}
+              <div className="space-y-1.5">
+                <Label>Área (m²)</Label>
+                <Input
+                  type="number" step="0.1"
+                  value={roomForm.size_sqm}
+                  onChange={e => setRoomForm(p => ({ ...p, size_sqm: e.target.value }))}
+                />
+              </div>
+
+              {/* Banheiro */}
+              <div className="space-y-1.5">
+                <Label>Tipo de Banheiro</Label>
+                <Input
+                  value={roomForm.bathroom_type}
+                  onChange={e => setRoomForm(p => ({ ...p, bathroom_type: e.target.value }))}
+                  placeholder="Ex: Privativo com banheira"
+                />
+              </div>
+
+              {/* Descrição */}
+              <div className="col-span-2 space-y-1.5">
+                <Label>Descrição</Label>
+                <Textarea
+                  rows={3}
+                  value={roomForm.description}
+                  onChange={e => setRoomForm(p => ({ ...p, description: e.target.value }))}
+                  placeholder="Descreva as características do quarto..."
+                />
+              </div>
             </div>
-            
+
+            {/* Imagens */}
             <div className="space-y-2">
-              <Label htmlFor="description">Descrição</Label>
-              <Textarea
-                id="description"
-                name="description"
-                rows={3}
-                value={roomFormData.description}
-                onChange={handleRoomInputChange}
-                placeholder="Descreva as características do quarto..."
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="bathroom_type">Tipo de Banheiro</Label>
-              <Input
-                id="bathroom_type"
-                name="bathroom_type"
-                value={roomFormData.bathroom_type}
-                onChange={handleRoomInputChange}
-                placeholder="Ex: Banheiro privativo com chuveiro"
-              />
-            </div>
-            
-            <div className="space-y-4">
               <Label>Imagens do Quarto</Label>
               <ImageUpload
                 images={roomImages}
                 onImagesChange={setRoomImages}
                 maxImages={10}
-                showFeatured={true}
+                showFeatured
               />
             </div>
 
-            <div className="flex justify-end gap-2">
-              <Button 
-                variant="outline" 
-                type="button" 
-                onClick={() => setIsEditDialogOpen(false)}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? 'Salvando...' : 'Salvar Alterações'}
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" type="button" onClick={() => setRoomModal(null)}>Cancelar</Button>
+              <Button type="submit" disabled={saving}>
+                {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                {roomModal === "create" ? "Criar Quarto" : "Salvar Alterações"}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminLayout>
   );
 };
 

@@ -1,203 +1,149 @@
-# 🏨 Center Plaza - Sistema de Reservas
+# 🏨 Center Plaza - Sistema de Reservas e Gestão Hoteleira
 
-Um sistema completo de reservas para acomodações, desenvolvido com React, TypeScript e Vite. O Center Plaza oferece uma experiência moderna e intuitiva para reserva de hospedagens.
+![Project Status](https://img.shields.io/badge/status-active-success.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 
-## 🚀 Funcionalidades
+O **Center Plaza** é uma solução completa e moderna para gerenciamento de reservas de hotéis e pousadas. Desenvolvido com foco na experiência do usuário e na eficiência administrativa, o sistema oferece uma interface elegante para hóspedes e um painel robusto para administradores.
 
-### 👤 Sistema de Autenticação
-- ✅ Login e registro de usuários
-- ✅ Proteção de rotas
-- ✅ Contexto de autenticação global
-- ✅ Modal de autenticação responsivo
+---
 
-### 🏠 Gestão de Acomodações
-- ✅ Catálogo de acomodações
-- ✅ Detalhes completos das propriedades
-- ✅ Sistema de favoritos persistente
-- ✅ Compartilhamento de acomodações
-- ✅ Galeria de imagens
+## ✨ Funcionalidades Principais
 
-### 📅 Sistema de Reservas
-- ✅ Fluxo completo de reserva
-- ✅ Seleção de datas e hóspedes
-- ✅ Cálculo automático de preços
-- ✅ Múltiplas formas de pagamento (PIX, Cartão)
-- ✅ Confirmação e voucher de reserva
-- ✅ Consulta de reservas por código
+### 🌍 Portal do Hóspede (Frontend)
+- **Busca Inteligente:** Filtros por localização, data, número de hóspedes e comodidades.
+- **Detalhes da Acomodação:** Galeria de fotos interativa, lista de comodidades, avaliações e mapa.
+- **Fluxo de Reserva:** Processo passo-a-passo intuitivo (Datas -> Hóspedes -> Dados -> Pagamento).
+- **Área do Cliente:**
+  - Dashboard personalizado.
+  - Histórico de reservas (Ativas, Concluídas, Canceladas).
+  - Gestão de Favoritos.
+  - Download de Vouchers em PDF.
+  - Edição de Perfil e Senha.
+- **Consulta Rápida:** Localização de reservas via código e sobrenome sem necessidade de login.
 
-### 👨‍💼 Painel do Usuário
-- ✅ Dashboard personalizado
-- ✅ Histórico de reservas
-- ✅ Gerenciamento de favoritos
-- ✅ Perfil do usuário editável
-- ✅ Download de vouchers
+### ⚙️ Painel Administrativo (Backoffice)
+- **Dashboard Geral:** Visão geral com métricas de receita, ocupação e notificações em tempo real.
+- **Gestão de Hospedagens:**
+  - CRUD completo de Hotéis e Tipos de Quarto.
+  - Upload e gerenciamento de imagens.
+  - Definição de preços, capacidade e comodidades.
+- **Controle de Reservas:**
+  - Listagem com filtros avançados (Status, Data, Hóspede).
+  - Alteração de status (Confirmar, Cancelar, Check-in/out).
+- **Relatórios e Analytics:**
+  - Gráficos de receita mensal.
+  - Taxa de ocupação.
+  - Ranking de acomodações mais reservadas.
 
-### 🔧 Painel Administrativo
-- ✅ Gestão de hospedagens
-- ✅ Controle de reservas
-- ✅ Relatórios e estatísticas
-- ✅ Dashboard administrativo
+---
 
-## 🛠️ Tecnologias Utilizadas
+## 🛠️ Stack Tecnológica
 
-- **Frontend**: React 18 + TypeScript
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS + shadcn/ui
-- **Roteamento**: React Router DOM
-- **Gerenciamento de Estado**: Context API
-- **Persistência**: localStorage
-- **Ícones**: Lucide React
-- **Formulários**: React Hook Form + Zod
-- **Componentes**: Radix UI
+O projeto utiliza uma arquitetura moderna baseada em React e ecossistema JavaScript.
 
-## 📦 Instalação e Desenvolvimento
+### Frontend
+- **Core:** React 18 + TypeScript
+- **Build Tool:** Vite
+- **Estilização:** Tailwind CSS + shadcn/ui
+- **Roteamento:** React Router DOM
+- **Gerenciamento de Estado:** React Context API
+- **Ícones:** Lucide React
+- **Utilitários:** date-fns (datas), sonner (toasts), zod (validação).
+
+### Backend (Integrado)
+- **Runtime:** Node.js + Express
+- **Banco de Dados:** SQLite (Arquivo local `centerplaza.db`)
+- **Uploads:** Multer (Gerenciamento de arquivos locais)
+
+---
+
+## 🚀 Instalação e Execução
 
 ### Pré-requisitos
-- Node.js 18+ 
+- Node.js 18 ou superior
 - npm ou yarn
 
-### Passos para instalação
+### Passo a Passo
 
-```bash
-# 1. Clone o repositório
-git clone https://github.com/seu-usuario/center-plaza.git
+1. **Clone o repositório**
+   ```bash
+   git clone https://github.com/seu-usuario/center-plaza.git
+   cd center-plaza
+   ```
 
-# 2. Navegue para o diretório
-cd center-plaza
+2. **Instale as dependências**
+   ```bash
+   npm install
+   ```
 
-# 3. Instale as dependências
-npm install
+3. **Inicie o servidor de desenvolvimento**
+   ```bash
+   npm run dev
+   ```
+   O frontend estará disponível em `http://localhost:5173`.
 
-# 4. Inicie o servidor de desenvolvimento
-npm run dev
-```
+4. **Build para Produção**
+   ```bash
+   npm run build
+   ```
 
-O projeto estará disponível em `http://localhost:5173`
+---
 
-## 🚀 Deploy
-
-### Build de Produção
-
-```bash
-# Gerar build de produção
-npm run build
-
-# Testar build localmente
-npm run preview
-```
-
-### Scripts de Deploy Disponíveis
-
-```bash
-# Deploy genérico (apenas build)
-npm run deploy
-
-# Deploy para Vercel
-npm run deploy:vercel
-
-# Deploy para Netlify
-npm run deploy:netlify
-
-# Deploy para Surge
-npm run deploy:surge
-
-# Build + Preview
-npm run serve
-```
-
-### Plataformas Suportadas
-
-- **Vercel** (Recomendado) - Configuração automática
-- **Netlify** - Com redirects para SPA
-- **GitHub Pages** - Via GitHub Actions
-- **Surge.sh** - Deploy rápido
-- **Servidor próprio** - Arquivos estáticos
-
-### Deploy Automático
-
-O projeto inclui GitHub Actions para deploy automático:
-- ✅ Build e testes em múltiplas versões do Node.js
-- ✅ Deploy automático para Vercel, Netlify e GitHub Pages
-- ✅ Configurações de cache otimizadas
-- ✅ Headers de segurança
-
-## 📁 Estrutura do Projeto
+## 📂 Estrutura do Projeto
 
 ```
 src/
-├── components/          # Componentes reutilizáveis
-│   ├── ui/             # Componentes base (shadcn/ui)
-│   ├── AccommodationCard.tsx
-│   ├── AuthModal.tsx
-│   ├── BookingFlow.tsx
+├── assets/              # Imagens e recursos estáticos
+├── components/          # Componentes React reutilizáveis
+│   ├── admin/           # Componentes específicos do painel admin
+│   ├── ui/              # Componentes base (shadcn/ui)
 │   └── ...
-├── contexts/           # Contextos React
-│   ├── AuthContext.tsx
-│   ├── FavoritesContext.tsx
-│   └── ReservationContext.tsx
-├── pages/              # Páginas da aplicação
-│   ├── Index.tsx
-│   ├── UserDashboard.tsx
-│   ├── AdminDashboard.tsx
-│   └── ...
-├── hooks/              # Hooks customizados
-├── lib/                # Utilitários
-└── assets/             # Imagens e recursos
+├── contexts/            # Gerenciamento de estado global (Auth, Cart, etc)
+├── hooks/               # Custom Hooks
+├── pages/               # Páginas da aplicação (Rotas)
+├── services/            # Integração com API (Axios)
+└── lib/                 # Utilitários e configurações
 ```
 
-## 🌟 Características Principais
+---
 
-- **Responsivo**: Interface adaptável para desktop, tablet e mobile
-- **Performance**: Build otimizado com Vite e lazy loading
-- **Acessibilidade**: Componentes acessíveis com Radix UI
-- **SEO**: Meta tags otimizadas e estrutura semântica
-- **Segurança**: Headers de segurança e validação de dados
-- **PWA Ready**: Preparado para implementação de PWA
+## 🚢 Deploy
 
-## 🔧 Configuração de Ambiente
+O projeto possui guias detalhados para diferentes plataformas de hospedagem. Consulte os arquivos específicos para mais detalhes:
 
-### Variáveis de Ambiente (Opcional)
+- **Geral:** DEPLOY.md
+- **Hostinger (Node.js):** HOSTINGER_GUIDE.md
+- **Vercel/Netlify:** DEPLOYMENT_GUIDE.md
 
-Crie um arquivo `.env.local` na raiz do projeto:
+### Resumo para Deploy Estático (Frontend Only)
+Se você estiver utilizando apenas o frontend (com API mockada ou externa), o deploy pode ser feito em qualquer host estático:
 
-```env
-VITE_API_URL=https://api.centerplaza.com
-VITE_APP_ENV=production
-VITE_ANALYTICS_ID=your-analytics-id
+```bash
+npm run build
+# O conteúdo da pasta 'dist' está pronto para ser publicado
 ```
 
-## 📊 Scripts Disponíveis
-
-| Script | Descrição |
-|--------|----------|
-| `npm run dev` | Inicia servidor de desenvolvimento |
-| `npm run build` | Gera build de produção |
-| `npm run preview` | Testa build localmente |
-| `npm run lint` | Executa linter |
-| `npm run deploy` | Script de deploy genérico |
-| `npm run deploy:vercel` | Deploy para Vercel |
-| `npm run deploy:netlify` | Deploy para Netlify |
-| `npm run serve` | Build + Preview |
+---
 
 ## 🤝 Contribuição
 
-1. Faça um fork do projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. Push para a branch (`git push origin feature/AmazingFeature`)
+Contribuições são bem-vindas! Por favor, leia as diretrizes de contribuição antes de submeter um Pull Request.
+
+1. Faça um Fork do projeto
+2. Crie sua Feature Branch (`git checkout -b feature/NovaFeature`)
+3. Commit suas mudanças (`git commit -m 'Add: Nova Feature'`)
+4. Push para a Branch (`git push origin feature/NovaFeature`)
 5. Abra um Pull Request
 
-## 📝 Licença
+---
 
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+## 📄 Licença
 
-## 👥 Equipe
+Este projeto está licenciado sob a Licença MIT - veja o arquivo LICENSE para detalhes.
 
-- **Desenvolvimento**: Equipe Center Plaza
-- **Design**: UI/UX Team
-- **Backend**: API Team
+---
 
-## 📞 Suporte
-
-Para suporte técnico ou dúvidas:
-- Email: devturco@gmail.com
+<div align="center">
+  <sub>Desenvolvido pela equipe Center Plaza</sub>
+</div>

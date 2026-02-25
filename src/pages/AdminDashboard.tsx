@@ -1,188 +1,248 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Users, 
-  Home, 
-  Calendar, 
-  DollarSign, 
-  TrendingUp,
-  Bell,
-  Settings,
-  LogOut,
-  BarChart3,
-  MapPin,
-  Bed
-} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Users, Home, Calendar, DollarSign, TrendingUp, MapPin, Loader2, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import AdminLayout from "@/components/admin/AdminLayout";
+import api from "@/services/api";
+
+// ─── Tipos ────────────────────────────────────────────────────────────────────
+
+interface Reservation {
+  id: number;
+  guest_name: string;
+  hotel_name: string;
+  check_in_date: string;
+  check_out_date: string;
+  total_amount: number;
+  status: "pending" | "confirmed" | "cancelled";
+  created_at: string;
+}
+
+interface Stats {
+  totalReservations: number;
+  pendingReservations: number;
+  confirmedReservations: number;
+  totalRevenue: number;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const fmtCurrency = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+
+const statusConfig = {
+  pending:   { label: "Pendente",   className: "bg-yellow-100 text-yellow-800 border border-yellow-200" },
+  confirmed: { label: "Confirmada", className: "bg-green-100  text-green-800  border border-green-200"  },
+  cancelled: { label: "Cancelada",  className: "bg-red-100    text-red-800    border border-red-200"    },
+};
+
+// ─── Componente ───────────────────────────────────────────────────────────────
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const [notifications] = useState([
-    { id: 1, text: "Nova reserva para Chalé das Montanhas", time: "5 min atrás", unread: true },
-    { id: 2, text: "Check-out realizado na Casa de Vidro", time: "1h atrás", unread: false },
-    { id: 3, text: "Avaliação 5 estrelas recebida", time: "2h atrás", unread: false },
-  ]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [loading, setLoading]           = useState(true);
 
-  const stats = [
-    { title: "Reservas Ativas", value: "23", change: "+12%", icon: Calendar, color: "text-blue-600" },
-    { title: "Taxa de Ocupação", value: "78%", change: "+5%", icon: Home, color: "text-green-600" },
-    { title: "Receita Mensal", value: "R$ 45.320", change: "+18%", icon: DollarSign, color: "text-emerald-600" },
-    { title: "Novos Clientes", value: "34", change: "+25%", icon: Users, color: "text-purple-600" },
-  ];
-
-  const recentBookings = [
-    { id: "RS001234", guest: "Maria Silva", accommodation: "Chalé das Montanhas", dates: "15-18 Dez", status: "confirmada", value: "R$ 960" },
-    { id: "RS001235", guest: "João Santos", accommodation: "Casa de Vidro", dates: "20-22 Dez", status: "pendente", value: "R$ 900" },
-    { id: "RS001236", guest: "Ana Costa", accommodation: "Refúgio de Pedra", dates: "25-28 Dez", status: "confirmada", value: "R$ 1.140" },
-  ];
-
-  useEffect(() => {
-    const token = localStorage.getItem('admin_token');
-    if (!token) {
-      navigate("/admin");
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get<Reservation[]>("/reservations");
+      setReservations(data);
+    } catch {
+      /* falha silenciosa — mostra zeros nos cards */
+    } finally {
+      setLoading(false);
     }
-  }, [navigate]);
+  }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('admin_token');
-    navigate("/admin");
+  useEffect(() => { load(); }, [load]);
+
+  // ── Calcula stats a partir dos dados reais ──────────────────────────────────
+  const stats: Stats = {
+    totalReservations:    reservations.length,
+    pendingReservations:  reservations.filter(r => r.status === "pending").length,
+    confirmedReservations:reservations.filter(r => r.status === "confirmed").length,
+    totalRevenue:         reservations
+                            .filter(r => r.status !== "cancelled")
+                            .reduce((sum, r) => sum + (r.total_amount ?? 0), 0),
   };
 
+  const recentReservations = [...reservations]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 5);
+
+  const statCards = [
+    {
+      title: "Reservas Ativas",
+      value: loading ? "—" : stats.confirmedReservations,
+      sub:   `${stats.pendingReservations} pendente${stats.pendingReservations !== 1 ? "s" : ""}`,
+      icon:  Calendar,
+      color: "text-blue-600",
+    },
+    {
+      title: "Total de Reservas",
+      value: loading ? "—" : stats.totalReservations,
+      sub:   "no sistema",
+      icon:  Home,
+      color: "text-green-600",
+    },
+    {
+      title: "Receita Total",
+      value: loading ? "—" : fmtCurrency(stats.totalRevenue),
+      sub:   "reservas não canceladas",
+      icon:  DollarSign,
+      color: "text-emerald-600",
+    },
+    {
+      title: "Pendentes",
+      value: loading ? "—" : stats.pendingReservations,
+      sub:   "aguardando confirmação",
+      icon:  Users,
+      color: stats.pendingReservations > 0 ? "text-yellow-600" : "text-purple-600",
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="flex h-16 items-center justify-between px-6">
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-primary">Center Plaza Admin</h1>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
-                3
-              </Badge>
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Settings className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout}>
-              <LogOut className="h-5 w-5" />
-            </Button>
-          </div>
+    <AdminLayout
+      headerRight={
+        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+          <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />
+          Atualizar
+        </Button>
+      }
+    >
+      <div className="space-y-6">
+        {/* Welcome */}
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
+          <p className="text-muted-foreground text-sm">
+            Bem-vindo ao painel de controle do Center Plaza
+          </p>
         </div>
-      </header>
 
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className="w-64 border-r bg-background/95 h-[calc(100vh-4rem)] sticky top-16">
-          <nav className="p-4 space-y-2">
-            <Button variant="default" className="w-full justify-start">
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Dashboard
-            </Button>
-            <Button variant="ghost" className="w-full justify-start" onClick={() => navigate("/admin/hospedagens")}>
-              <Home className="mr-2 h-4 w-4" />
-              Hospedagens
-            </Button>
-            <Button variant="ghost" className="w-full justify-start" onClick={() => navigate("/admin/reservas")}>
-              <Calendar className="mr-2 h-4 w-4" />
-              Reservas
-            </Button>
+        {/* Stats */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {statCards.map((s) => (
+            <Card key={s.title}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{s.title}</CardTitle>
+                <s.icon className={`h-4 w-4 ${s.color}`} />
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">{s.value}</div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{s.sub}</p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-            <Button variant="ghost" className="w-full justify-start" onClick={() => navigate("/admin/relatorios")}>
-              <TrendingUp className="mr-2 h-4 w-4" />
-              Relatórios
-            </Button>
-          </nav>
-        </aside>
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Reservas Recentes */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Reservas Recentes</CardTitle>
+                <CardDescription>Últimas reservas no sistema</CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/admin/reservas")}>
+                Ver todas →
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex justify-center py-6">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : recentReservations.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Nenhuma reserva ainda.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {recentReservations.map((r) => (
+                    <div
+                      key={r.id}
+                      className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0"
+                    >
+                      <div className="space-y-0.5 min-w-0">
+                        <p className="font-medium text-sm truncate">{r.guest_name}</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          {r.hotel_name}
+                        </p>
+                      </div>
+                      <div className="text-right ml-3 shrink-0">
+                        <p className="text-sm font-medium">{fmtCurrency(r.total_amount)}</p>
+                        <Badge className={`text-[10px] mt-0.5 ${statusConfig[r.status].className}`}>
+                          {statusConfig[r.status].label}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Main Content */}
-        <main className="flex-1 p-6">
-          <div className="space-y-6">
-            {/* Welcome */}
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-              <p className="text-muted-foreground">Bem-vindo ao painel de controle do Center Plaza</p>
-            </div>
-
-            {/* Stats Grid */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {stats.map((stat) => (
-                <Card key={stat.title}>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                    <stat.icon className={`h-4 w-4 ${stat.color}`} />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stat.value}</div>
-                    <p className="text-xs text-muted-foreground">
-                      <span className="text-green-600">{stat.change}</span> em relação ao mês anterior
-                    </p>
-                  </CardContent>
-                </Card>
+          {/* Acesso Rápido */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Acesso Rápido</CardTitle>
+              <CardDescription>Navegue pelo painel administrativo</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {[
+                {
+                  label: "Gerenciar Hospedagens",
+                  sub:   "Hotéis, quartos e imagens",
+                  href:  "/admin/hospedagens",
+                  icon:  Home,
+                  color: "text-blue-600 bg-blue-50",
+                },
+                {
+                  label: "Controle de Reservas",
+                  sub:   `${stats.pendingReservations} pendente${stats.pendingReservations !== 1 ? "s" : ""} para confirmar`,
+                  href:  "/admin/reservas",
+                  icon:  Calendar,
+                  color: stats.pendingReservations > 0
+                    ? "text-yellow-600 bg-yellow-50"
+                    : "text-green-600 bg-green-50",
+                },
+                {
+                  label: "Relatórios",
+                  sub:   "Métricas e estatísticas",
+                  href:  "/admin/relatorios",
+                  icon:  TrendingUp,
+                  color: "text-purple-600 bg-purple-50",
+                },
+              ].map(({ label, sub, href, icon: Icon, color }) => (
+                <button
+                  key={href}
+                  onClick={() => navigate(href)}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/40 transition-colors text-left"
+                >
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{label}</p>
+                    <p className="text-xs text-muted-foreground">{sub}</p>
+                  </div>
+                </button>
               ))}
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-2">
-              {/* Recent Bookings */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Reservas Recentes</CardTitle>
-                  <CardDescription>Últimas reservas realizadas no sistema</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {recentBookings.map((booking) => (
-                      <div key={booking.id} className="flex items-center justify-between border-b pb-4 last:border-0">
-                        <div className="space-y-1">
-                          <p className="font-medium">{booking.guest}</p>
-                          <p className="text-sm text-muted-foreground flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {booking.accommodation}
-                          </p>
-                          <p className="text-xs text-muted-foreground">{booking.dates}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium">{booking.value}</p>
-                          <Badge variant={booking.status === "confirmada" ? "default" : "secondary"}>
-                            {booking.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Notifications */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Notificações</CardTitle>
-                  <CardDescription>Atualizações importantes do sistema</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {notifications.map((notification) => (
-                      <div key={notification.id} className="flex items-start gap-3">
-                        <div className={`w-2 h-2 rounded-full mt-2 ${notification.unread ? 'bg-primary' : 'bg-muted'}`} />
-                        <div className="flex-1">
-                          <p className="text-sm">{notification.text}</p>
-                          <p className="text-xs text-muted-foreground">{notification.time}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </main>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 };
 
