@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { roomService, RoomType } from '@/services/api';
 
-// Interface para mapear RoomType para AccommodationCard
 export interface AccommodationData {
   id: number;
   name: string;
@@ -15,26 +14,23 @@ export interface AccommodationData {
   featured?: boolean;
 }
 
-// Imagens padrão para as acomodações
 const defaultImages = [
   '/src/assets/accommodation-1.jpg',
   '/src/assets/accommodation-2.jpg',
   '/src/assets/accommodation-3.jpg',
 ];
 
-// Função para mapear RoomType para AccommodationData
-function mapRoomToAccommodation(room: RoomType, index: number): AccommodationData {
-  // Parse amenities se for string JSON
+function mapRoomToAccommodation(room: RoomType & { hotel_name?: string; max_occupancy?: number }, index: number): AccommodationData {
   let amenities: string[] = [];
   if (room.amenities) {
-    if (typeof room.amenities === 'string') {
-      try {
-        amenities = JSON.parse(room.amenities);
-      } catch {
-        amenities = room.amenities.split(',').map(a => a.trim());
-      }
-    } else if (Array.isArray(room.amenities)) {
+    if (Array.isArray(room.amenities)) {
       amenities = room.amenities;
+    } else {
+      try {
+        amenities = JSON.parse(room.amenities as unknown as string);
+      } catch {
+        amenities = (room.amenities as unknown as string).split(',').map(a => a.trim());
+      }
     }
   }
 
@@ -42,11 +38,11 @@ function mapRoomToAccommodation(room: RoomType, index: number): AccommodationDat
     id: room.id,
     name: room.name,
     image: defaultImages[index % defaultImages.length],
-    location: room.hotel_name || 'Center Plaza',
-    rating: 4.8, // Rating fixo baseado na qualidade do hotel
-    reviewCount: 45, // Número fixo de reviews
+    location: (room as any).hotel_name || 'Center Plaza',
+    rating: 4.8,
+    reviewCount: 45,
     price: room.price_per_night,
-    maxGuests: room.max_occupancy,
+    maxGuests: (room as any).max_occupancy ?? room.capacity ?? 2,
     amenities: amenities.length > 0 ? amenities : ['Wi-Fi', 'Estacionamento'],
     featured: index < 3,
   };
@@ -65,17 +61,14 @@ export function useRooms() {
     try {
       setLoading(true);
       setError(null);
-      
       const roomTypes = await roomService.getAll();
-      const accommodations = roomTypes.map((room, index) => 
+      const accommodations = roomTypes.map((room, index) =>
         mapRoomToAccommodation(room, index)
       );
-      
       setRooms(accommodations);
     } catch (err) {
       console.error('Erro ao buscar quartos:', err);
       setError('Erro ao carregar as acomodações');
-      // Em caso de erro, manter lista vazia
       setRooms([]);
     } finally {
       setLoading(false);
@@ -88,6 +81,5 @@ export function useRooms() {
 export function useFeaturedRooms() {
   const { rooms, loading, error } = useRooms();
   const featuredRooms = rooms.filter(room => room.featured).slice(0, 3);
-  
   return { rooms: featuredRooms, loading, error };
 }
