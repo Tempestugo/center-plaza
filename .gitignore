@@ -5,3 +5,4 @@ node_modules copy/
 .DS_Store
 centerplaza.db
 api/database/*.db
+.env.local

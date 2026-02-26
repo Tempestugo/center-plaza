@@ -586,15 +586,93 @@ router.post('/chat/:reservationId', async (req, res) => {
       senderRole: req.user.role, created_at: new Date() });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+ 
+// ── Stripe ───────────────────────────────────────────────────────────────────
 
-// ── Stripe (Mock) ─────────────────────────────────────────────────────────────
+let stripe = null;
+try {
+  if (process.env.STRIPE_SECRET_KEY && process.env.STRIPE_SECRET_KEY.startsWith('sk_')) {
+    stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    console.log('✅ Stripe inicializado');
+  } else {
+    console.warn('⚠️  STRIPE_SECRET_KEY inválida — modo mock ativo');
+  }
+} catch (e) { console.warn('⚠️  stripe não instalado:', e.message); }
 
-router.post('/create-payment-intent', (req, res) => {
-  res.json({ clientSecret: 'mock_secret_' + Date.now() });
+router.post('/create-payment-intent', async (req, res) => {
+  try {
+    const { amount, currency = 'brl', reservation_id } = req.body;
+    if (!amount || amount <= 0) return res.status(400).json({ error: 'Valor inválido' });
+
+    if (!stripe) {
+      return res.json({ clientSecret: 'mock_secret_' + Date.now(), mock: true });
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100),
+      currency,
+      automatic_payment_methods: { enabled: true },
+      metadata: { reservation_id: String(reservation_id ?? '') },
+    });
+
+    if (reservation_id) {
+      try {
+        const db = await getDb();
+        await db.run(
+          'UPDATE reservations SET stripe_payment_intent_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+          [paymentIntent.id, reservation_id]
+        );
+      } catch (e) { console.error('Erro ao salvar payment_intent_id:', e.message); }
+    }
+
+    res.json({ clientSecret: paymentIntent.client_secret });
+  } catch (err) {
+    console.error('Stripe error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
-router.post('/webhooks/stripe', express.raw({ type: 'application/json' }), (req, res) => {
-  res.json({ received: true });
+router.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig    = req.headers['stripe-signature'];
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  let event;
+  try {
+    event = (stripe && secret && sig)
+      ? stripe.webhooks.constructEvent(req.body, sig, secret)
+      : JSON.parse(req.body.toString());
+  } catch (err) {
+    return res.status(400).json({ error: 'Webhook inválido: ' + err.message });
+  }
+  try {
+    const db = await getDb();
+    if (event.type === 'payment_intent.succeeded') {
+      const id = event.data.object.metadata?.reservation_id;
+      if (id) await db.run(
+        "UPDATE reservations SET status='confirmed', payment_status='paid', updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        [id]
+      );
+    }
+    if (event.type === 'payment_intent.payment_failed') {
+      const id = event.data.object.metadata?.reservation_id;
+      if (id) await db.run(
+        "UPDATE reservations SET payment_status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        [id]
+      );
+    }
+    res.json({ received: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/reservations/:id/payment-status', async (req, res) => {
+  try {
+    const db = await getDb();
+    const r = await db.get(
+      'SELECT id, status, payment_status, stripe_payment_intent_id, total_amount FROM reservations WHERE id=?',
+      [req.params.id]
+    );
+    if (!r) return res.status(404).json({ error: 'Reserva não encontrada' });
+    res.json(r);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── Error handler ─────────────────────────────────────────────────────────────

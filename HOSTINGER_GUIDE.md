@@ -37,7 +37,21 @@ No Web Hosting atual da Hostinger, o upload manual de arquivos não instala as d
    - Certifique-se de que o sistema está configurado para rodar `npm install` e `npm run build`.
    - Isso garantirá que as bibliotecas (como `sqlite3` e `multer`) sejam instaladas e o site (Frontend) seja gerado na pasta `dist`.
 
-### 4. Finalizar
+### 4. Configurar Variáveis de Ambiente
+> **Atenção:** É crucial configurar as variáveis de ambiente corretamente para o Stripe funcionar.
+
+1. Na tela da sua aplicação Node.js no hPanel, procure pela seção **Environment Variables** (Variáveis de Ambiente).
+2. Clique em **Adicionar Nova** (Add New) e insira as chaves e valores.
+3. Adicione as seguintes variáveis:
+   - **Chave:** `STRIPE_SECRET_KEY`, **Valor:** `sk_test_...` (Sua chave secreta do Stripe)
+   - **Chave:** `VITE_STRIPE_PUBLISHABLE_KEY`, **Valor:** `pk_test_...` (Sua chave publicável do Stripe)
+
+> **Nota:** A variável `VITE_STRIPE_PUBLISHABLE_KEY` é para o frontend (React/Vite) e a `STRIPE_SECRET_KEY` é para o backend (Node.js). **Nunca exponha a chave secreta no frontend.**
+> Futuramente, você também adicionará a `STRIPE_WEBHOOK_SECRET` aqui.
+
+> **Nota:** Variáveis de ambiente com o prefixo `VITE_` são usadas no frontend. O processo de build do Vite as substituirá no código final.
+
+### 5. Finalizar
 1. Clique em **Deploy** (ou Salvar).
 2. Aguarde o processo finalizar.
 3. Acesse a URL da sua aplicação.

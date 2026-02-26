@@ -74,8 +74,14 @@ RewriteRule . /index.html [L]
 ### Variáveis de Ambiente
 
 Para produção, configure as seguintes variáveis se necessário:
-- `VITE_API_URL`: URL da API backend
-- `VITE_APP_ENV`: production
+
+```env
+VITE_API_URL=https://api.centerplaza.com
+VITE_PAYMENT_API=https://payments.centerplaza.com
+VITE_GOOGLE_MAPS_API_KEY=sua_chave_aqui
+VITE_ANALYTICS_ID=seu_id_aqui
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_51T54VULq8ZIJ5qgnpNvpGadJXo4BJDeF0CvxWDw7sch3RMLWD08KwyrBVAoVLT8EPsYoocx48i9i8aVUIyx2mrvA00kUulFZAV
+```
 
 ### Performance
 

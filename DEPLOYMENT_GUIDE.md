@@ -178,6 +178,7 @@ VITE_PAYMENT_API=https://payments.centerplaza.com
 # Opcional - Chaves de serviços externos
 VITE_GOOGLE_MAPS_API_KEY=sua_chave_aqui
 VITE_ANALYTICS_ID=seu_id_aqui
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_51T54VULq8ZIJ5qgnpNvpGadJXo4BJDeF0CvxWDw7sch3RMLWD08KwyrBVAoVLT8EPsYoocx48i9i8aVUIyx2mrvA00kUulFZAV
 ```
 
 ## 📊 Métricas do Build
