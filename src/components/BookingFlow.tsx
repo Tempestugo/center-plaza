@@ -14,7 +14,7 @@ import { Calendar as CalendarIcon, Check, ArrowLeft, ArrowRight, MapPin } from "
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
-import api from "@/services/api";
+import { reservationService } from "@/services/api";
 import PaymentStep from "@/components/PaymentStep";
 
 interface BookingFlowProps {
@@ -86,7 +86,7 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
     if (currentStep === "details") {
       setLoading(true);
       try {
-        const { data } = await api.post<{ id: number }>("/reservations", {
+        const data = await reservationService.create({
           hotel_id:        1, // único hotel
           room_type_id:    accommodation.id,
           guest_name:      guestDetails.name,
@@ -293,12 +293,12 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
             {currentStep === "payment" && createdReservationId && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Pagamento seguro</h3>
-                <PaymentStep
+                {total > 0 && <PaymentStep
                   reservationId={createdReservationId}
                   totalAmount={total}
                   onSuccess={() => setCurrentStep("confirmation")}
                   onBack={handlePrevious}
-                />
+                />}
               </div>
             )}
 
