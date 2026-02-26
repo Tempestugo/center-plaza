@@ -42,6 +42,8 @@ export interface RoomType {
   created_at?: string;
   updated_at?: string;
   images?: { id: number; url: string }[];
+  is_active?: number;
+  room_number?: string;
 }
 
 export interface Reservation {
@@ -279,6 +281,27 @@ export const roomService = {
   // Listar todos os tipos de quarto
   async getAll(): Promise<RoomType[]> {
     return apiRequest<RoomType[]>('/rooms');
+  },
+
+  // Listar todos os quartos (incluindo inativos) - Para Admin
+  async getAllAdmin(): Promise<RoomType[]> {
+    return apiRequest<RoomType[]>('/rooms/all');
+  },
+
+  // Atualizar disponibilidade (Ativar/Desativar)
+  async updateAvailability(id: number, is_active: number): Promise<RoomType> {
+    return apiRequest<RoomType>(`/rooms/${id}/availability`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_active }),
+    });
+  },
+
+  // Atualizar número do quarto
+  async updateRoomNumber(id: number, room_number: string): Promise<RoomType> {
+    return apiRequest<RoomType>(`/rooms/${id}/room-number`, {
+      method: 'PATCH',
+      body: JSON.stringify({ room_number }),
+    });
   },
 
   // Buscar tipo de quarto por ID

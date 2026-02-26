@@ -20,7 +20,10 @@ const defaultImages = [
   '/src/assets/accommodation-3.jpg',
 ];
 
-function mapRoomToAccommodation(room: RoomType & { hotel_name?: string; max_occupancy?: number }, index: number): AccommodationData {
+function mapRoomToAccommodation(
+  room: RoomType & { hotel_name?: string; max_occupancy?: number; is_active?: number },
+  index: number
+): AccommodationData {
   let amenities: string[] = [];
   if (room.amenities) {
     if (Array.isArray(room.amenities)) {
@@ -35,37 +38,39 @@ function mapRoomToAccommodation(room: RoomType & { hotel_name?: string; max_occu
   }
 
   return {
-    id: room.id,
-    name: room.name,
-    image: defaultImages[index % defaultImages.length],
-    location: (room as any).hotel_name || 'Center Plaza',
-    rating: 4.8,
+    id:          room.id,
+    name:        room.name,
+    image:       defaultImages[index % defaultImages.length],
+    location:    (room as any).hotel_name || 'Center Plaza',
+    rating:      4.8,
     reviewCount: 45,
-    price: room.price_per_night,
-    maxGuests: (room as any).max_occupancy ?? room.capacity ?? 2,
-    amenities: amenities.length > 0 ? amenities : ['Wi-Fi', 'Estacionamento'],
-    featured: index < 3,
+    price:       room.price_per_night,
+    maxGuests:   (room as any).max_occupancy ?? room.capacity ?? 2,
+    amenities:   amenities.length > 0 ? amenities : ['Wi-Fi', 'Estacionamento'],
+    featured:    index < 3,
   };
 }
 
 export function useRooms() {
-  const [rooms, setRooms] = useState<AccommodationData[]>([]);
+  const [rooms,   setRooms]   = useState<AccommodationData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error,   setError]   = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchRooms();
-  }, []);
+  useEffect(() => { fetchRooms(); }, []);
 
   const fetchRooms = async () => {
     try {
       setLoading(true);
       setError(null);
       const roomTypes = await roomService.getAll();
-      const accommodations = roomTypes.map((room, index) =>
-        mapRoomToAccommodation(room, index)
+
+      // A rota pública /rooms já retorna só ativos (is_active = 1) após o patch do backend.
+      // Este filtro é uma camada extra de segurança caso a rota ainda não esteja atualizada.
+      const activeRooms = roomTypes.filter(
+        (r: any) => r.is_active === undefined || r.is_active === 1
       );
-      setRooms(accommodations);
+
+      setRooms(activeRooms.map((room, index) => mapRoomToAccommodation(room, index)));
     } catch (err) {
       console.error('Erro ao buscar quartos:', err);
       setError('Erro ao carregar as acomodações');
