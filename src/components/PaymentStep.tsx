@@ -165,7 +165,7 @@ export default function PaymentStep({ reservationId, totalAmount, onSuccess, onB
         onSuccess={onSuccess}
         onBack={onBack}
         isMock={true}
-      /&gt;
+      />
     );
   }
 
