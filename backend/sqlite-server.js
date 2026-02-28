@@ -599,68 +599,127 @@ try {
   }
 } catch (e) { console.warn('⚠️  stripe não instalado:', e.message); }
 
-router.post('/create-payment-intent', async (req, res) => {
+router.post('/create-checkout-session', async (req, res) => {
   try {
-    const { amount, currency = 'brl', reservation_id } = req.body;
-    if (!amount || amount <= 0) return res.status(400).json({ error: 'Valor inválido' });
+    if (!stripe) return res.status(503).json({ error: 'Stripe não configurado' });
 
-    if (!stripe) {
-      return res.json({ clientSecret: 'mock_secret_' + Date.now(), mock: true });
-    }
+    const {
+      hotel_id, room_type_id, guest_name, guest_email, guest_phone,
+      guest_document, check_in_date, check_out_date, number_of_guests, special_requests
+    } = req.body;
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100),
-      currency,
-      automatic_payment_methods: { enabled: true },
-      metadata: { reservation_id: String(reservation_id ?? '') },
+    const db = await getDb();
+
+    // Verificar disponibilidade
+    const conflict = await db.get(
+      "SELECT COUNT(*) as c FROM reservations WHERE room_type_id=? AND status!='cancelled' AND check_in_date<? AND check_out_date>?",
+      [room_type_id, check_out_date, check_in_date]
+    );
+    if (conflict.c > 0) return res.status(409).json({ error: 'Quarto indisponível para as datas selecionadas' });
+
+    // Buscar preço
+    const room = await db.get('SELECT * FROM room_types WHERE id = ?', [room_type_id]);
+    if (!room) return res.status(404).json({ error: 'Quarto não encontrado' });
+
+    const nights = Math.max(1, Math.ceil((new Date(check_out_date) - new Date(check_in_date)) / 86400000));
+    const totalAmount = room.price_per_night * nights;
+
+    // Criar reserva pendente
+    const ins = await db.run(
+      'INSERT INTO reservations (hotel_id,room_type_id,guest_name,guest_email,guest_phone,guest_document,check_in_date,check_out_date,number_of_guests,total_amount,special_requests,status,payment_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      [hotel_id, room_type_id, guest_name, guest_email, guest_phone, guest_document,
+       check_in_date, check_out_date, number_of_guests, totalAmount, special_requests || '', 'pending', 'pending']
+    );
+    const reservationId = ins.lastID;
+
+    // Criar Checkout Session
+    const baseUrl = process.env.FRONTEND_URL || 'https://lightgrey-echidna-641630.hostingersite.com';
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      customer_email: guest_email,
+      locale: 'pt-BR',
+      line_items: [{
+        price_data: {
+          currency: 'brl',
+          product_data: {
+            name: room.name + ' — Center Plaza Hotel',
+            description: `Check-in: ${check_in_date} | Check-out: ${check_out_date} | ${nights} noite(s) | ${number_of_guests} hóspede(s)`,
+          },
+          unit_amount: Math.round(totalAmount * 100),
+        },
+        quantity: 1,
+      }],
+      metadata: {
+        reservation_id: reservationId.toString(),
+        guest_name,
+        guest_email,
+      },
+      success_url: `${baseUrl}/reserva/sucesso?session_id={CHECKOUT_SESSION_ID}&reservation_id=${reservationId}`,
+      cancel_url: `${baseUrl}/reserva/cancelado?reservation_id=${reservationId}`,
     });
 
-    if (reservation_id) {
-      try {
-        const db = await getDb();
-        await db.run(
-          'UPDATE reservations SET stripe_payment_intent_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
-          [paymentIntent.id, reservation_id]
-        );
-      } catch (e) { console.error('Erro ao salvar payment_intent_id:', e.message); }
-    }
+    // Salvar session_id na reserva
+    await db.run(
+      'UPDATE reservations SET stripe_payment_intent_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+      [session.id, reservationId]
+    );
 
-    res.json({ clientSecret: paymentIntent.client_secret });
+    res.json({ url: session.url, reservationId, sessionId: session.id });
   } catch (err) {
-    console.error('Stripe error:', err.message);
+    console.error('create-checkout-session error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
 router.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
-  const sig    = req.headers['stripe-signature'];
+  const sig = req.headers['stripe-signature'];
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   let event;
+
   try {
-    event = (stripe && secret && sig)
-      ? stripe.webhooks.constructEvent(req.body, sig, secret)
-      : JSON.parse(req.body.toString());
+    if (stripe && secret && sig && Buffer.isBuffer(req.body)) {
+      event = stripe.webhooks.constructEvent(req.body, sig, secret);
+    } else {
+      const body = Buffer.isBuffer(req.body) ? req.body.toString() : JSON.stringify(req.body);
+      event = JSON.parse(body);
+    }
   } catch (err) {
+    console.error('Webhook parse error:', err.message);
     return res.status(400).json({ error: 'Webhook inválido: ' + err.message });
   }
+
   try {
     const db = await getDb();
-    if (event.type === 'payment_intent.succeeded') {
-      const id = event.data.object.metadata?.reservation_id;
-      if (id) await db.run(
-        "UPDATE reservations SET status='confirmed', payment_status='paid', updated_at=CURRENT_TIMESTAMP WHERE id=?",
-        [id]
-      );
+
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const reservationId = session.metadata?.reservation_id;
+      if (reservationId) {
+        await db.run(
+          "UPDATE reservations SET status='confirmed', payment_status='paid', updated_at=CURRENT_TIMESTAMP WHERE id=?",
+          [reservationId]
+        );
+        console.log('✅ Reserva confirmada via checkout:', reservationId);
+      }
     }
-    if (event.type === 'payment_intent.payment_failed') {
-      const id = event.data.object.metadata?.reservation_id;
-      if (id) await db.run(
-        "UPDATE reservations SET payment_status='failed', updated_at=CURRENT_TIMESTAMP WHERE id=?",
-        [id]
-      );
+
+    if (event.type === 'checkout.session.expired') {
+      const session = event.data.object;
+      const reservationId = session.metadata?.reservation_id;
+      if (reservationId) {
+        await db.run(
+          "UPDATE reservations SET status='cancelled', updated_at=CURRENT_TIMESTAMP WHERE id=?",
+          [reservationId]
+        );
+      }
     }
+
     res.json({ received: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    console.error('Webhook handler error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.get('/reservations/:id/payment-status', async (req, res) => {

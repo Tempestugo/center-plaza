@@ -14,8 +14,6 @@ import { Calendar as CalendarIcon, Check, ArrowLeft, ArrowRight, MapPin } from "
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
-import { reservationService } from "@/services/api";
-import PaymentStep from "@/components/PaymentStep";
 
 interface BookingFlowProps {
   open: boolean;
@@ -31,17 +29,15 @@ interface BookingFlowProps {
   };
 }
 
-type BookingStep = "dates" | "guests" | "details" | "payment" | "confirmation";
+type BookingStep = "dates" | "guests" | "details";
 
 const STEPS: { id: BookingStep; title: string }[] = [
   { id: "dates",        title: "Datas"        },
   { id: "guests",       title: "Hóspedes"     },
   { id: "details",      title: "Detalhes"     },
-  { id: "payment",      title: "Pagamento"    },
-  { id: "confirmation", title: "Confirmação"  },
 ];
 
-const STEP_ORDER: BookingStep[] = ["dates", "guests", "details", "payment", "confirmation"];
+const STEP_ORDER: BookingStep[] = ["dates", "guests", "details"];
 
 export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowProps) {
   const { user } = useAuth();
@@ -61,9 +57,6 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
     specialRequests: "",
   });
 
-  // ID da reserva criada no backend (necessário para o PaymentStep)
-  const [createdReservationId, setCreatedReservationId] = useState<number | null>(null);
-
   // Cálculos
   const nights     = checkIn && checkOut ? differenceInDays(checkOut, checkIn) : 0;
   const subtotal   = nights * accommodation.price;
@@ -76,35 +69,40 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
     dates:   !!(checkIn && checkOut && nights > 0),
     guests:  guests > 0 && guests <= accommodation.maxGuests,
     details: !!(guestDetails.name && guestDetails.email && guestDetails.phone && guestDetails.document),
-    payment: true,
-    confirmation: true,
   };
 
   // ── Navegar para frente (no passo "details" → cria a reserva no backend) ────
   const handleNext = async () => {
-    // Ao sair de "details", criar a reserva no backend antes de ir para pagamento
+    // Ao sair de "details", criar reserva E redirecionar para Stripe Checkout
     if (currentStep === "details") {
       setLoading(true);
       try {
-        const data = await reservationService.create({
-          hotel_id:        1, // único hotel
-          room_type_id:    accommodation.id,
-          guest_name:      guestDetails.name,
-          guest_email:     guestDetails.email,
-          guest_phone:     guestDetails.phone,
-          guest_document:  guestDetails.document,
-          check_in_date:   format(checkIn!, "yyyy-MM-dd"),
-          check_out_date:  format(checkOut!, "yyyy-MM-dd"),
-          number_of_guests:guests,
-          total_amount:    total,
-          special_requests:guestDetails.specialRequests,
-          status:          "pending",
+        const response = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            hotel_id: 1,
+            room_type_id: accommodation.id,
+            guest_name: guestDetails.name,
+            guest_email: guestDetails.email,
+            guest_phone: guestDetails.phone,
+            guest_document: guestDetails.document,
+            check_in_date: format(checkIn!, 'yyyy-MM-dd'),
+            check_out_date: format(checkOut!, 'yyyy-MM-dd'),
+            number_of_guests: guests,
+            special_requests: guestDetails.specialRequests,
+          }),
         });
-        setCreatedReservationId(data.id);
-        setCurrentStep("payment");
-      } catch (err) {
-        toast.error("Erro ao criar reserva. Verifique os dados e tente novamente.");
-        console.error(err);
+
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error || 'Erro ao criar sessão de pagamento');
+        }
+
+        const { url } = await response.json();
+        window.location.href = url; // Redireciona para o Stripe Checkout
+      } catch (err: any) {
+        toast.error(err.message || "Erro ao processar. Tente novamente.");
       } finally {
         setLoading(false);
       }
@@ -126,7 +124,6 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
     setCheckOut(undefined);
     setGuests(2);
     setGuestDetails({ name: user?.name ?? "", email: user?.email ?? "", phone: "", document: "", specialRequests: "" });
-    setCreatedReservationId(null);
   };
 
   const handleClose = () => { resetBooking(); onOpenChange(false); };
@@ -289,48 +286,8 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
               </div>
             )}
 
-            {/* ── Passo 4: Pagamento (Stripe) ───────────────────────────────── */}
-            {currentStep === "payment" && createdReservationId && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Pagamento seguro</h3>
-                {total > 0 && <PaymentStep
-                  reservationId={createdReservationId}
-                  totalAmount={total}
-                  onSuccess={() => setCurrentStep("confirmation")}
-                  onBack={handlePrevious}
-                />}
-              </div>
-            )}
-
-            {/* ── Passo 5: Confirmação ──────────────────────────────────────── */}
-            {currentStep === "confirmation" && (
-              <div className="text-center space-y-6">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                  <Check className="h-8 w-8 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-green-600 mb-2">Reserva Confirmada!</h3>
-                  <p className="text-muted-foreground">Sua reserva foi processada com sucesso</p>
-                </div>
-
-                <Card>
-                  <CardContent className="p-6 space-y-3 text-left text-sm">
-                    <div className="flex justify-between"><span className="font-medium">Número da reserva:</span><span className="font-mono">#{createdReservationId}</span></div>
-                    <div className="flex justify-between"><span className="font-medium">Hospedagem:</span><span>{accommodation.name}</span></div>
-                    <div className="flex justify-between"><span className="font-medium">Check-in:</span><span>{checkIn && format(checkIn, "dd/MM/yyyy", { locale: ptBR })}</span></div>
-                    <div className="flex justify-between"><span className="font-medium">Check-out:</span><span>{checkOut && format(checkOut, "dd/MM/yyyy", { locale: ptBR })}</span></div>
-                    <div className="flex justify-between font-semibold"><span>Total pago:</span><span>R$ {total.toFixed(2)}</span></div>
-                  </CardContent>
-                </Card>
-
-                <p className="text-sm text-muted-foreground">
-                  Um email de confirmação será enviado para <strong>{guestDetails.email}</strong>
-                </p>
-              </div>
-            )}
-
             {/* ── Botões de navegação ───────────────────────────────────────── */}
-            {currentStep !== "payment" && currentStep !== "confirmation" && (
+            {
               <div className="flex justify-between mt-8">
                 <Button variant="outline" onClick={handlePrevious} disabled={currentStep === "dates"}>
                   <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
@@ -339,17 +296,15 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
                   onClick={handleNext}
                   disabled={loading || !canProceed[currentStep]}
                 >
-                  {loading ? "Criando reserva..." : "Continuar"}
+                  {loading
+                    ? "Redirecionando..."
+                    : currentStep === "details"
+                    ? "Ir para Pagamento →"
+                    : "Continuar"}
                   {!loading && <ArrowRight className="ml-2 h-4 w-4" />}
                 </Button>
               </div>
-            )}
-
-            {currentStep === "confirmation" && (
-              <div className="flex justify-center mt-8">
-                <Button onClick={handleClose}>Fechar</Button>
-              </div>
-            )}
+            }
           </div>
         </div>
       </DialogContent>

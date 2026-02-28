@@ -20,6 +20,8 @@ import UserDashboard from "./pages/UserDashboard";
 import ReservationDetails from "./pages/ReservationDetails";
 import UserProfile from "./pages/UserProfile";
 import NotFound from "./pages/NotFound";
+import ReservaSucesso from "@/pages/ReservaSucesso";
+import ReservaCancelado from "@/pages/ReservaCancelado";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +48,8 @@ const App = () => (
             <Route path="/minha-conta" element={<UserDashboard />} />
             <Route path="/reserva/:id" element={<ReservationDetails />} />
             <Route path="/perfil" element={<UserProfile />} />
+            <Route path="/reserva/sucesso" element={<ReservaSucesso />} />
+            <Route path="/reserva/cancelado" element={<ReservaCancelado />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
