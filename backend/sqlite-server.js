@@ -169,6 +169,7 @@ const authMiddleware = (req, res, next) => {
 
 const requireAuth = (req, res, next) => {
   const token = req.headers['authorization']?.replace('Bearer ', '');
+  // console.log('Auth Check:', { received: token, expected: ADMIN_TOKEN }); // Descomente para debug
   if (token === ADMIN_TOKEN || token === 'admin-token') {
     req.user = { role: 'admin', id: 1 };
     next();
