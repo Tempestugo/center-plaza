@@ -109,6 +109,7 @@ async function initDatabase() {
   // Migrações seguras
   try { await db.run("ALTER TABLE reservations ADD COLUMN stripe_payment_intent_id TEXT"); } catch (e) {}
   try { await db.run("ALTER TABLE reservations ADD COLUMN payment_status TEXT DEFAULT 'pending'"); } catch (e) {}
+  try { await db.run("ALTER TABLE room_types ADD COLUMN is_active BOOLEAN DEFAULT 1"); } catch (e) {}
 
   // Admin padrão
   const admin = await db.get("SELECT id FROM users WHERE username = 'admin@centerplaza.com'");
@@ -155,10 +156,20 @@ router.use((req, res, next) => {
 
 // ── Autenticação ──────────────────────────────────────────────────────────────
 
+const ADMIN_TOKEN = process.env.ADMIN_SECRET_TOKEN || 'center_plaza_admin_2026_secure_token';
+
 const authMiddleware = (req, res, next) => {
   const auth   = req.headers['authorization'];
   const secret = process.env.ADMIN_SECRET || 'Admin-Secret-123';
   req.user = (auth === secret || auth === 'Bearer admin-token')
+    ? { role: 'admin', id: 1 }
+    : { role: 'guest', id: 0 };
+  next();
+};
+
+const requireAuth = (req, res, next) => {
+  const token = req.headers['authorization']?.replace('Bearer ', '');
+  req.user = (token === ADMIN_TOKEN || token === 'admin-token')
     ? { role: 'admin', id: 1 }
     : { role: 'guest', id: 0 };
   next();
@@ -176,7 +187,7 @@ router.post('/login', async (req, res) => {
     const db   = await getDb();
     const user = await db.get("SELECT * FROM users WHERE username = ? AND password = ?", [username, password]);
     if (user) {
-      res.json({ token: user.role === 'admin' ? 'Bearer admin-token' : 'Bearer user-token',
+      res.json({ token: user.role === 'admin' ? ADMIN_TOKEN : 'user-token',
         role: user.role, username: user.username });
     } else {
       res.status(401).json({ error: 'Credenciais inválidas' });
@@ -233,6 +244,28 @@ router.get('/room-images/:id', async (req, res) => {
   } catch (err) { res.status(500).send('Erro interno'); }
 });
 
+router.post('/room-images/:roomId', requireAuth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
+    const { image_data, image_type } = req.body;
+    const db = await getDb();
+    const r = await db.run(
+      'INSERT INTO room_images (room_type_id,image_data,image_type,display_order) VALUES (?,?,?,0)',
+      [req.params.roomId, image_data, image_type]
+    );
+    res.status(201).json({ id: r.lastID, url: `/api/room-images/${r.lastID}` });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/room-images/:id', requireAuth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
+    const db = await getDb();
+    await db.run('DELETE FROM room_images WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Imagem excluída' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── Helper ────────────────────────────────────────────────────────────────────
 
 async function roomsWithImages(db, rows) {
@@ -268,7 +301,8 @@ router.get('/hotels/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/hotels', async (req, res) => {
+router.post('/hotels', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
     const { name, address, city, state, zip_code, phone, email, website, description, amenities } = req.body;
     const db = await getDb();
@@ -281,7 +315,8 @@ router.post('/hotels', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/hotels/:id', async (req, res) => {
+router.put('/hotels/:id', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
     const { name, address, city, state, zip_code, phone, email, website, description, amenities } = req.body;
     const db = await getDb();
@@ -296,7 +331,8 @@ router.put('/hotels/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.delete('/hotels/:id', async (req, res) => {
+router.delete('/hotels/:id', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
     const db    = await getDb();
     const rooms = await db.get('SELECT COUNT(*) as c FROM room_types WHERE hotel_id = ?', [req.params.id]);
@@ -341,30 +377,17 @@ router.get('/rooms/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/rooms', (req, res, next) => {
-  upload.array('images')(req, res, (err) => {
-    if (err) return res.status(400).json({ error: 'Erro no upload: ' + err.message });
-    next();
-  });
-}, async (req, res) => {
+router.post('/rooms', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
     const { hotel_id, name, description, size_sqm, bed_type, bed_count,
-            max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night } = req.body;
+            max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night, is_active } = req.body;
     const db = await getDb();
     const r  = await db.run(
-      'INSERT INTO room_types (hotel_id,name,description,size_sqm,bed_type,bed_count,max_occupancy,amenities,bathroom_type,smoking_allowed,price_per_night) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+      'INSERT INTO room_types (hotel_id,name,description,size_sqm,bed_type,bed_count,max_occupancy,amenities,bathroom_type,smoking_allowed,price_per_night,is_active) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
       [hotel_id, name, description, size_sqm, bed_type, bed_count, max_occupancy,
-       JSON.stringify(amenities || []), bathroom_type, smoking_allowed ? 1 : 0, price_per_night]
+       JSON.stringify(amenities || []), bathroom_type, smoking_allowed ? 1 : 0, price_per_night, is_active !== undefined ? is_active : 1]
     );
-    if (req.files) {
-      for (let i = 0; i < req.files.length; i++) {
-        const f = req.files[i];
-        await db.run(
-          'INSERT INTO room_images (room_type_id,image_data,image_type,display_order) VALUES (?,?,?,?)',
-          [r.lastID, f.buffer.toString('base64'), f.mimetype, i]
-        );
-      }
-    }
     const room = await db.get(
       'SELECT rt.*, h.name as hotel_name FROM room_types rt JOIN hotels h ON rt.hotel_id = h.id WHERE rt.id = ?',
       [r.lastID]);
@@ -373,15 +396,16 @@ router.post('/rooms', (req, res, next) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/rooms/:id', async (req, res) => {
+router.put('/rooms/:id', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
     const { hotel_id, name, description, size_sqm, bed_type, bed_count,
-            max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night } = req.body;
+            max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night, is_active } = req.body;
     const db = await getDb();
     await db.run(
-      'UPDATE room_types SET hotel_id=?,name=?,description=?,size_sqm=?,bed_type=?,bed_count=?,max_occupancy=?,amenities=?,bathroom_type=?,smoking_allowed=?,price_per_night=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',
+      'UPDATE room_types SET hotel_id=?,name=?,description=?,size_sqm=?,bed_type=?,bed_count=?,max_occupancy=?,amenities=?,bathroom_type=?,smoking_allowed=?,price_per_night=?,is_active=COALESCE(?,is_active),updated_at=CURRENT_TIMESTAMP WHERE id=?',
       [hotel_id, name, description, size_sqm, bed_type, bed_count, max_occupancy,
-       JSON.stringify(amenities || []), bathroom_type, smoking_allowed ? 1 : 0, price_per_night, req.params.id]
+       JSON.stringify(amenities || []), bathroom_type, smoking_allowed ? 1 : 0, price_per_night, is_active, req.params.id]
     );
     const room = await db.get(
       'SELECT rt.*, h.name as hotel_name FROM room_types rt JOIN hotels h ON rt.hotel_id = h.id WHERE rt.id = ?',
@@ -392,7 +416,8 @@ router.put('/rooms/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.delete('/rooms/:id', async (req, res) => {
+router.delete('/rooms/:id', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
     const db   = await getDb();
     const resv = await db.get('SELECT COUNT(*) as c FROM reservations WHERE room_type_id = ?', [req.params.id]);
@@ -489,7 +514,8 @@ router.post('/reservations', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/reservations/:id', async (req, res) => {
+router.put('/reservations/:id', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
     const { hotel_id, room_type_id, guest_name, guest_email, guest_phone,
             guest_document, check_in_date, check_out_date, number_of_guests,
@@ -509,7 +535,8 @@ router.put('/reservations/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.patch('/reservations/:id/status', async (req, res) => {
+router.patch('/reservations/:id/status', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
     const { status } = req.body;
     if (!['pending','confirmed','cancelled'].includes(status))
@@ -523,7 +550,8 @@ router.patch('/reservations/:id/status', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.delete('/reservations/:id', async (req, res) => {
+router.delete('/reservations/:id', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
     const db = await getDb();
     await db.run('DELETE FROM reservations WHERE id = ?', [req.params.id]);
@@ -576,7 +604,8 @@ router.get('/chat/:reservationId', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/chat/:reservationId', async (req, res) => {
+router.post('/chat/:reservationId', requireAuth, async (req, res) => {
+  // Admin ou Guest podem enviar, mas aqui estamos focando no admin via requireAuth se for rota protegida
   try {
     const db = await getDb();
     const r  = await db.run(

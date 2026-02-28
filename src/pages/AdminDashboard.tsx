@@ -5,20 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Users, Home, Calendar, DollarSign, TrendingUp, MapPin, Loader2, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
-import api from "@/services/api";
+import { reservationService, roomService, Reservation } from "@/services/api";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
-
-interface Reservation {
-  id: number;
-  guest_name: string;
-  hotel_name: string;
-  check_in_date: string;
-  check_out_date: string;
-  total_amount: number;
-  status: "pending" | "confirmed" | "cancelled";
-  created_at: string;
-}
 
 interface Stats {
   totalReservations: number;
@@ -43,13 +32,18 @@ const statusConfig = {
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [roomCount,    setRoomCount]    = useState(0);
   const [loading, setLoading]           = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.get<Reservation[]>("/reservations");
-      setReservations(data);
+      const [resData, roomData] = await Promise.all([
+        reservationService.getAll(),
+        roomService.getAll()
+      ]);
+      setReservations(resData);
+      setRoomCount(roomData.length);
     } catch {
       /* falha silenciosa — mostra zeros nos cards */
     } finally {
@@ -65,12 +59,12 @@ const AdminDashboard = () => {
     pendingReservations:  reservations.filter(r => r.status === "pending").length,
     confirmedReservations:reservations.filter(r => r.status === "confirmed").length,
     totalRevenue:         reservations
-                            .filter(r => r.status !== "cancelled")
+                            .filter(r => r.status === "confirmed")
                             .reduce((sum, r) => sum + (r.total_amount ?? 0), 0),
   };
 
   const recentReservations = [...reservations]
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
     .slice(0, 5);
 
   const statCards = [
@@ -83,8 +77,8 @@ const AdminDashboard = () => {
     },
     {
       title: "Total de Reservas",
-      value: loading ? "—" : stats.totalReservations,
-      sub:   "no sistema",
+      value: loading ? "—" : roomCount,
+      sub:   "quartos cadastrados",
       icon:  Home,
       color: "text-green-600",
     },
@@ -176,7 +170,7 @@ const AdminDashboard = () => {
                         <p className="font-medium text-sm truncate">{r.guest_name}</p>
                         <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
                           <MapPin className="h-3 w-3 shrink-0" />
-                          {r.hotel_name}
+                          {r.hotel_name || "Center Plaza"}
                         </p>
                       </div>
                       <div className="text-right ml-3 shrink-0">

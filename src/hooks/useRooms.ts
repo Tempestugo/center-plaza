@@ -67,7 +67,7 @@ export function useRooms() {
       // A rota pública /rooms já retorna só ativos (is_active = 1) após o patch do backend.
       // Este filtro é uma camada extra de segurança caso a rota ainda não esteja atualizada.
       const activeRooms = roomTypes.filter(
-        (r: any) => r.is_active === undefined || r.is_active === 1
+        (r: any) => r.is_active === undefined || r.is_active === 1 || r.is_active === true
       );
 
       setRooms(activeRooms.map((room, index) => mapRoomToAccommodation(room, index)));

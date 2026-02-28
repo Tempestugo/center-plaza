@@ -13,39 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import api from "@/services/api";
+import { reservationService, chatService, Reservation, Message } from "@/services/api";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
-
-interface Reservation {
-  id: number;
-  hotel_id: number;
-  room_type_id: number;
-  guest_name: string;
-  guest_email: string;
-  guest_phone: string;
-  guest_document: string;
-  check_in_date: string;
-  check_out_date: string;
-  number_of_guests: number;
-  total_amount: number;
-  special_requests: string | null;
-  status: "pending" | "confirmed" | "cancelled";
-  created_at: string;
-  updated_at: string;
-  // campos do JOIN
-  hotel_name: string;
-  room_type_name: string;
-}
-
-interface Message {
-  id: number;
-  reservation_id: number;
-  sender_role: "guest" | "admin";
-  content: string;
-  read: number;
-  created_at: string;
-}
 
 type StatusFilter = "all" | "pending" | "confirmed" | "cancelled";
 
@@ -80,7 +50,7 @@ function ChatModal({
 
   const loadMessages = useCallback(async () => {
     try {
-      const { data } = await api.get<Message[]>(`/chat/${reservation.id}`);
+      const data = await chatService.getMessages(reservation.id);
       setMessages(data);
     } catch {
       toast({ title: "Erro ao carregar mensagens", variant: "destructive" });
@@ -100,7 +70,7 @@ function ChatModal({
     if (!content) return;
     setSending(true);
     try {
-      await api.post(`/chat/${reservation.id}`, { content });
+      await chatService.sendMessage(reservation.id, content);
       setText("");
       await loadMessages();
     } catch {
@@ -334,7 +304,7 @@ export default function AdminReservas() {
   // ── Carrega reservas ────────────────────────────────────────────────────────
   const loadReservations = useCallback(async () => {
     try {
-      const { data } = await api.get<Reservation[]>("/reservations");
+      const data = await reservationService.getAll();
       setReservations(data);
     } catch {
       toast({ title: "Erro ao carregar reservas", variant: "destructive" });
@@ -349,7 +319,7 @@ export default function AdminReservas() {
 
   // ── Atualiza status ─────────────────────────────────────────────────────────
   const handleStatusChange = async (id: number, status: "confirmed" | "cancelled") => {
-    await api.patch(`/reservations/${id}/status`, { status });
+    await reservationService.updateStatus(id, status);
     setReservations((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status } : r))
     );

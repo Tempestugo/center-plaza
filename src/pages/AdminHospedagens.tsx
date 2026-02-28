@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { roomService } from "@/services/api";
 import type { RoomType } from "@/services/api";
@@ -21,7 +22,13 @@ const EMPTY_ROOM = {
   hotel_id: "", name: "", description: "", size_sqm: "",
   bed_type: "", bed_count: 1, max_occupancy: 2,
   bathroom_type: "", smoking_allowed: false, price_per_night: "", room_number: "",
+  amenities: [] as string[],
 };
+
+const AMENITIES_OPTIONS = [
+  "Ar condicionado", "TV", "Wi-Fi", "Frigobar", "Hidromassagem",
+  "Varanda", "Cofre", "Secador de Cabelo", "Banheira", "Vista para o Mar"
+];
 
 const fmtCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -37,7 +44,8 @@ export default function AdminHospedagens() {
   const [roomModal,    setRoomModal]    = useState<"create" | "edit" | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<RoomType | null>(null);
   const [roomForm,     setRoomForm]     = useState(EMPTY_ROOM);
-  const [roomImages,   setRoomImages]   = useState<{id?: number; preview: string; displayOrder: number; isFeatured: boolean; file?: File}[]>([]);
+  const [imageFiles,   setImageFiles]   = useState<File[]>([]);
+  const [existingImages, setExistingImages] = useState<{id: number; url: string}[]>([]);
 
   const loadRooms = useCallback(async () => {
     setLoading(true);
@@ -48,7 +56,7 @@ export default function AdminHospedagens() {
       } catch {
         data = await roomService.getAll();
       }
-      setRooms(data.map(r => ({ ...r, is_active: r.is_active ?? 1 })));
+      setRooms(data.map(r => ({ ...r, is_active: (r.is_active === undefined || r.is_active === 1) ? 1 : 0 })));
     } catch {
       toast.error("Erro ao carregar quartos");
     } finally {
@@ -72,21 +80,32 @@ export default function AdminHospedagens() {
     }
   };
 
-  const openCreateRoom = () => { setRoomForm(EMPTY_ROOM); setRoomImages([]); setRoomModal("create"); };
+  const openCreateRoom = () => {
+    setRoomForm(EMPTY_ROOM);
+    setImageFiles([]);
+    setExistingImages([]);
+    setRoomModal("create");
+  };
+
   const openEditRoom   = (r: RoomType) => {
     setSelectedRoom(r);
+    let am: string[] = [];
+    if (Array.isArray(r.amenities)) am = r.amenities;
+    else if (typeof r.amenities === 'string') {
+      try { am = JSON.parse(r.amenities); } catch { am = []; }
+    }
+
     setRoomForm({
       hotel_id: String(r.hotel_id ?? ""), name: r.name ?? "", description: r.description ?? "",
       size_sqm: String(r.size_sqm ?? ""), bed_type: r.bed_type ?? "", bed_count: r.bed_count ?? 1,
       max_occupancy: r.max_occupancy ?? 2, bathroom_type: r.bathroom_type ?? "",
       smoking_allowed: r.smoking_allowed ?? false, price_per_night: String(r.price_per_night ?? ""),
       room_number: r.room_number ?? "",
+      amenities: am,
     });
-    const imgs = (r.images ?? []).map((img: any, i: number) => ({
-      id: img.id, preview: `data:${img.image_type};base64,${img.image_data}`,
-      displayOrder: img.display_order ?? i + 1, isFeatured: img.display_order === 1,
-    }));
-    setRoomImages(imgs.sort((a, b) => a.displayOrder - b.displayOrder));
+
+    setExistingImages(r.images || []);
+    setImageFiles([]);
     setRoomModal("edit");
   };
 
@@ -100,30 +119,44 @@ export default function AdminHospedagens() {
         bed_type: roomForm.bed_type, bed_count: Number(roomForm.bed_count),
         max_occupancy: Number(roomForm.max_occupancy), bathroom_type: roomForm.bathroom_type,
         smoking_allowed: roomForm.smoking_allowed, price_per_night: parseFloat(roomForm.price_per_night),
+        amenities: roomForm.amenities,
       };
-      const newImgs = roomImages.filter(i => i.file).map(i => i.file as File);
+
       if (roomModal === "create") {
-        const created = newImgs.length > 0
-          ? await roomService.createWithImages(payload, newImgs)
-          : await roomService.create(payload);
-        if (roomForm.room_number) {
-          await roomService.updateRoomNumber(created.id, roomForm.room_number);
-        }
+        await roomService.createWithImages(payload, imageFiles);
         toast.success("Quarto criado!");
       } else {
-        newImgs.length > 0
-          ? await roomService.updateWithImages(selectedRoom!.id, payload, newImgs)
-          : await roomService.update(selectedRoom!.id, payload);
-        await roomService.updateRoomNumber(selectedRoom!.id, roomForm.room_number);
+        await roomService.update(selectedRoom!.id, payload);
+        // Upload novas imagens
+        for (const file of imageFiles) {
+          const reader = new FileReader();
+          const base64 = await new Promise<string>((resolve) => {
+            reader.onload = () => resolve((reader.result as string).split(',')[1]);
+            reader.readAsDataURL(file);
+          });
+          await roomService.uploadImage(selectedRoom!.id, base64, file.type);
+        }
         toast.success("Quarto atualizado!");
       }
       setRoomModal(null);
-      setRoomImages([]);
       loadRooms();
     } catch (err) {
       toast.error(`Erro: ${err instanceof Error ? err.message : "desconhecido"}`);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteImage = async (imageId: number) => {
+    if (!confirm("Excluir imagem?")) return;
+    try {
+      await roomService.deleteImage(imageId);
+      setExistingImages(prev => prev.filter(i => i.id !== imageId));
+      toast.success("Imagem removida");
+      // Recarregar quartos para atualizar a lista principal também
+      loadRooms();
+    } catch (err) {
+      toast.error("Erro ao excluir imagem");
     }
   };
 
@@ -140,8 +173,8 @@ export default function AdminHospedagens() {
     return matchSearch && matchStatus;
   });
 
-  const activeCount   = rooms.filter(r => r.is_active === 1).length;
-  const inactiveCount = rooms.filter(r => r.is_active === 0).length;
+  const activeCount   = rooms.filter(r => (r.is_active === 1 || r.is_active === true)).length;
+  const inactiveCount = rooms.length - activeCount;
 
   return (
     <AdminLayout
@@ -219,7 +252,7 @@ export default function AdminHospedagens() {
               <div key={room.id} className={`relative rounded-lg border p-3 transition-all ${room.is_active === 1 ? "bg-white hover:border-primary/50" : "bg-muted/30 opacity-60"}`}>
                 <div className="w-full h-20 rounded-md bg-muted overflow-hidden mb-2">
                   {room.images?.[0] ? (
-                    <img src={`data:${room.images[0].image_type};base64,${room.images[0].image_data}`} alt={room.name} className="w-full h-full object-cover" />
+                    <img src={room.images[0].url} alt={room.name} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center"><Bed className="h-6 w-6 text-muted-foreground/40" /></div>
                   )}
@@ -337,9 +370,36 @@ export default function AdminHospedagens() {
                 <Textarea rows={3} value={roomForm.description} onChange={e => setRoomForm(p => ({ ...p, description: e.target.value }))} placeholder="Descreva as características..." />
               </div>
             </div>
+
+            <div className="space-y-2">
+              <Label>Comodidades</Label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {AMENITIES_OPTIONS.map(opt => (
+                  <div key={opt} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`amenity-${opt}`}
+                      checked={roomForm.amenities.includes(opt)}
+                      onCheckedChange={(checked) => {
+                        setRoomForm(p => ({
+                          ...p,
+                          amenities: checked ? [...p.amenities, opt] : p.amenities.filter(a => a !== opt)
+                        }));
+                      }}
+                    />
+                    <label htmlFor={`amenity-${opt}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">{opt}</label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label>Imagens do Quarto</Label>
-              <ImageUpload images={roomImages} onImagesChange={setRoomImages} maxImages={10} showFeatured />
+              <ImageUpload
+                onFilesChange={setImageFiles}
+                existingImages={existingImages}
+                onDeleteExisting={handleDeleteImage}
+                maxFiles={5}
+              />
             </div>
             <div className="flex justify-end gap-2 pt-1">
               <Button variant="outline" type="button" onClick={() => setRoomModal(null)}>Cancelar</Button>

@@ -16,6 +16,11 @@ const getApiBaseUrl = () => {
 
 const API_BASE_URL = getApiBaseUrl();
 
+const getAuthHeaders = () => ({
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${localStorage.getItem('admin_token') || ''}`,
+});
+
 // Tipos para as entidades
 export interface Hotel {
   id: number;
@@ -36,13 +41,16 @@ export interface RoomType {
   description?: string;
   capacity: number;
   max_occupancy?: number;
+  bed_type?: string;
+  bed_count?: number;
+  size_sqm?: number;
+  bathroom_type?: string;
+  smoking_allowed?: boolean;
   hotel_name?: string;
   price_per_night: number;
-  amenities?: string[];
-  created_at?: string;
-  updated_at?: string;
+  amenities?: string[] | string;
   images?: { id: number; url: string }[];
-  is_active?: number;
+  is_active?: number | boolean;
   room_number?: string;
 }
 
@@ -59,9 +67,21 @@ export interface Reservation {
   number_of_guests: number;
   total_amount: number;
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  payment_status?: 'pending' | 'paid' | 'failed' | 'refunded';
   special_requests?: string;
   created_at?: string;
   updated_at?: string;
+  hotel_name?: string;
+  room_type_name?: string;
+}
+
+export interface Message {
+  id: number;
+  reservation_id: number;
+  sender_role: 'admin' | 'guest';
+  content: string;
+  read: number;
+  created_at: string;
 }
 
 // Classe de erro personalizada para API
@@ -290,13 +310,13 @@ export const roomService = {
 
   // Atualizar disponibilidade (Ativar/Desativar)
   async updateAvailability(id: number, is_active: number): Promise<RoomType> {
-    return apiRequest<RoomType>(`/rooms/${id}/availability`, {
-      method: 'PATCH',
+    return apiRequest<RoomType>(`/rooms/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
       body: JSON.stringify({ is_active }),
     });
   },
 
-  // Atualizar número do quarto
   async updateRoomNumber(id: number, room_number: string): Promise<RoomType> {
     return apiRequest<RoomType>(`/rooms/${id}/room-number`, {
       method: 'PATCH',
@@ -318,6 +338,7 @@ export const roomService = {
   async create(room: Omit<RoomType, 'id' | 'created_at' | 'updated_at'>): Promise<RoomType> {
     return apiRequest<RoomType>('/rooms', {
       method: 'POST',
+      headers: getAuthHeaders(),
       body: JSON.stringify(room),
     });
   },
@@ -326,65 +347,45 @@ export const roomService = {
   async update(id: number, room: Partial<Omit<RoomType, 'id' | 'created_at' | 'updated_at'>>): Promise<RoomType> {
     return apiRequest<RoomType>(`/rooms/${id}`, {
       method: 'PUT',
+      headers: getAuthHeaders(),
       body: JSON.stringify(room),
     });
   },
 
-  // Atualizar tipo de quarto com imagens
-  async updateWithImages(id: number, room: Partial<Omit<RoomType, 'id' | 'created_at' | 'updated_at'>>, images: File[]): Promise<RoomType> {
-    // Se API_BASE_URL for null (produção), usar dados mockados
-    if (API_BASE_URL === null) {
-      // Em produção, simular atualização com imagens usando dados mockados
-      return handleMockRequest<RoomType>(`/rooms/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(room),
-      });
-    }
+  // Upload de imagem (Base64)
+  async uploadImage(roomId: number, base64Data: string, imageType: string): Promise<{ id: number; url: string }> {
+    return apiRequest<{ id: number; url: string }>(`/room-images/${roomId}`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ image_data: base64Data, image_type: imageType }),
+    });
+  },
 
-    const formData = new FormData();
-    
-    // Adicionar dados do quarto diretamente no FormData
-    Object.entries(room).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        if (Array.isArray(value)) {
-          formData.append(key, JSON.stringify(value));
-        } else {
-          formData.append(key, value.toString());
-        }
-      }
+  // Deletar imagem
+  async deleteImage(imageId: number): Promise<void> {
+    return apiRequest<void>(`/room-images/${imageId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
     });
-    
-    // Adicionar imagens
-    images.forEach((image) => {
-      formData.append('images', image);
-    });
-    
-    const url = `${API_BASE_URL}/rooms/${id}`;
-    
-    try {
-      const response = await fetch(url, {
-        method: 'PUT',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        throw new ApiError(response.status, `HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      return data.room || data;
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      throw new ApiError(0, `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  },
+
+  // Criar quarto com imagens (2 passos)
+  async createWithImages(data: any, imageFiles: File[]): Promise<RoomType> {
+    // 1. Criar quarto
+    const room = await this.create(data);
+    // 2. Upload imagens
+    for (const file of imageFiles) {
+      const base64 = await fileToBase64(file);
+      await this.uploadImage(room.id, base64, file.type);
     }
+    return room;
   },
 
   // Deletar tipo de quarto
   async delete(id: number): Promise<void> {
     return apiRequest<void>(`/rooms/${id}`, {
       method: 'DELETE',
+      headers: getAuthHeaders(),
     });
   },
 };
@@ -441,6 +442,7 @@ export const reservationService = {
   async updateStatus(id: number, status: Reservation['status']): Promise<Reservation> {
     return apiRequest<Reservation>(`/reservations/${id}/status`, {
       method: 'PATCH',
+      headers: getAuthHeaders(),
       body: JSON.stringify({ status }),
     });
   },
@@ -449,6 +451,23 @@ export const reservationService = {
   async delete(id: number): Promise<void> {
     return apiRequest<void>(`/reservations/${id}`, {
       method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+  },
+};
+
+export const chatService = {
+  getMessages: async (reservationId: number): Promise<Message[]> => {
+    return apiRequest<Message[]>(`/chat/${reservationId}`, {
+      headers: getAuthHeaders(),
+    });
+  },
+
+  sendMessage: async (reservationId: number, content: string): Promise<Message> => {
+    return apiRequest<Message>(`/chat/${reservationId}`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ content, sender_role: 'admin' }),
     });
   },
 };
@@ -465,6 +484,20 @@ export default {
   hotel: hotelService,
   room: roomService,
   reservation: reservationService,
+  chat: chatService,
   health: healthService,
   ApiError,
 };
+
+// Helper
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.split(',')[1]);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}

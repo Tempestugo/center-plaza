@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,33 +6,37 @@ import { Upload, X, Star, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ImageFile {
-  id?: number;
   file?: File;
   preview: string;
-  isFeatured?: boolean;
-  displayOrder?: number;
+  id?: number; // Para imagens já existentes
 }
 
 interface ImageUploadProps {
-  images: ImageFile[];
-  onImagesChange: (images: ImageFile[]) => void;
-  maxImages?: number;
+  onFilesChange: (files: File[]) => void;
+  existingImages?: { id: number; url: string }[];
+  onDeleteExisting?: (id: number) => void;
+  maxFiles?: number;
   maxFileSize?: number; // em MB
   acceptedTypes?: string[];
-  showFeatured?: boolean;
 }
 
 const ImageUpload: React.FC<ImageUploadProps> = ({
-  images,
-  onImagesChange,
-  maxImages = 10,
+  onFilesChange,
+  existingImages = [],
+  onDeleteExisting,
+  maxFiles = 10,
   maxFileSize = 5,
   acceptedTypes = ['image/jpeg', 'image/png', 'image/webp'],
-  showFeatured = true
 }) => {
+  const [newImages, setNewImages] = useState<ImageFile[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Notifica o pai apenas sobre os arquivos novos
+    onFilesChange(newImages.map(img => img.file!).filter(Boolean));
+  }, [newImages, onFilesChange]);
 
   const validateFile = (file: File): string | null => {
     if (!acceptedTypes.includes(file.type)) {
@@ -50,7 +54,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
     if (!files) return;
     
     setError(null);
-    const newImages: ImageFile[] = [];
+    const addedImages: ImageFile[] = [];
     
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -61,28 +65,20 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
         continue;
       }
       
-      if (images.length + newImages.length >= maxImages) {
-        setError(`Máximo de ${maxImages} imagens permitidas`);
+      if (existingImages.length + newImages.length + addedImages.length >= maxFiles) {
+        setError(`Máximo de ${maxFiles} imagens permitidas`);
         break;
       }
       
       const preview = URL.createObjectURL(file);
-      newImages.push({
+      addedImages.push({
         file,
         preview,
-        displayOrder: images.length + newImages.length + 1
       });
     }
     
-    if (newImages.length > 0) {
-      const updatedImages = [...images, ...newImages];
-      
-      // Se não há imagem de destaque e showFeatured está ativo, definir a primeira como destaque
-      if (showFeatured && !updatedImages.some(img => img.isFeatured) && updatedImages.length > 0) {
-        updatedImages[0].isFeatured = true;
-      }
-      
-      onImagesChange(updatedImages);
+    if (addedImages.length > 0) {
+      setNewImages(prev => [...prev, ...addedImages]);
     }
   };
 
@@ -102,50 +98,8 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
     setDragOver(false);
   };
 
-  const removeImage = (index: number) => {
-    const updatedImages = images.filter((_, i) => i !== index);
-    // Reordenar display_order
-    updatedImages.forEach((img, i) => {
-      img.displayOrder = i + 1;
-    });
-    onImagesChange(updatedImages);
-  };
-
-  const setFeaturedImage = (index: number) => {
-    if (!showFeatured) return;
-    
-    const updatedImages = images.map((img, i) => ({
-      ...img,
-      isFeatured: i === index,
-      displayOrder: i === index ? 1 : (img.displayOrder && img.displayOrder > 1 ? img.displayOrder : i + 1)
-    }));
-    
-    // Reordenar para que a imagem de destaque fique primeiro
-    updatedImages.sort((a, b) => {
-      if (a.isFeatured) return -1;
-      if (b.isFeatured) return 1;
-      return (a.displayOrder || 0) - (b.displayOrder || 0);
-    });
-    
-    // Atualizar display_order após reordenação
-    updatedImages.forEach((img, i) => {
-      img.displayOrder = i + 1;
-    });
-    
-    onImagesChange(updatedImages);
-  };
-
-  const moveImage = (fromIndex: number, toIndex: number) => {
-    const updatedImages = [...images];
-    const [movedImage] = updatedImages.splice(fromIndex, 1);
-    updatedImages.splice(toIndex, 0, movedImage);
-    
-    // Atualizar display_order
-    updatedImages.forEach((img, i) => {
-      img.displayOrder = i + 1;
-    });
-    
-    onImagesChange(updatedImages);
+  const removeNewImage = (index: number) => {
+    setNewImages(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -167,7 +121,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
           Clique para fazer upload ou arraste as imagens
         </p>
         <p className="text-xs text-muted-foreground">
-          Máximo: {maxImages} imagens, {maxFileSize}MB cada
+          Máximo: {maxFiles} imagens, {maxFileSize}MB cada
         </p>
         <input
           ref={fileInputRef}
@@ -188,85 +142,64 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
       )}
 
       {/* Images Grid */}
-      {images.length > 0 && (
+      {(existingImages.length > 0 || newImages.length > 0) && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium">Imagens ({images.length}/{maxImages})</h4>
-            {showFeatured && (
-              <p className="text-xs text-muted-foreground">
-                Clique na estrela para definir imagem de destaque
-              </p>
-            )}
+            <h4 className="text-sm font-medium">Imagens ({existingImages.length + newImages.length}/{maxFiles})</h4>
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {images.map((image, index) => (
-              <Card key={index} className="relative group">
+            {/* Existing Images */}
+            {existingImages.map((img) => (
+              <Card key={`existing-${img.id}`} className="relative group">
                 <CardContent className="p-2">
                   <div className="relative aspect-square">
                     <img
-                      src={image.preview}
-                      alt={`Upload ${index + 1}`}
+                      src={img.url}
+                      alt="Existing"
                       className="w-full h-full object-cover rounded"
                     />
-                    
-                    {/* Overlay com controles */}
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center gap-2">
-                      {showFeatured && (
-                        <Button
-                          size="sm"
-                          variant={image.isFeatured ? "default" : "secondary"}
-                          onClick={() => setFeaturedImage(index)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Star className={`h-4 w-4 ${image.isFeatured ? 'fill-current' : ''}`} />
-                        </Button>
-                      )}
-                      
                       <Button
                         size="sm"
                         variant="destructive"
-                        onClick={() => removeImage(index)}
+                        onClick={() => onDeleteExisting && onDeleteExisting(img.id)}
                         className="h-8 w-8 p-0"
                       >
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
-                    
-                    {/* Badges */}
                     <div className="absolute top-2 left-2 flex flex-col gap-1">
-                      {image.isFeatured && showFeatured && (
-                        <Badge variant="default" className="text-xs">
-                          <Star className="h-3 w-3 mr-1 fill-current" />
-                          Destaque
-                        </Badge>
-                      )}
-                      <Badge variant="secondary" className="text-xs">
-                        {index + 1}
-                      </Badge>
+                      <Badge variant="secondary" className="text-xs">Salva</Badge>
                     </div>
                   </div>
-                  
-                  {/* Controles de reordenação */}
-                  <div className="flex justify-between mt-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => moveImage(index, Math.max(0, index - 1))}
-                      disabled={index === 0}
-                      className="h-6 px-2 text-xs"
-                    >
-                      ←
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => moveImage(index, Math.min(images.length - 1, index + 1))}
-                      disabled={index === images.length - 1}
-                      className="h-6 px-2 text-xs"
-                    >
-                      →
-                    </Button>
+                </CardContent>
+              </Card>
+            ))}
+
+            {/* New Images */}
+            {newImages.map((image, index) => (
+              <Card key={`new-${index}`} className="relative group border-primary/50">
+                <CardContent className="p-2">
+                  <div className="relative aspect-square">
+                    <img
+                      src={image.preview}
+                      alt={`New ${index}`}
+                      className="w-full h-full object-cover rounded"
+                    />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => removeNewImage(index)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="absolute top-2 left-2 flex flex-col gap-1">
+                      <Badge variant="default" className="text-xs">Nova</Badge>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
