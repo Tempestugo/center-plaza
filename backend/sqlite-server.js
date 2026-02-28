@@ -461,7 +461,7 @@ router.post('/reservations', async (req, res) => {
     await db.run('BEGIN EXCLUSIVE TRANSACTION');
     try {
       const conflict = await db.get(
-        "SELECT COUNT(*) as c FROM reservations WHERE room_type_id=? AND status!='cancelled' AND check_in_date<? AND check_out_date>?",
+        "SELECT COUNT(*) as c FROM reservations WHERE room_type_id=? AND status='confirmed' AND check_in_date<? AND check_out_date>?",
         [room_type_id, check_out_date, check_in_date]);
       if (conflict.c > 0) { await db.run('ROLLBACK'); return res.status(409).json({ error: 'Quarto indisponível para as datas selecionadas' }); }
 
