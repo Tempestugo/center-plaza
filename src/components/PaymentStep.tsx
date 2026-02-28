@@ -4,7 +4,6 @@ import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-
 import { Button } from "@/components/ui/button";
 import { Loader2, ShieldCheck, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import api from "@/services/api";
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "";
 const stripePromise = PUBLISHABLE_KEY.startsWith("pk_") ? loadStripe(PUBLISHABLE_KEY) : null;
@@ -23,11 +22,18 @@ function CheckoutForm({ reservationId, totalAmount, onSuccess, onBack, isMock }:
     if (isMock) {
       setProcessing(true);
       try {
-        await api.patch(`/reservations/${reservationId}/status`, { status: "confirmed" });
+        await fetch("/api/reservations/" + reservationId + "/status", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "confirmed" }),
+        });
         toast({ title: "Reserva confirmada! (modo teste)" });
         onSuccess();
-      } catch { toast({ title: "Erro ao confirmar", variant: "destructive" }); }
-      finally { setProcessing(false); }
+      } catch {
+        toast({ title: "Erro ao confirmar", variant: "destructive" });
+      } finally {
+        setProcessing(false);
+      }
       return;
     }
     if (!stripe || !elements) return;
@@ -35,7 +41,9 @@ function CheckoutForm({ reservationId, totalAmount, onSuccess, onBack, isMock }:
     try {
       const { error } = await stripe.confirmPayment({
         elements,
-        confirmParams: { return_url: `${window.location.origin}/reserva/${reservationId}?payment=success` },
+        confirmParams: {
+          return_url: window.location.origin + "/reserva/" + reservationId + "?payment=success",
+        },
         redirect: "if_required",
       });
       if (error) {
@@ -44,8 +52,11 @@ function CheckoutForm({ reservationId, totalAmount, onSuccess, onBack, isMock }:
         toast({ title: "Pagamento realizado!", description: "Reserva confirmada." });
         onSuccess();
       }
-    } catch { toast({ title: "Erro no pagamento", variant: "destructive" }); }
-    finally { setProcessing(false); }
+    } catch {
+      toast({ title: "Erro no pagamento", variant: "destructive" });
+    } finally {
+      setProcessing(false);
+    }
   };
 
   return (
@@ -56,14 +67,21 @@ function CheckoutForm({ reservationId, totalAmount, onSuccess, onBack, isMock }:
       </div>
       {isMock ? (
         <div className="rounded-lg border border-dashed border-yellow-300 bg-yellow-50 p-4">
-          <p className="text-sm font-medium text-yellow-800">⚠️ Modo Teste</p>
-          <p className="text-xs text-yellow-700 mt-1">Stripe não configurado. Clique em Confirmar para simular o pagamento.</p>
+          <p className="text-sm font-medium text-yellow-800">Modo Teste</p>
+          <p className="text-xs text-yellow-700 mt-1">
+            Stripe não configurado. Clique em Confirmar para simular.
+          </p>
         </div>
       ) : (
         <div className="space-y-2">
           <p className="text-sm font-medium">Dados de pagamento</p>
           <div className="rounded-lg border p-3">
-            <PaymentElement options={{ layout: "tabs", defaultValues: { billingDetails: { address: { country: "BR" } } } }} />
+            <PaymentElement
+              options={{
+                layout: "tabs",
+                defaultValues: { billingDetails: { address: { country: "BR" } } },
+              }}
+            />
           </div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <ShieldCheck className="h-3.5 w-3.5 text-green-600" />
@@ -75,8 +93,18 @@ function CheckoutForm({ reservationId, totalAmount, onSuccess, onBack, isMock }:
         <Button type="button" variant="outline" onClick={onBack} disabled={processing}>
           <ArrowLeft className="h-4 w-4 mr-1.5" /> Voltar
         </Button>
-        <Button type="submit" className="flex-1" disabled={processing || (!isMock && (!stripe || !elements))}>
-          {processing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processando...</> : isMock ? "Confirmar (Modo Teste)" : `Pagar ${fmt(totalAmount)}`}
+        <Button
+          type="submit"
+          className="flex-1"
+          disabled={processing || (!isMock && (!stripe || !elements))}
+        >
+          {processing ? (
+            <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processando...</>
+          ) : isMock ? (
+            "Confirmar (Modo Teste)"
+          ) : (
+            "Pagar " + fmt(totalAmount)
+          )}
         </Button>
       </div>
     </form>
@@ -97,16 +125,21 @@ export default function PaymentStep({ reservationId, totalAmount, onSuccess, onB
   const { toast } = useToast();
 
   useEffect(() => {
-    api.post<{ clientSecret: string; mock?: boolean }>("/create-payment-intent", {
-      amount: totalAmount, reservation_id: reservationId, currency: "brl",
-    }).then(({ data }) => {
-      setClientSecret(data.clientSecret);
-      setIsMock(!!data.mock);
-    }).catch(() => {
-      setError("Erro ao iniciar pagamento. Tente novamente.");
-      toast({ title: "Erro ao iniciar pagamento", variant: "destructive" });
-    });
-  }, [reservationId, totalAmount, toast]);
+    fetch("/api/payment-intent-for-reservation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reservation_id: reservationId }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        setClientSecret(data.clientSecret);
+        setIsMock(!!data.mock);
+      })
+      .catch(function () {
+        setError("Erro ao iniciar pagamento. Tente novamente.");
+        toast({ title: "Erro ao iniciar pagamento", variant: "destructive" });
+      });
+  }, [reservationId]);
 
   if (!clientSecret && !error) return (
     <div className="flex flex-col items-center justify-center py-12 gap-3">
@@ -118,17 +151,43 @@ export default function PaymentStep({ reservationId, totalAmount, onSuccess, onB
   if (error) return (
     <div className="text-center py-8 space-y-3">
       <p className="text-sm text-destructive">{error}</p>
-      <Button variant="outline" onClick={onBack}><ArrowLeft className="h-4 w-4 mr-1.5" /> Voltar</Button>
+      <Button variant="outline" onClick={onBack}>
+        <ArrowLeft className="h-4 w-4 mr-1.5" /> Voltar
+      </Button>
     </div>
   );
 
-  if (isMock || !stripePromise || !clientSecret?.startsWith("pi_")) {
-    return <CheckoutForm reservationId={reservationId} totalAmount={totalAmount} onSuccess={onSuccess} onBack={onBack} isMock={true} />;
+  if (isMock || !stripePromise || !clientSecret || !clientSecret.startsWith("pi_")) {
+    return (
+      <CheckoutForm
+        reservationId={reservationId}
+        totalAmount={totalAmount}
+        onSuccess={onSuccess}
+        onBack={onBack}
+        isMock={true}
+      /&gt;
+    );
   }
 
   return (
-    <Elements stripe={stripePromise} options={{ clientSecret, locale: "pt-BR", appearance: { theme: "stripe", variables: { colorPrimary: "#7c1d3f", borderRadius: "8px" } } }}>
-      <CheckoutForm reservationId={reservationId} totalAmount={totalAmount} onSuccess={onSuccess} onBack={onBack} isMock={false} />
+    <Elements
+      stripe={stripePromise}
+      options={{
+        clientSecret: clientSecret,
+        locale: "pt-BR",
+        appearance: {
+          theme: "stripe",
+          variables: { colorPrimary: "#7c1d3f", borderRadius: "8px" },
+        },
+      }}
+    >
+      <CheckoutForm
+        reservationId={reservationId}
+        totalAmount={totalAmount}
+        onSuccess={onSuccess}
+        onBack={onBack}
+        isMock={false}
+      />
     </Elements>
   );
 }

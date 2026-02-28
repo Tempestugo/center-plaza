@@ -22,8 +22,14 @@ interface BookingFlowProps {
   onOpenChange: (open: boolean) => void;
   accommodation: {
     id: number | string;
-    name: string;
-    location: string;
+# Adicionar o webhook ANTES do express.json (precisa de raw body)
+# e o router depois
+sed -i 's/app.use(express.json/\/\/ Stripe webhook precisa de raw body\napp.use("\/api\/stripe\/webhook", express.raw({ type: "application\/json" }));\napp.use(express.json/' server.js
+
+# Adicionar o router stripe
+sed -i "s/app.use('\/api', apiRouter)/app.use('\/api', apiRouter);\ntry { const stripeRouter = require('.\/backend\/stripe-router.js'); app.use('\/api\/stripe', stripeRouter); console.log('✅ Stripe router carregado'); } catch(e) { console.error('❌ Stripe router:', e.message); }/" server.js
+
+cat server.js | grep -A2 "stripe"    location: string;
     price: number;
     maxGuests: number;
     image: string;

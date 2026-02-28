@@ -26,5 +26,6 @@ export default defineConfig(({ mode }) => ({
     outDir: "dist", // Mantém o build na pasta dist
     // Aumenta o limite do aviso para 1000kb (o padrão é 500kb)
     chunkSizeWarningLimit: 1000,
+    emptyOutDir: true,
   },
 }));
