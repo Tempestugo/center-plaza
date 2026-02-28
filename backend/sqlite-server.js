@@ -169,10 +169,12 @@ const authMiddleware = (req, res, next) => {
 
 const requireAuth = (req, res, next) => {
   const token = req.headers['authorization']?.replace('Bearer ', '');
-  req.user = (token === ADMIN_TOKEN || token === 'admin-token')
-    ? { role: 'admin', id: 1 }
-    : { role: 'guest', id: 0 };
-  next();
+  if (token === ADMIN_TOKEN || token === 'admin-token') {
+    req.user = { role: 'admin', id: 1 };
+    next();
+  } else {
+    return res.status(401).json({ error: 'Não autorizado' });
+  }
 };
 router.use(authMiddleware);
 

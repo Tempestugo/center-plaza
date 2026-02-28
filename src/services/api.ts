@@ -18,7 +18,7 @@ const API_BASE_URL = getApiBaseUrl();
 
 const getAuthHeaders = () => ({
   'Content-Type': 'application/json',
-  'Authorization': `Bearer ${localStorage.getItem('admin_token') || ''}`,
+  'Authorization': `Bearer ${localStorage.getItem('admin_token') || localStorage.getItem('token') || ''}`,
 });
 
 // Tipos para as entidades
