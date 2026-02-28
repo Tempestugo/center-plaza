@@ -11,8 +11,10 @@ const stripePromise = PUBLISHABLE_KEY.startsWith("pk_") ? loadStripe(PUBLISHABLE
 function CheckoutForm({ reservationId, totalAmount, onSuccess, onBack, isMock }: {
   reservationId: number; totalAmount: number; onSuccess: () => void; onBack: () => void; isMock: boolean;
 }) {
-  const stripe = useStripe();
-  const elements = useElements();
+  const stripeHook = useStripe();
+  const elementsHook = useElements();
+  const stripe = isMock ? null : stripeHook;
+  const elements = isMock ? null : elementsHook;
   const { toast } = useToast();
   const [processing, setProcessing] = useState(false);
   const fmt = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -125,7 +127,7 @@ export default function PaymentStep({ reservationId, totalAmount, onSuccess, onB
   const { toast } = useToast();
 
   useEffect(() => {
-    fetch("/api/payment-intent-for-reservation", {
+    fetch("/api/stripe/payment-intent-for-reservation", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reservation_id: reservationId }),
@@ -159,13 +161,9 @@ export default function PaymentStep({ reservationId, totalAmount, onSuccess, onB
 
   if (isMock || !stripePromise || !clientSecret || !clientSecret.startsWith("pi_")) {
     return (
-      <CheckoutForm
-        reservationId={reservationId}
-        totalAmount={totalAmount}
-        onSuccess={onSuccess}
-        onBack={onBack}
-        isMock={true}
-      />
+      <Elements stripe={stripePromise ?? loadStripe("") as any} options={{}}>
+        <CheckoutForm reservationId={reservationId} totalAmount={totalAmount} onSuccess={onSuccess} onBack={onBack} isMock={true} />
+      </Elements>
     );
   }
 

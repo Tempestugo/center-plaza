@@ -44,11 +44,13 @@ if (fs.existsSync(path.join(distPath, 'assets'))) {
   console.log('dist/assets:', fs.readdirSync(path.join(distPath, 'assets')).join(', '));
 }
 
+app.use("/api/stripe/webhook", express.raw({ type: "application/json" }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // API
 try {
+try { var sr = require('./backend/stripe-router.js'); app.use('/api/stripe', sr); console.log('✅ Stripe OK'); } catch(e) { console.error('Stripe error:', e.message); }
   const apiRouter = require('./backend/sqlite-server.js');
   app.use('/api', apiRouter);
   console.log('✅ API router carregado');
