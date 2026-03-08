@@ -163,9 +163,21 @@ export default function AdminHospedagens() {
   };
 
   const handleDeleteRoom = async (r: RoomType) => {
-    if (!confirm(`Excluir "${r.name}"?`)) return;
-    try { await roomService.delete(r.id); toast.success("Excluído!"); loadRooms(); }
-    catch { toast.error("Erro ao excluir"); }
+    if (!confirm(`Excluir "${r.name}"?
+Se houver reservas ativas, o quarto será desativado em vez de excluído.`)) return;
+    try {
+      await roomService.delete(r.id);
+      toast.success("Quarto excluído com sucesso!");
+      loadRooms();
+    } catch (err: any) {
+      if (err?.message?.includes("reservas") || err?.message?.includes("400")) {
+        await roomService.update(r.id, { ...r, is_active: 0 });
+        toast.success("Quarto tem reservas ativas — foi desativado em vez de excluído.");
+        loadRooms();
+      } else {
+        toast.error("Erro ao excluir quarto");
+      }
+    }
   };
 
   const filtered = rooms.filter(r => {
