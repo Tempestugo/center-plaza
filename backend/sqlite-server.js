@@ -108,6 +108,7 @@ async function initDatabase() {
 
   // Migrações seguras
   try { await db.run("ALTER TABLE reservations ADD COLUMN stripe_payment_intent_id TEXT"); } catch (e) {}
+  try { await db.run("ALTER TABLE room_types ADD COLUMN stripe_price_id TEXT"); } catch (e) {}
   try { await db.run("ALTER TABLE reservations ADD COLUMN payment_status TEXT DEFAULT 'pending'"); } catch (e) {}
   try { await db.run("ALTER TABLE room_types ADD COLUMN is_active BOOLEAN DEFAULT 1"); } catch (e) {}
 
@@ -387,9 +388,9 @@ router.post('/rooms', requireAuth, async (req, res) => {
             max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night, is_active } = req.body;
     const db = await getDb();
     const r  = await db.run(
-      'INSERT INTO room_types (hotel_id,name,description,size_sqm,bed_type,bed_count,max_occupancy,amenities,bathroom_type,smoking_allowed,price_per_night,is_active) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+      'INSERT INTO room_types (hotel_id,name,description,size_sqm,bed_type,bed_count,max_occupancy,amenities,bathroom_type,smoking_allowed,price_per_night,is_active,stripe_price_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
       [hotel_id, name, description, size_sqm, bed_type, bed_count, max_occupancy,
-       JSON.stringify(amenities || []), bathroom_type, smoking_allowed ? 1 : 0, price_per_night, is_active !== undefined ? is_active : 1]
+       JSON.stringify(amenities || []), bathroom_type, smoking_allowed ? 1 : 0, price_per_night, is_active !== undefined ? is_active : 1, req.body.stripe_price_id || null]
     );
     const room = await db.get(
       'SELECT rt.*, h.name as hotel_name FROM room_types rt JOIN hotels h ON rt.hotel_id = h.id WHERE rt.id = ?',
@@ -406,9 +407,9 @@ router.put('/rooms/:id', requireAuth, async (req, res) => {
             max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night, is_active } = req.body;
     const db = await getDb();
     await db.run(
-      'UPDATE room_types SET hotel_id=?,name=?,description=?,size_sqm=?,bed_type=?,bed_count=?,max_occupancy=?,amenities=?,bathroom_type=?,smoking_allowed=?,price_per_night=?,is_active=COALESCE(?,is_active),updated_at=CURRENT_TIMESTAMP WHERE id=?',
+      'UPDATE room_types SET hotel_id=?,name=?,description=?,size_sqm=?,bed_type=?,bed_count=?,max_occupancy=?,amenities=?,bathroom_type=?,smoking_allowed=?,price_per_night=?,is_active=COALESCE(?,is_active),stripe_price_id=COALESCE(?,stripe_price_id),updated_at=CURRENT_TIMESTAMP WHERE id=?',
       [hotel_id, name, description, size_sqm, bed_type, bed_count, max_occupancy,
-       JSON.stringify(amenities || []), bathroom_type, smoking_allowed ? 1 : 0, price_per_night, is_active, req.params.id]
+       JSON.stringify(amenities || []), bathroom_type, smoking_allowed ? 1 : 0, price_per_night, is_active, req.body.stripe_price_id || null, req.params.id]
     );
     const room = await db.get(
       'SELECT rt.*, h.name as hotel_name FROM room_types rt JOIN hotels h ON rt.hotel_id = h.id WHERE rt.id = ?',

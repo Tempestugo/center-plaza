@@ -96,6 +96,7 @@ export default function AdminHospedagens() {
     }
 
     setRoomForm({
+      stripe_price_id: r.stripe_price_id || "",
       hotel_id: String(r.hotel_id ?? ""), name: r.name ?? "", description: r.description ?? "",
       size_sqm: String(r.size_sqm ?? ""), bed_type: r.bed_type ?? "", bed_count: r.bed_count ?? 1,
       max_occupancy: r.max_occupancy ?? 2, bathroom_type: r.bathroom_type ?? "",
@@ -120,6 +121,7 @@ export default function AdminHospedagens() {
         max_occupancy: Number(roomForm.max_occupancy), bathroom_type: roomForm.bathroom_type,
         smoking_allowed: roomForm.smoking_allowed, price_per_night: parseFloat(roomForm.price_per_night),
         amenities: roomForm.amenities,
+        stripe_price_id: roomForm.stripe_price_id || undefined,
       };
 
       if (roomModal === "create") {
