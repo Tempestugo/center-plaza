@@ -22,6 +22,7 @@ import UserProfile from "./pages/UserProfile";
 import NotFound from "./pages/NotFound";
 import ReservaSucesso from "@/pages/ReservaSucesso";
 import ReservaCancelado from "@/pages/ReservaCancelado";
+import FloatingChat from "@/components/FloatingChat";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +54,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <FloatingChat />
         </BrowserRouter>
           </TooltipProvider>
         </FavoritesProvider>

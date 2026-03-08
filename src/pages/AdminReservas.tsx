@@ -33,6 +33,22 @@ const fmt = (dateStr: string) =>
 const fmtCurrency = (val: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val);
 
+function playNotificationSound() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    oscillator.frequency.setValueAtTime(660, ctx.currentTime);
+    oscillator.frequency.setValueAtTime(880, ctx.currentTime + 0.1);
+    gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + 0.4);
+  } catch (e) {}
+}
+
 // ─── Sub-componente: Modal de Chat ────────────────────────────────────────────
 
 function ChatModal({
@@ -314,6 +330,7 @@ export default function AdminReservas() {
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [chatReservation, setChatReservation] = useState<Reservation | null>(null);
   const { toast } = useToast();
+  const [lastGuestMessageId, setLastGuestMessageId] = useState(0);
 
   // ── Carrega reservas ────────────────────────────────────────────────────────
   const loadReservations = useCallback(async () => {
@@ -330,6 +347,37 @@ export default function AdminReservas() {
   useEffect(() => {
     loadReservations();
   }, [loadReservations]);
+
+  // ── Polling de mensagens para notificação sonora ────────────────────────────
+  useEffect(() => {
+    const checkNewMessages = async () => {
+      try {
+        const res = await fetch("/api/reservations");
+        if (!res.ok) return;
+        const reservations = await res.json();
+        const active = reservations.filter((r: any) =>
+          r.status === "confirmed" || r.status === "pending"
+        ).slice(0, 5);
+
+        for (const r of active) {
+          const msgRes = await fetch(`/api/chat/${r.id}`);
+          if (!msgRes.ok) continue;
+          const msgs = await msgRes.json();
+          const guestMsgs = msgs.filter((m: any) => m.sender_role === "guest");
+          if (guestMsgs.length === 0) continue;
+          const maxId = Math.max(...guestMsgs.map((m: any) => m.id));
+          if (lastGuestMessageId > 0 && maxId > lastGuestMessageId) {
+            playNotificationSound();
+          }
+          setLastGuestMessageId((prev) => Math.max(prev, maxId));
+        }
+      } catch (e) {}
+    };
+
+    checkNewMessages();
+    const interval = setInterval(checkNewMessages, 15000);
+    return () => clearInterval(interval);
+  }, [lastGuestMessageId]);
 
   // ── Atualiza status ─────────────────────────────────────────────────────────
   const handleStatusChange = async (id: number, status: "confirmed" | "cancelled") => {
