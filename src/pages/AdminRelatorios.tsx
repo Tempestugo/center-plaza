@@ -7,7 +7,7 @@ import {
   Home, Star, Loader2, RefreshCw, Download
 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import api from "@/services/api";
+import { reservationService } from "@/services/api";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -46,8 +46,8 @@ const AdminRelatorios = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.get<Reservation[]>("/reservations");
-      setReservations(data);
+      const data = await reservationService.getAll();
+      setReservations(data as any);
     } catch {
       /* silencioso */
     } finally {

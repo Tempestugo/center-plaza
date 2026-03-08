@@ -651,15 +651,24 @@ router.get('/chat/:reservationId', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/chat/:reservationId', requireAuth, async (req, res) => {
-  // Admin ou Guest podem enviar, mas aqui estamos focando no admin via requireAuth se for rota protegida
+router.post('/chat/:reservationId', async (req, res) => {
   try {
+    const { content, sender_role } = req.body;
+    if (!content || !content.trim()) return res.status(400).json({ error: 'Mensagem vazia' });
+    const role = ['admin', 'guest'].includes(sender_role) ? sender_role : 'guest';
     const db = await getDb();
     const r  = await db.run(
       'INSERT INTO messages (reservation_id,sender_role,content) VALUES (?,?,?)',
-      [req.params.reservationId, req.user.role, req.body.content]);
-    res.status(201).json({ id: r.lastID, content: req.body.content,
-      senderRole: req.user.role, created_at: new Date() });
+      [req.params.reservationId, role, content.trim()]
+    );
+    res.status(201).json({
+      id: r.lastID,
+      reservation_id: parseInt(req.params.reservationId),
+      sender_role: role,
+      content: content.trim(),
+      read: 0,
+      created_at: new Date().toISOString()
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
  

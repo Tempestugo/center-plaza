@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useReservations } from "@/contexts/ReservationContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
@@ -21,30 +20,59 @@ import {
   Download,
   Eye,
   Settings,
-  LogOut
+  LogOut,
+  MessageCircle,
+  Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 import accommodation1 from "@/assets/accommodation-1.jpg";
 import accommodation2 from "@/assets/accommodation-2.jpg";
 import accommodation3 from "@/assets/accommodation-3.jpg";
+import ChatModal from "@/components/ChatModal";
 
 const UserDashboard = () => {
   const { user, logout } = useAuth();
-  const { getUserReservations } = useReservations();
   const { getUserFavorites, removeFromFavorites } = useFavorites();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("reservas");
+  const [reservasAPI, setReservasAPI] = useState<any[]>([]);
+  const [loadingReservas, setLoadingReservas] = useState(true);
+  const [chatReservationId, setChatReservationId] = useState<number | null>(null);
 
-  // Buscar reservas reais do usuário
-  const userReservations = user ? getUserReservations(user.email) : [];
+  useEffect(() => {
+    const email = (user as any)?.email;
+    if (!email) { setLoadingReservas(false); return; }
+    fetch("/api/reservations?guest_email=" + encodeURIComponent(email))
+      .then(r => r.json())
+      .then(d => {
+        const data = Array.isArray(d) ? d : [];
+        const mapped = data.map((r: any) => ({
+          ...r,
+          accommodationName: r.room_type_name || r.hotel_name || "Acomodação",
+          location: r.hotel_name || "Center Plaza",
+          accommodationImage: [accommodation1, accommodation2, accommodation3][r.id % 3] || accommodation1,
+          checkIn: r.check_in_date,
+          checkOut: r.check_out_date,
+          guests: r.number_of_guests,
+          total: r.total_amount,
+          createdAt: r.created_at,
+          paymentStatus: r.payment_status
+        }));
+        setReservasAPI(mapped);
+      })
+      .catch(() => setReservasAPI([]))
+      .finally(() => setLoadingReservas(false));
+  }, [(user as any)?.email]);
+
+  const userReservations = reservasAPI;
   
   // Separar reservas ativas das concluídas
-  const reservas = userReservations.filter(r => r.status === 'confirmada' || r.status === 'pendente');
-  const historico = userReservations.filter(r => r.status === 'cancelada');
+  const reservas = userReservations.filter(r => r.status === 'confirmed' || r.status === 'pending' || r.status === 'confirmada');
+  const historico = userReservations.filter(r => r.status === 'cancelled' || r.status === 'cancelada');
   
   // Gerar dados de pagamento baseados nas reservas
   const pagamentos = userReservations.map(reserva => ({
-    id: `PAG${reserva.id.slice(-3)}`,
+    id: `PAG${String(reserva.id).slice(-3)}`,
     reservaId: reserva.id,
     accommodation: reserva.accommodationName,
     date: reserva.createdAt,
@@ -214,7 +242,20 @@ ${reserva.specialRequests || 'Nenhuma solicitação especial'}
 
             {/* Reservas Ativas */}
             <TabsContent value="reservas" className="space-y-4 mt-6">
-              <div className="grid gap-4">
+              {loadingReservas ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : reservas.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Calendar className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                  <p>Você não tem reservas ativas.</p>
+                  <Button className="mt-4" onClick={() => navigate("/hospedagens")}>
+                    Ver Hospedagens
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid gap-4">
                 {reservas.map((reserva) => (
                   <Card key={reserva.id}>
                     <CardContent className="p-6">
@@ -258,22 +299,29 @@ ${reserva.specialRequests || 'Nenhuma solicitação especial'}
                             </div>
                           </div>
                           
-                          <div className="flex gap-2 mt-4">
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => navigate(`/reserva/${reserva.id}`)}
-                            >
+                          <div className="flex gap-2 mt-4 flex-wrap">
+                            <Button size="sm" variant="outline" onClick={() => navigate("/reserva/" + reserva.id)}>
                               <Eye className="mr-2 h-4 w-4" />
                               Ver Detalhes
                             </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => handleDownloadVoucher(reserva)}
+
+                            <a
+                              href={"https://wa.me/5511328937570?text=" + encodeURIComponent("Olá! Tenho uma dúvida sobre minha reserva #" + reserva.id + " - " + (reserva.accommodationName || "Hospedagem"))}
+                              target="_blank"
+                              rel="noopener noreferrer"
                             >
-                              <Download className="mr-2 h-4 w-4" />
-                              Baixar Voucher
+                              <Button size="sm" variant="outline" className="text-green-600 border-green-300 hover:bg-green-50">
+                                <svg className="mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                                  <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.523 5.847L0 24l6.347-1.496A11.935 11.935 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.794 9.794 0 01-5.001-1.37l-.36-.214-3.713.876.938-3.591-.235-.371A9.795 9.795 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/>
+                                </svg>
+                                WhatsApp
+                              </Button>
+                            </a>
+
+                            <Button size="sm" variant="outline" onClick={() => setChatReservationId(reserva.id)}>
+                              <MessageCircle className="mr-2 h-4 w-4" />
+                              Chat
                             </Button>
                           </div>
                         </div>
@@ -281,7 +329,7 @@ ${reserva.specialRequests || 'Nenhuma solicitação especial'}
                     </CardContent>
                   </Card>
                 ))}
-              </div>
+              </div>)}
             </TabsContent>
 
             {/* Histórico */}
@@ -440,6 +488,15 @@ ${reserva.specialRequests || 'Nenhuma solicitação especial'}
         </div>
       </main>
       
+      {chatReservationId !== null && (
+        <ChatModal
+          open={true}
+          onClose={() => setChatReservationId(null)}
+          reservationId={chatReservationId}
+          guestName={(user as any)?.name || "Hóspede"}
+        />
+      )}
+
       <Footer />
     </div>
   );
