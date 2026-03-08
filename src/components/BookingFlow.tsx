@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +56,21 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
     document:        "",
     specialRequests: "",
   });
+  const [blockedDates, setBlockedDates] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!accommodation?.id) return;
+    fetch('/api/rooms/' + accommodation.id + '/blocked-dates')
+      .then(r => r.json())
+      .then(data => setBlockedDates(data.blocked_dates || []))
+      .catch(() => {});
+  }, [String(accommodation?.id)]);
+
+  const isDateBlocked = (date: Date): boolean => {
+    const str = date.toISOString().split('T')[0];
+    return blockedDates.includes(str);
+  };
+
 
   // Cálculos
   const nights     = checkIn && checkOut ? differenceInDays(checkOut, checkIn) : 0;
@@ -215,7 +230,7 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
-                        <Calendar mode="single" selected={checkIn} onSelect={setCheckIn} disabled={d => d < new Date()} initialFocus />
+                        <Calendar mode="single" selected={checkIn} onSelect={setCheckIn} disabled={d => d < new Date() || isDateBlocked(d)} initialFocus />
                       </PopoverContent>
                     </Popover>
                   </div>
@@ -229,7 +244,7 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
-                        <Calendar mode="single" selected={checkOut} onSelect={setCheckOut} disabled={d => d <= (checkIn || new Date())} initialFocus />
+                        <Calendar mode="single" selected={checkOut} onSelect={setCheckOut} disabled={d => d <= (checkIn || new Date()) || isDateBlocked(d)} initialFocus />
                       </PopoverContent>
                     </Popover>
                   </div>

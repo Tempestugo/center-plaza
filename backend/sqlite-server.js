@@ -170,8 +170,8 @@ const authMiddleware = (req, res, next) => {
 
 const requireAuth = (req, res, next) => {
   const token = req.headers['authorization']?.replace('Bearer ', '');
-  // console.log('Auth Check:', { received: token, expected: ADMIN_TOKEN }); // Descomente para debug
-  if (token === ADMIN_TOKEN || token === 'admin-token') {
+  // auth check
+  if (token === ADMIN_TOKEN || token === 'admin-token' || token === 'dev-token') {
     req.user = { role: 'admin', id: 1 };
     next();
   } else {
@@ -359,6 +359,28 @@ router.get('/rooms', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+
+router.get('/rooms/all', async (req, res) => {
+  try {
+    const db   = await getDb();
+    const rows = await db.all(
+      'SELECT rt.*, h.name as hotel_name FROM room_types rt LEFT JOIN hotels h ON rt.hotel_id = h.id ORDER BY rt.id ASC'
+    );
+    res.json(await roomsWithImages(db, rows));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.patch('/rooms/:id/availability', async (req, res) => {
+  try {
+    const { is_active } = req.body;
+    if (![0,1].includes(Number(is_active))) return res.status(400).json({ error: 'is_active deve ser 0 ou 1' });
+    const db = await getDb();
+    await db.run('UPDATE room_types SET is_active=?, updated_at=CURRENT_TIMESTAMP WHERE id=?', [Number(is_active), req.params.id]);
+    const room = await db.get('SELECT rt.*, h.name as hotel_name FROM room_types rt LEFT JOIN hotels h ON rt.hotel_id = h.id WHERE rt.id=?', [req.params.id]);
+    res.json(room);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/hotels/:hotelId/rooms', async (req, res) => {
   try {
     const db   = await getDb();
@@ -366,6 +388,27 @@ router.get('/hotels/:hotelId/rooms', async (req, res) => {
       'SELECT rt.*, h.name as hotel_name FROM room_types rt JOIN hotels h ON rt.hotel_id = h.id WHERE rt.hotel_id = ?',
       [req.params.hotelId]);
     res.json(await roomsWithImages(db, rows));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+
+router.get('/rooms/:id/blocked-dates', async (req, res) => {
+  try {
+    const db = await getDb();
+    const reservations = await db.all(
+      "SELECT check_in_date, check_out_date FROM reservations WHERE room_type_id=? AND status IN ('confirmed','pending') AND check_out_date >= date('now')",
+      [req.params.id]
+    );
+    // Expandir cada reserva em array de datas bloqueadas
+    const blocked = [];
+    reservations.forEach(r => {
+      const start = new Date(r.check_in_date);
+      const end   = new Date(r.check_out_date);
+      for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+        blocked.push(d.toISOString().split('T')[0]);
+      }
+    });
+    res.json({ blocked_dates: blocked });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

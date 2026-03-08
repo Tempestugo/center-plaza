@@ -56,7 +56,7 @@ const AdminLogin = () => {
       if (!token) {
         if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
           await new Promise(r => setTimeout(r, 600)); // simula delay
-          token = "dev-token";
+          token = "center_plaza_admin_2026_secure_token";
         }
       }
 

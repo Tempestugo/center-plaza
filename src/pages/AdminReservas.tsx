@@ -48,6 +48,20 @@ function ChatModal({
   const [sending, setSending] = useState(false);
   const { toast } = useToast();
 
+  const handleUpdateStatus = async (id: number, status: 'confirmed' | 'cancelled') => {
+    try {
+      await fetch('/api/reservations/' + id + '/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      toast({ title: status === 'cancelled' ? 'Reserva cancelada!' : 'Reserva confirmada!' });
+      loadReservations();
+    } catch {
+      toast({ title: 'Erro ao atualizar status', variant: 'destructive' });
+    }
+  };
+
   const loadMessages = useCallback(async () => {
     try {
       const data = await chatService.getMessages(reservation.id);
