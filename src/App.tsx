@@ -22,7 +22,7 @@ import UserProfile from "./pages/UserProfile";
 import NotFound from "./pages/NotFound";
 import ReservaSucesso from "@/pages/ReservaSucesso";
 import ReservaCancelado from "@/pages/ReservaCancelado";
-import FAQ from "@/pages/FAQ";
+import FAQ from "@/components/FAQ";
 import FloatingChat from "@/components/FloatingChat";
 
 const queryClient = new QueryClient();
