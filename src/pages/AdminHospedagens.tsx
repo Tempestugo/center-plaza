@@ -18,9 +18,27 @@ import {
   CheckCircle, XCircle, LayoutGrid, List, RefreshCw
 } from "lucide-react";
 
+const BED_TYPE_OCCUPANCY: Record<string, number> = {
+  "Solteiro": 1,
+  "Casal": 2,
+  "Queen": 2,
+  "King": 2,
+  "Triplo": 3,
+  "Quádruplo": 4,
+};
+
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 const EMPTY_ROOM = {
   hotel_id: "", name: "", description: "", size_sqm: "",
-  bed_type: "", bed_count: 1, max_occupancy: 2,
+  bed_type: "", bed_count: 1, max_occupancy: 2, total_units: 1,
   bathroom_type: "", smoking_allowed: false, price_per_night: "", room_number: "",
   amenities: [] as string[],
 };
@@ -73,8 +91,8 @@ export default function AdminHospedagens() {
       await roomService.updateAvailability(room.id, newVal);
       setRooms(prev => prev.map(r => r.id === room.id ? { ...r, is_active: newVal } : r));
       toast.success(newVal === 1 ? `"${room.name}" ativado` : `"${room.name}" desativado`);
-    } catch {
-      toast.error("Erro ao atualizar disponibilidade");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao alterar disponibilidade");
     } finally {
       setTogglingId(null);
     }
@@ -99,7 +117,7 @@ export default function AdminHospedagens() {
       stripe_price_id: r.stripe_price_id || "",
       hotel_id: String(r.hotel_id ?? ""), name: r.name ?? "", description: r.description ?? "",
       size_sqm: String(r.size_sqm ?? ""), bed_type: r.bed_type ?? "", bed_count: r.bed_count ?? 1,
-      max_occupancy: r.max_occupancy ?? 2, bathroom_type: r.bathroom_type ?? "",
+      max_occupancy: r.max_occupancy ?? 2, total_units: r.total_units ?? 1, bathroom_type: r.bathroom_type ?? "",
       smoking_allowed: r.smoking_allowed ?? false, price_per_night: String(r.price_per_night ?? ""),
       room_number: r.room_number ?? "",
       amenities: am,
@@ -110,6 +128,11 @@ export default function AdminHospedagens() {
     setRoomModal("edit");
   };
 
+  const handleBedTypeChange = (value: string) => {
+    const maxOcc = BED_TYPE_OCCUPANCY[value] || roomForm.max_occupancy;
+    setRoomForm(p => ({ ...p, bed_type: value, max_occupancy: maxOcc }));
+  };
+
   const handleSaveRoom = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -118,24 +141,23 @@ export default function AdminHospedagens() {
         hotel_id: parseInt(roomForm.hotel_id) || 1, name: roomForm.name,
         description: roomForm.description, size_sqm: parseFloat(roomForm.size_sqm) || 0,
         bed_type: roomForm.bed_type, bed_count: Number(roomForm.bed_count),
-        max_occupancy: Number(roomForm.max_occupancy), bathroom_type: roomForm.bathroom_type,
+        max_occupancy: Number(roomForm.max_occupancy), total_units: Number(roomForm.total_units), bathroom_type: roomForm.bathroom_type,
         smoking_allowed: roomForm.smoking_allowed, price_per_night: parseFloat(roomForm.price_per_night),
         amenities: roomForm.amenities,
         stripe_price_id: roomForm.stripe_price_id || undefined,
       };
 
       if (roomModal === "create") {
-        await roomService.createWithImages(payload, imageFiles);
+        const room = await roomService.create(payload);
+        for (const file of imageFiles) {
+          const base64 = await fileToBase64(file);
+          await roomService.uploadImage(room.id, base64, file.type);
+        }
         toast.success("Quarto criado!");
       } else {
         await roomService.update(selectedRoom!.id, payload);
-        // Upload novas imagens
         for (const file of imageFiles) {
-          const reader = new FileReader();
-          const base64 = await new Promise<string>((resolve) => {
-            reader.onload = () => resolve((reader.result as string).split(',')[1]);
-            reader.readAsDataURL(file);
-          });
+          const base64 = await fileToBase64(file);
           await roomService.uploadImage(selectedRoom!.id, base64, file.type);
         }
         toast.success("Quarto atualizado!");
@@ -275,7 +297,9 @@ Se houver reservas ativas, o quarto será desativado em vez de excluído.`)) ret
                   {room.room_number && <p className="text-[10px] font-mono text-muted-foreground">Nº {room.room_number}</p>}
                   <p className="text-xs font-semibold leading-tight line-clamp-1">{room.name}</p>
                   <p className="text-xs text-muted-foreground">{fmtCurrency(room.price_per_night)}/noite</p>
-                  <p className="text-[10px] text-muted-foreground">{room.max_occupancy ?? (room as any).capacity} hóspedes</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {room.total_units || 1} unidade{(room.total_units || 1) !== 1 ? "s" : ""} · máx {room.max_occupancy ?? (room as any).capacity} hóspede{(room.max_occupancy ?? (room as any).capacity) !== 1 ? "s" : ""}
+                  </p>
                 </div>
                 <div className="flex items-center justify-between mt-2 pt-2 border-t">
                   <span className={`text-[10px] font-medium ${room.is_active === 1 ? "text-green-600" : "text-red-500"}`}>
@@ -298,7 +322,7 @@ Se houver reservas ativas, o quarto será desativado em vez de excluído.`)) ret
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  {["Nº", "Nome", "Cama", "Hóspedes", "Preço/noite", "Disponível", "Ações"].map(h => (
+                  {["Nº", "Nome", "Cama", "Hóspedes", "Unidades", "Preço/noite", "Disponível", "Ações"].map(h => (
                     <th key={h} className={`px-4 py-2.5 text-xs font-medium text-muted-foreground ${h === "Disponível" ? "text-center" : h === "Ações" ? "text-right" : "text-left"}`}>{h}</th>
                   ))}
                 </tr>
@@ -310,6 +334,7 @@ Se houver reservas ativas, o quarto será desativado em vez de excluído.`)) ret
                     <td className="px-4 py-2.5 font-medium">{room.name}</td>
                     <td className="px-4 py-2.5 text-xs text-muted-foreground">{room.bed_type || "—"}</td>
                     <td className="px-4 py-2.5 text-xs">{room.max_occupancy ?? (room as any).capacity}</td>
+                    <td className="px-4 py-2.5 text-xs">{room.total_units || 1}</td>
                     <td className="px-4 py-2.5 text-xs font-medium">{fmtCurrency(room.price_per_night)}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex justify-center">
@@ -360,16 +385,23 @@ Se houver reservas ativas, o quarto será desativado em vez de excluído.`)) ret
               </div>
               <div className="space-y-1.5">
                 <Label>Tipo de Cama</Label>
-                <Select value={roomForm.bed_type} onValueChange={v => setRoomForm(p => ({ ...p, bed_type: v }))}>
+                <Select value={roomForm.bed_type} onValueChange={handleBedTypeChange}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
-                    {["Solteiro", "Casal", "Queen", "King", "Beliche", "Twin"].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    {["Solteiro", "Casal", "Queen", "King", "Triplo", "Quádruplo", "Beliche", "Twin"].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>Número de Camas</Label>
                 <Input type="number" min="1" max="10" value={roomForm.bed_count} onChange={e => setRoomForm(p => ({ ...p, bed_count: Number(e.target.value) }))} />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label>Unidades Físicas</Label>
+                  <span className="text-[10px] text-muted-foreground">Qtd. em estoque</span>
+                </div>
+                <Input type="number" min="1" max="100" value={roomForm.total_units} onChange={e => setRoomForm(p => ({ ...p, total_units: parseInt(e.target.value) || 1 }))} required />
               </div>
               <div className="space-y-1.5">
                 <Label>Área (m²)</Label>

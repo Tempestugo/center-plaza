@@ -41,6 +41,7 @@ export interface RoomType {
   description?: string;
   capacity: number;
   max_occupancy?: number;
+  total_units?: number;
   bed_type?: string;
   bed_count?: number;
   size_sqm?: number;
@@ -310,11 +311,16 @@ export const roomService = {
 
   // Atualizar disponibilidade (Ativar/Desativar)
   async updateAvailability(id: number, is_active: number): Promise<RoomType> {
-    return apiRequest<RoomType>(`/rooms/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/rooms/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify({ is_active }),
     });
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || 'Erro ao atualizar disponibilidade');
+    }
+    return response.json();
   },
 
   async updateRoomNumber(id: number, room_number: string): Promise<RoomType> {

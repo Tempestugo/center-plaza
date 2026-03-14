@@ -111,6 +111,7 @@ async function initDatabase() {
   try { await db.run("ALTER TABLE room_types ADD COLUMN stripe_price_id TEXT"); } catch (e) {}
   try { await db.run("ALTER TABLE reservations ADD COLUMN payment_status TEXT DEFAULT 'pending'"); } catch (e) {}
   try { await db.run("ALTER TABLE room_types ADD COLUMN is_active BOOLEAN DEFAULT 1"); } catch (e) {}
+  try { await db.run("ALTER TABLE room_types ADD COLUMN total_units INTEGER DEFAULT 1"); } catch (e) {}
 
   // Admin padrão
   const admin = await db.get("SELECT id FROM users WHERE username = 'admin@centerplaza.com'");
@@ -391,6 +392,34 @@ router.get('/hotels/:hotelId/rooms', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// GET /api/rooms/:id/availability?check_in=YYYY-MM-DD&check_out=YYYY-MM-DD
+router.get('/rooms/:id/availability', async (req, res) => {
+  try {
+    const { check_in, check_out } = req.query;
+    const db = await getDb();
+    const room = await db.get('SELECT total_units, max_occupancy, is_active FROM room_types WHERE id = ?', [req.params.id]);
+    if (!room) return res.status(404).json({ error: 'Quarto não encontrado' });
+    
+    if (!check_in || !check_out) {
+      return res.json({ total_units: room.total_units || 1, available_units: room.total_units || 1 });
+    }
+    
+    const booked = await db.get(
+      "SELECT COUNT(*) as c FROM reservations WHERE room_type_id=? AND status IN ('confirmed','pending') AND check_in_date<? AND check_out_date>?",
+      [req.params.id, check_out, check_in]
+    );
+    
+    const totalUnits = room.total_units || 1;
+    const availableUnits = Math.max(0, totalUnits - booked.c);
+    
+    res.json({
+      total_units: totalUnits,
+      booked_units: booked.c,
+      available_units: availableUnits,
+      is_available: availableUnits > 0 && room.is_active !== 0,
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 router.get('/rooms/:id/blocked-dates', async (req, res) => {
   try {
@@ -428,12 +457,12 @@ router.post('/rooms', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
     const { hotel_id, name, description, size_sqm, bed_type, bed_count,
-            max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night, is_active } = req.body;
+            max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night, is_active, total_units } = req.body;
     const db = await getDb();
     const r  = await db.run(
-      'INSERT INTO room_types (hotel_id,name,description,size_sqm,bed_type,bed_count,max_occupancy,amenities,bathroom_type,smoking_allowed,price_per_night,is_active,stripe_price_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      'INSERT INTO room_types (hotel_id,name,description,size_sqm,bed_type,bed_count,max_occupancy,amenities,bathroom_type,smoking_allowed,price_per_night,is_active,stripe_price_id,total_units) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
       [hotel_id, name, description, size_sqm, bed_type, bed_count, max_occupancy,
-       JSON.stringify(amenities || []), bathroom_type, smoking_allowed ? 1 : 0, price_per_night, is_active !== undefined ? is_active : 1, req.body.stripe_price_id || null]
+       JSON.stringify(amenities || []), bathroom_type, smoking_allowed ? 1 : 0, price_per_night, is_active !== undefined ? is_active : 1, req.body.stripe_price_id || null, total_units || 1]
     );
     const room = await db.get(
       'SELECT rt.*, h.name as hotel_name FROM room_types rt JOIN hotels h ON rt.hotel_id = h.id WHERE rt.id = ?',
@@ -447,12 +476,32 @@ router.put('/rooms/:id', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
     const { hotel_id, name, description, size_sqm, bed_type, bed_count,
-            max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night, is_active } = req.body;
+            max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night, is_active, total_units } = req.body;
     const db = await getDb();
+    
+    // Buscar valores atuais para não sobrescrever com null
+    const current = await db.get('SELECT * FROM room_types WHERE id = ?', [req.params.id]);
+    if (!current) return res.status(404).json({ error: 'Quarto não encontrado' });
+    
     await db.run(
-      'UPDATE room_types SET hotel_id=?,name=?,description=?,size_sqm=?,bed_type=?,bed_count=?,max_occupancy=?,amenities=?,bathroom_type=?,smoking_allowed=?,price_per_night=?,is_active=COALESCE(?,is_active),stripe_price_id=COALESCE(?,stripe_price_id),updated_at=CURRENT_TIMESTAMP WHERE id=?',
-      [hotel_id, name, description, size_sqm, bed_type, bed_count, max_occupancy,
-       JSON.stringify(amenities || []), bathroom_type, smoking_allowed ? 1 : 0, price_per_night, is_active, req.body.stripe_price_id || null, req.params.id]
+      'UPDATE room_types SET hotel_id=?,name=?,description=?,size_sqm=?,bed_type=?,bed_count=?,max_occupancy=?,amenities=?,bathroom_type=?,smoking_allowed=?,price_per_night=?,is_active=?,stripe_price_id=?,total_units=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',
+      [
+        hotel_id ?? current.hotel_id,
+        name ?? current.name,
+        description ?? current.description,
+        size_sqm ?? current.size_sqm,
+        bed_type ?? current.bed_type,
+        bed_count ?? current.bed_count,
+        max_occupancy ?? current.max_occupancy,
+        amenities !== undefined ? JSON.stringify(Array.isArray(amenities) ? amenities : []) : current.amenities,
+        bathroom_type ?? current.bathroom_type,
+        smoking_allowed !== undefined ? (smoking_allowed ? 1 : 0) : current.smoking_allowed,
+        price_per_night ?? current.price_per_night,
+        is_active !== undefined ? (is_active ? 1 : 0) : current.is_active,
+        req.body.stripe_price_id !== undefined ? req.body.stripe_price_id : current.stripe_price_id,
+        total_units ?? current.total_units ?? 1,
+        req.params.id
+      ]
     );
     const room = await db.get(
       'SELECT rt.*, h.name as hotel_name FROM room_types rt JOIN hotels h ON rt.hotel_id = h.id WHERE rt.id = ?',
@@ -532,13 +581,14 @@ router.post('/reservations', async (req, res) => {
 
     await db.run('BEGIN EXCLUSIVE TRANSACTION');
     try {
-      const conflict = await db.get(
-        "SELECT COUNT(*) as c FROM reservations WHERE room_type_id=? AND status='confirmed' AND check_in_date<? AND check_out_date>?",
-        [room_type_id, check_out_date, check_in_date]);
-      if (conflict.c > 0) { await db.run('ROLLBACK'); return res.status(409).json({ error: 'Quarto indisponível para as datas selecionadas' }); }
+      const room = await db.get('SELECT price_per_night, total_units, max_occupancy FROM room_types WHERE id = ?', [room_type_id]);
+      if (!room) { await db.run('ROLLBACK'); return res.status(404).json({ error: 'Quarto não encontrado' }); }
 
-      const room = await db.get('SELECT price_per_night FROM room_types WHERE id = ?', [room_type_id]);
-      if (!room)  { await db.run('ROLLBACK'); return res.status(404).json({ error: 'Quarto não encontrado' }); }
+      const totalUnits = room.total_units || 1;
+      const conflict = await db.get(
+        "SELECT COUNT(*) as c FROM reservations WHERE room_type_id=? AND status IN ('confirmed','pending') AND check_in_date<? AND check_out_date>?",
+        [room_type_id, check_out_date, check_in_date]);
+      if (conflict.c >= totalUnits) { await db.run('ROLLBACK'); return res.status(409).json({ error: 'Não há unidades disponíveis para as datas selecionadas' }); }
 
       const nights = Math.max(1, Math.ceil((new Date(check_out_date) - new Date(check_in_date)) / 86400000));
       const total  = room.price_per_night * nights;
@@ -695,16 +745,16 @@ router.post('/create-checkout-session', async (req, res) => {
 
     const db = await getDb();
 
-    // Verificar disponibilidade
-    const conflict = await db.get(
-      "SELECT COUNT(*) as c FROM reservations WHERE room_type_id=? AND status!='cancelled' AND check_in_date<? AND check_out_date>?",
-      [room_type_id, check_out_date, check_in_date]
-    );
-    if (conflict.c > 0) return res.status(409).json({ error: 'Quarto indisponível para as datas selecionadas' });
-
-    // Buscar preço
+    // Buscar preço e unidades
     const room = await db.get('SELECT * FROM room_types WHERE id = ?', [room_type_id]);
     if (!room) return res.status(404).json({ error: 'Quarto não encontrado' });
+
+    const totalUnits = room.total_units || 1;
+    const conflict = await db.get(
+      "SELECT COUNT(*) as c FROM reservations WHERE room_type_id=? AND status IN ('confirmed','pending') AND check_in_date<? AND check_out_date>?",
+      [room_type_id, check_out_date, check_in_date]
+    );
+    if (conflict.c >= totalUnits) return res.status(409).json({ error: 'Não há unidades disponíveis para as datas selecionadas' });
 
     const nights = Math.max(1, Math.ceil((new Date(check_out_date) - new Date(check_in_date)) / 86400000));
     const totalAmount = room.price_per_night * nights;
