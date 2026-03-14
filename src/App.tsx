@@ -22,6 +22,7 @@ import UserProfile from "./pages/UserProfile";
 import NotFound from "./pages/NotFound";
 import ReservaSucesso from "@/pages/ReservaSucesso";
 import ReservaCancelado from "@/pages/ReservaCancelado";
+import FAQ from "@/pages/FAQ";
 import FloatingChat from "@/components/FloatingChat";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,7 @@ const App = () => (
             <Route path="/perfil" element={<UserProfile />} />
             <Route path="/reserva/sucesso" element={<ReservaSucesso />} />
             <Route path="/reserva/cancelado" element={<ReservaCancelado />} />
+            <Route path="/faq" element={<FAQ />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Users, Home, Calendar, DollarSign, TrendingUp, MapPin, Loader2, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { reservationService, roomService, Reservation } from "@/services/api";
 
@@ -62,6 +63,30 @@ const AdminDashboard = () => {
                             .filter(r => r.status === "confirmed")
                             .reduce((sum, r) => sum + (r.total_amount ?? 0), 0),
   };
+
+  // ── Dados para o gráfico (Últimos 6 meses) ──────────────────────────────────
+  const MONTH_NAMES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+  const monthlyData = (() => {
+    const now = new Date();
+    return Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+      const month = MONTH_NAMES[d.getMonth()];
+      const year = d.getFullYear();
+      const monthReservations = reservations.filter(r => {
+        const created = new Date(r.created_at || "");
+        return created.getMonth() === d.getMonth() && created.getFullYear() === year;
+      });
+      return {
+        month: `${month}/${String(year).slice(2)}`,
+        confirmadas: monthReservations.filter(r => r.status === "confirmed").length,
+        pendentes: monthReservations.filter(r => r.status === "pending").length,
+        canceladas: monthReservations.filter(r => r.status === "cancelled").length,
+        receita: monthReservations
+          .filter(r => r.status === "confirmed")
+          .reduce((sum, r) => sum + (r.total_amount ?? 0), 0),
+      };
+    });
+  })();
 
   const recentReservations = [...reservations]
     .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
@@ -136,6 +161,81 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        {/* Gráficos */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Reservas por mês */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Reservas por Mês</CardTitle>
+              <CardDescription>Últimos 6 meses</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={monthlyData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <Tooltip
+                      formatter={(value, name) => [
+                        value,
+                        name === "confirmadas" ? "Confirmadas" :
+                        name === "pendentes" ? "Pendentes" : "Canceladas"
+                      ]}
+                    />
+                    <Legend formatter={(value) =>
+                      value === "confirmadas" ? "Confirmadas" :
+                      value === "pendentes" ? "Pendentes" : "Canceladas"
+                    } />
+                    <Bar dataKey="confirmadas" fill="#16a34a" radius={[3,3,0,0]} />
+                    <Bar dataKey="pendentes"   fill="#ca8a04" radius={[3,3,0,0]} />
+                    <Bar dataKey="canceladas"  fill="#dc2626" radius={[3,3,0,0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Receita por mês */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Receita por Mês</CardTitle>
+              <CardDescription>Apenas reservas confirmadas</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {monthlyData.map(d => {
+                    const maxReceita = Math.max(...monthlyData.map(x => x.receita), 1);
+                    return (
+                      <div key={d.month} className="flex items-center gap-3">
+                        <div className="w-16 text-xs text-muted-foreground shrink-0">{d.month}</div>
+                        <div className="flex-1 bg-secondary rounded-full h-2 relative">
+                          <div
+                            className="absolute top-0 left-0 h-2 bg-primary rounded-full transition-all"
+                            style={{ width: `${(d.receita / maxReceita) * 100}%` }}
+                          />
+                        </div>
+                        <div className="text-xs font-medium w-24 text-right shrink-0">
+                          {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(d.receita)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">

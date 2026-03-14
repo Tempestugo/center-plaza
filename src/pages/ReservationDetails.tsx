@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useReservations } from "@/contexts/ReservationContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +20,7 @@ import {
   CheckCircle,
   Clock,
   XCircle,
+  AlertCircle,
   Wifi,
   Car,
   Coffee
@@ -32,6 +34,22 @@ const ReservationDetails = () => {
   const { getReservationById } = useReservations();
 
   const reservation = id ? getReservationById(id) : null;
+  
+  const [cancelPolicy, setCancelPolicy] = useState<{
+    can_cancel: boolean;
+    free_cancellation: boolean;
+    deadline_formatted: string;
+    policy: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (id) {
+      fetch(`/api/reservations/${id}/cancellation-policy`)
+        .then(r => r.json())
+        .then(setCancelPolicy)
+        .catch(() => {});
+    }
+  }, [id]);
 
   if (!user) {
     navigate("/");
@@ -268,6 +286,35 @@ ${reservation.specialRequests || 'Nenhuma solicitação especial'}
                   )}
                 </CardContent>
               </Card>
+              
+              {/* Política de Cancelamento */}
+              {cancelPolicy && reservation?.status !== 'cancelled' && (
+                <Card className={cancelPolicy.free_cancellation ? "border-green-200 bg-green-50" : "border-orange-200 bg-orange-50"}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className={`mt-0.5 ${cancelPolicy.free_cancellation ? "text-green-600" : "text-orange-600"}`}>
+                        {cancelPolicy.free_cancellation ? (
+                          <CheckCircle className="h-5 w-5" />
+                        ) : (
+                          <AlertCircle className="h-5 w-5" />
+                        )}
+                      </div>
+                      <div>
+                        <p className={`font-medium text-sm ${cancelPolicy.free_cancellation ? "text-green-800" : "text-orange-800"}`}>
+                          {cancelPolicy.free_cancellation
+                            ? "Cancelamento gratuito disponível"
+                            : "Fora do prazo de cancelamento gratuito"}
+                        </p>
+                        <p className={`text-xs mt-1 ${cancelPolicy.free_cancellation ? "text-green-700" : "text-orange-700"}`}>
+                          {cancelPolicy.free_cancellation
+                            ? `Cancele gratuitamente até ${cancelPolicy.deadline_formatted}`
+                            : `O prazo de cancelamento gratuito (${cancelPolicy.deadline_formatted}) já passou.`}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Informações do Hóspede */}
               <Card>

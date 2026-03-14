@@ -38,6 +38,8 @@ import accommodation1 from "@/assets/accommodation-1.jpg";
 import accommodation2 from "@/assets/accommodation-2.jpg";
 import accommodation3 from "@/assets/accommodation-3.jpg";
 
+const FALLBACK_IMAGES = [accommodation1, accommodation2, accommodation3];
+
 const HospedagemDetalhes = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -124,7 +126,9 @@ if (room.amenities) {
     bedrooms: Math.ceil((room.max_occupancy ?? room.capacity ?? 2) / 2),
     bathrooms: 1,
     amenities: amenities.slice(0, 3).map(a => a.toLowerCase().replace(/\s+/g, '')),
-    images: [accommodation1, accommodation2, accommodation3],
+    images: (room.images && room.images.length > 0)
+      ? room.images.map(img => img.url)
+      : FALLBACK_IMAGES,
     description: room.description || 'Quarto confortável e bem equipado no Center Plaza Hotel.',
     features: amenities.slice(0, 6),
     reviews: [
@@ -181,7 +185,7 @@ if (room.amenities) {
         location: accommodation.location,
         price: accommodation.price,
         rating: accommodation.rating,
-        image: accommodation.images[0]
+        image: accommodation.images[0] || FALLBACK_IMAGES[0]
       });
       toast.success("Adicionado aos favoritos");
     }
@@ -221,6 +225,11 @@ if (room.amenities) {
               src={accommodation.images[currentImageIndex]} 
               alt={accommodation.name}
               className="w-full h-full object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                const fallback = FALLBACK_IMAGES[currentImageIndex % FALLBACK_IMAGES.length];
+                if (target.src !== fallback) target.src = fallback;
+              }}
             />
             
             {/* Navigation Arrows */}
@@ -502,7 +511,7 @@ if (room.amenities) {
           location: accommodation.location,
           price: accommodation.price,
           maxGuests: accommodation.maxGuests,
-          image: accommodation.images[0],
+          image: accommodation.images[0] || FALLBACK_IMAGES[0],
           amenities: accommodation.amenities
         }}
       />

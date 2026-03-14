@@ -526,9 +526,12 @@ router.delete('/rooms/:id', requireAuth, async (req, res) => {
 // ── Reservas ──────────────────────────────────────────────────────────────────
 
 const reservationJoin = `
-  SELECT r.*, h.name as hotel_name, rt.name as room_type_name
+  SELECT r.*,
+    h.name as hotel_name,
+    rt.name as room_type_name,
+    (SELECT COUNT(*) FROM messages m WHERE m.reservation_id=r.id AND m.read=0 AND m.sender_role='guest') as unread_count
   FROM reservations r
-  JOIN hotels h  ON r.hotel_id      = h.id
+  JOIN hotels h ON r.hotel_id = h.id
   JOIN room_types rt ON r.room_type_id = rt.id
 `;
 
@@ -560,6 +563,72 @@ router.get('/reservations/:id', async (req, res) => {
     const r  = await db.get(reservationJoin + ' WHERE r.id = ?', [req.params.id]);
     if (!r) return res.status(404).json({ error: 'Reserva não encontrada' });
     res.json(r);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/reservations/:id/cancel', async (req, res) => {
+  try {
+    const db = await getDb();
+    const reservation = await db.get(
+      'SELECT * FROM reservations WHERE id = ?',
+      [req.params.id]
+    );
+    
+    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
+    if (reservation.status === 'cancelled') {
+      return res.status(400).json({ error: 'Reserva já cancelada' });
+    }
+    
+    const checkIn = new Date(reservation.check_in_date);
+    const now = new Date();
+    const hoursUntilCheckIn = (checkIn.getTime() - now.getTime()) / (1000 * 60 * 60);
+    
+    const FREE_CANCEL_HOURS = 24;
+    const canCancelFree = hoursUntilCheckIn >= FREE_CANCEL_HOURS;
+    
+    await db.run(
+      "UPDATE reservations SET status='cancelled', updated_at=CURRENT_TIMESTAMP WHERE id=?",
+      [req.params.id]
+    );
+    
+    res.json({
+      ok: true,
+      free_cancellation: canCancelFree,
+      message: canCancelFree
+        ? 'Reserva cancelada sem custo.'
+        : 'Reserva cancelada. Por estar dentro do prazo de 24h antes do check-in, pode haver cobrança de taxa.',
+      hours_until_checkin: Math.round(hoursUntilCheckIn),
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/reservations/:id/cancellation-policy', async (req, res) => {
+  try {
+    const db = await getDb();
+    const reservation = await db.get(
+      'SELECT id, check_in_date, status FROM reservations WHERE id = ?',
+      [req.params.id]
+    );
+    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
+    
+    const checkIn = new Date(reservation.check_in_date);
+    const now = new Date();
+    const hoursUntilCheckIn = (checkIn.getTime() - now.getTime()) / (1000 * 60 * 60);
+    const FREE_CANCEL_HOURS = 24;
+    const canCancelFree = hoursUntilCheckIn >= FREE_CANCEL_HOURS;
+    const deadline = new Date(checkIn.getTime() - FREE_CANCEL_HOURS * 60 * 60 * 1000);
+    
+    res.json({
+      can_cancel: reservation.status !== 'cancelled',
+      free_cancellation: canCancelFree,
+      hours_until_checkin: Math.round(hoursUntilCheckIn),
+      deadline: deadline.toISOString(),
+      deadline_formatted: deadline.toLocaleDateString('pt-BR', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      }),
+      policy: `Cancelamento gratuito até ${FREE_CANCEL_HOURS}h antes do check-in.`,
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -719,6 +788,17 @@ router.post('/chat/:reservationId', async (req, res) => {
       read: 0,
       created_at: new Date().toISOString()
     });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.patch('/chat/:reservationId/read', async (req, res) => {
+  try {
+    const db = await getDb();
+    await db.run(
+      "UPDATE messages SET read=1 WHERE reservation_id=? AND sender_role='guest'",
+      [req.params.reservationId]
+    );
+    res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
  

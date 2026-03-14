@@ -74,6 +74,7 @@ export interface Reservation {
   updated_at?: string;
   hotel_name?: string;
   room_type_name?: string;
+  unread_count?: number;
 }
 
 export interface Message {
@@ -445,7 +446,7 @@ export const reservationService = {
   },
 
   // Atualizar status da reserva
-  async updateStatus(id: number, status: Reservation['status']): Promise<Reservation> {
+  async updateStatus(id: number, status: 'confirmed' | 'cancelled' | 'pending' | Reservation['status']): Promise<Reservation> {
     return apiRequest<Reservation>(`/reservations/${id}/status`, {
       method: 'PATCH',
       headers: getAuthHeaders(),

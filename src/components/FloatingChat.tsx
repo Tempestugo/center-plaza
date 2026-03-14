@@ -53,6 +53,7 @@ export default function FloatingChat() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [totalUnread, setTotalUnread] = useState(0);
   const [lastMessageIds, setLastMessageIds] = useState<Record<number, number>>({});
+  const [soundPlayCount, setSoundPlayCount] = useState<Record<number, number>>({});
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const email = (user as any)?.email;
@@ -86,7 +87,13 @@ export default function FloatingChat() {
         const data: Message[] = await res.json();
         const lastId = lastMessageIds[reservationId] || 0;
         const newAdminMessages = data.filter((m) => m.id > lastId && m.sender_role === "admin");
-        if (lastId > 0 && newAdminMessages.length > 0) playNotificationSound();
+        if (lastId > 0 && newAdminMessages.length > 0) {
+          setSoundPlayCount(prev => {
+            const count = prev[reservationId] || 0;
+            if (count < 3) playNotificationSound();
+            return { ...prev, [reservationId]: count + 1 };
+          });
+        }
         if (data.length > 0) {
           setLastMessageIds((prev) => ({
             ...prev,
@@ -136,7 +143,13 @@ export default function FloatingChat() {
             const msgs: Message[] = await msgRes.json();
             const lastId = lastMessageIds[r.id] || 0;
             const newMsgs = msgs.filter((m) => m.id > lastId && m.sender_role === "admin");
-            if (lastId > 0 && newMsgs.length > 0) playNotificationSound();
+            if (lastId > 0 && newMsgs.length > 0) {
+              setSoundPlayCount(prev => {
+                const count = prev[r.id] || 0;
+                if (count < 3) playNotificationSound();
+                return { ...prev, [r.id]: count + 1 };
+              });
+            }
             unread += msgs.filter((m) => m.sender_role === "admin" && m.read === 0).length;
           }
         }
@@ -179,6 +192,7 @@ export default function FloatingChat() {
     setSelectedReservation(reservation);
     setView("chat");
     fetchMessages(reservation.id);
+    setSoundPlayCount(prev => ({ ...prev, [reservation.id]: 0 }));
   };
 
   const handleButtonClick = () => {

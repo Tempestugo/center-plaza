@@ -51,6 +51,11 @@ const Footer = () => {
                   Contato
                 </Link>
               </li>
+              <li>
+                <Link to="/faq" className="text-primary-foreground/80 hover:text-accent-warm transition-colors">
+                  Perguntas Frequentes
+                </Link>
+              </li>
             </ul>
           </div>
 

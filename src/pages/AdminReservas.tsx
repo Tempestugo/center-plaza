@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  Search, Filter, Eye, CheckCircle, XCircle, MessageSquare,
+  Search, Filter, Eye, CheckCircle, XCircle, MessageSquare, RotateCcw,
   ChevronDown, RefreshCw, Loader2, Send, X, Phone, Mail,
   Calendar, Users, DollarSign, Hotel
 } from "lucide-react";
@@ -65,15 +65,16 @@ function ChatModal({
   const [sending, setSending] = useState(false);
   const { toast } = useToast();
 
-  const handleUpdateStatus = async (id: number, status: 'confirmed' | 'cancelled') => {
+  const handleUpdateStatus = async (id: number, status: 'confirmed' | 'cancelled' | 'pending') => {
     try {
       await fetch('/api/reservations/' + id + '/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       });
-      toast({ title: status === 'cancelled' ? 'Reserva cancelada!' : 'Reserva confirmada!' });
-      loadReservations();
+      const messages = { confirmed: 'Reserva confirmada!', cancelled: 'Reserva cancelada!', pending: 'Revertida para pendente!' };
+      toast({ title: messages[status] });
+      // loadReservations(); // Se necessário
     } catch {
       toast({ title: 'Erro ao atualizar status', variant: 'destructive' });
     }
@@ -191,12 +192,12 @@ function DetailModal({
 }: {
   reservation: Reservation;
   onClose: () => void;
-  onStatusChange: (id: number, status: "confirmed" | "cancelled") => Promise<void>;
+  onStatusChange: (id: number, status: "confirmed" | "cancelled" | "pending") => Promise<void>;
 }) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleStatus = async (status: "confirmed" | "cancelled") => {
+  const handleStatus = async (status: "confirmed" | "cancelled" | "pending") => {
     setLoading(true);
     try {
       await onStatusChange(reservation.id, status);
@@ -315,6 +316,26 @@ function DetailModal({
               </Button>
             </div>
           )}
+          {reservation.status === "cancelled" && (
+            <div className="flex gap-2 pt-1">
+              <Button
+                className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white"
+                onClick={() => handleStatus("pending")}
+                disabled={loading}
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4 mr-1.5" />}
+                Reverter para Pendente
+              </Button>
+            </div>
+          )}
+          {reservation.status === "confirmed" && (
+            <div className="flex gap-2 pt-1">
+              <Button variant="destructive" className="flex-1" onClick={() => handleStatus("cancelled")} disabled={loading}>
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4 mr-1.5" />}
+                Cancelar Reserva
+              </Button>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
@@ -333,6 +354,7 @@ export default function AdminReservas() {
   const [chatReservation, setChatReservation] = useState<Reservation | null>(null);
   const { toast } = useToast();
   const [lastGuestMessageId, setLastGuestMessageId] = useState(0);
+  const [soundPlayCount, setSoundPlayCount] = useState<Record<number, number>>({});
 
   // ── Carrega reservas ────────────────────────────────────────────────────────
   const loadReservations = useCallback(async () => {
@@ -369,7 +391,13 @@ export default function AdminReservas() {
           if (guestMsgs.length === 0) continue;
           const maxId = Math.max(...guestMsgs.map((m: any) => m.id));
           if (lastGuestMessageId > 0 && maxId > lastGuestMessageId) {
-            playNotificationSound();
+            setSoundPlayCount((prev) => {
+              const count = prev[r.id] || 0;
+              if (count < 3) {
+                playNotificationSound();
+              }
+              return { ...prev, [r.id]: count + 1 };
+            });
           }
           setLastGuestMessageId((prev) => Math.max(prev, maxId));
         }
@@ -382,15 +410,30 @@ export default function AdminReservas() {
   }, [lastGuestMessageId]);
 
   // ── Atualiza status ─────────────────────────────────────────────────────────
-  const handleStatusChange = async (id: number, status: "confirmed" | "cancelled") => {
+  const handleStatusChange = async (id: number, status: "confirmed" | "cancelled" | "pending") => {
     await reservationService.updateStatus(id, status);
     setReservations((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status } : r))
     );
+    const messages = {
+      confirmed: "Reserva confirmada!",
+      cancelled: "Reserva cancelada",
+      pending: "Reserva revertida para pendente",
+    };
     toast({
-      title: status === "confirmed" ? "Reserva confirmada!" : "Reserva cancelada",
-      variant: status === "confirmed" ? "default" : "destructive",
+      title: messages[status],
+      variant: status === "cancelled" ? "destructive" : "default",
     });
+  };
+
+  // ── Abre modal de chat e marca lidas ────────────────────────────────────────
+  const openChatModal = (reservation: Reservation) => {
+    setChatReservation(reservation);
+    setSoundPlayCount((prev) => ({ ...prev, [reservation.id]: 0 }));
+    fetch(`/api/chat/${reservation.id}/read`, { method: 'PATCH' }).catch(() => {});
+    setReservations((prev) =>
+      prev.map((r) => r.id === reservation.id ? { ...r, unread_count: 0 } : r)
+    );
   };
 
   // ── Filtragem ───────────────────────────────────────────────────────────────
@@ -414,6 +457,9 @@ export default function AdminReservas() {
     cancelled: reservations.filter((r) => r.status === "cancelled").length,
   };
 
+  // ── Mensagens não lidas ─────────────────────────────────────────────────────
+  const totalUnreadMessages = reservations.reduce((sum, r) => sum + (r.unread_count ?? 0), 0);
+
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -431,6 +477,11 @@ export default function AdminReservas() {
               <span className="text-yellow-600 font-medium">{counts.pending} pendente{counts.pending > 1 ? "s" : ""} · </span>
             )}
             {counts.all} reserva{counts.all !== 1 ? "s" : ""} no total
+          {totalUnreadMessages > 0 && (
+            <span className="text-blue-600 font-medium">
+              {' · '}{totalUnreadMessages} mensagem{totalUnreadMessages !== 1 ? "ns" : ""} não lida{totalUnreadMessages !== 1 ? "s" : ""}
+            </span>
+          )}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={loadReservations}>
@@ -556,6 +607,28 @@ export default function AdminReservas() {
                             </Button>
                           </>
                         )}
+                        {r.status === "cancelled" && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                            title="Reverter para Pendente"
+                            onClick={() => handleStatusChange(r.id, "pending")}
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </Button>
+                        )}
+                        {r.status === "confirmed" && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                            title="Cancelar"
+                            onClick={() => handleStatusChange(r.id, "cancelled")}
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </Button>
+                        )}
                         <Button
                           size="icon"
                           variant="ghost"
@@ -568,11 +641,16 @@ export default function AdminReservas() {
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                            className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-50 relative"
                           title="Chat"
-                          onClick={() => setChatReservation(r)}
+                            onClick={() => openChatModal(r)}
                         >
                           <MessageSquare className="w-4 h-4" />
+                            {(r.unread_count ?? 0) > 0 && (
+                              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center font-bold leading-none">
+                                {(r.unread_count ?? 0) > 9 ? "9+" : r.unread_count}
+                              </span>
+                            )}
                         </Button>
                       </div>
                     </td>
@@ -633,11 +711,26 @@ export default function AdminReservas() {
                       </Button>
                     </>
                   )}
+                  {r.status === "cancelled" && (
+                    <Button size="sm" variant="outline" className="flex-1 h-8 text-yellow-600 border-yellow-200 hover:bg-yellow-50" onClick={() => handleStatusChange(r.id, "pending")}>
+                      <RotateCcw className="w-3.5 h-3.5 mr-1" /> Reverter
+                    </Button>
+                  )}
+                  {r.status === "confirmed" && (
+                    <Button size="sm" variant="destructive" className="flex-1 h-8" onClick={() => handleStatusChange(r.id, "cancelled")}>
+                      <XCircle className="w-3.5 h-3.5 mr-1" /> Cancelar
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" className="h-8" onClick={() => setSelectedReservation(r)}>
                     <Eye className="w-3.5 h-3.5 mr-1" /> Ver
                   </Button>
-                  <Button size="sm" variant="outline" className="h-8 text-blue-500" onClick={() => setChatReservation(r)}>
+                  <Button size="sm" variant="outline" className="h-8 text-blue-500 relative" onClick={() => openChatModal(r)}>
                     <MessageSquare className="w-3.5 h-3.5" />
+                    {(r.unread_count ?? 0) > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center font-bold leading-none">
+                        {(r.unread_count ?? 0) > 9 ? "9+" : r.unread_count}
+                      </span>
+                    )}
                   </Button>
                 </div>
               </div>

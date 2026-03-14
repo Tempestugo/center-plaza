@@ -298,6 +298,14 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
                   <Label htmlFor="requests">Solicitações especiais (opcional)</Label>
                   <Textarea id="requests" value={guestDetails.specialRequests} onChange={e => setGuestDetails(p => ({ ...p, specialRequests: e.target.value }))} placeholder="Alguma solicitação especial?" rows={3} />
                 </div>
+                
+                {/* Política de Cancelamento */}
+                <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm mt-6">
+                  <p className="font-medium text-green-800">✓ Cancelamento gratuito</p>
+                  <p className="text-green-700 text-xs mt-0.5">
+                    Cancele sem custo até 24h antes do check-in.
+                  </p>
+                </div>
               </div>
             )}
 
