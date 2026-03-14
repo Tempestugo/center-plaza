@@ -62,6 +62,7 @@
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.51.0",
     "react-router-dom": "^6.22.3",
+    "recharts": "^3.8.0",
     "sonner": "^1.4.3",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.6",
