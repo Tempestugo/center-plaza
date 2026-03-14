@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ReservationProvider } from "@/contexts/ReservationContext";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
-import { AdminRoute } from "@/components/AdminRoute";
+import AdminRoute from "@/components/AdminRoute";
 import Index from "./pages/Index";
 import Hospedagens from "./pages/Hospedagens";
 import HospedagemDetalhes from "./pages/HospedagemDetalhes";
