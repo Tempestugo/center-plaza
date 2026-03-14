@@ -4,8 +4,8 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Search, Filter, Eye, CheckCircle, XCircle, MessageSquare, RotateCcw,
-  ChevronDown, RefreshCw, Loader2, Send, X, Phone, Mail,
-  Calendar, Users, DollarSign, Hotel
+  ChevronDown, RefreshCw, Loader2, Send, X, Phone, Mail, AlertCircle,
+  Calendar, Users, DollarSign, Hotel 
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -355,6 +355,8 @@ export default function AdminReservas() {
   const { toast } = useToast();
   const [lastGuestMessageId, setLastGuestMessageId] = useState(0);
   const [soundPlayCount, setSoundPlayCount] = useState<Record<number, number>>({});
+  const [refundRequests, setRefundRequests] = useState<any[]>([]);
+  const [refundLoading, setRefundLoading] = useState(false);
 
   // ── Carrega reservas ────────────────────────────────────────────────────────
   const loadReservations = useCallback(async () => {
@@ -368,9 +370,26 @@ export default function AdminReservas() {
     }
   }, [toast]);
 
+  const loadRefundRequests = useCallback(async () => {
+    setRefundLoading(true);
+    try {
+      const res = await fetch('/api/refund-requests', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('admin_token') || ''}` }
+      });
+      if (res.ok) setRefundRequests(await res.json());
+    } catch (e) {
+      console.error('Erro ao buscar solicitações:', e);
+    } finally {
+      setRefundLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadReservations();
-  }, [loadReservations]);
+    loadRefundRequests();
+  }, [loadReservations, loadRefundRequests]);
+
+  const pendingRefunds = refundRequests.filter(r => r.status === 'pending');
 
   // ── Polling de mensagens para notificação sonora ────────────────────────────
   useEffect(() => {
@@ -426,6 +445,36 @@ export default function AdminReservas() {
     });
   };
 
+  // ── Aprovação e Rejeição de Reembolso ───────────────────────────────────────
+  const handleApproveRefund = async (requestId: number, refundType: 'full' | 'partial' | 'none') => {
+    if (!confirm(`Confirmar ${refundType === 'full' ? 'reembolso total' : 'cancelamento sem reembolso'}?`)) return;
+    try {
+      const res = await fetch(`/api/refund-requests/${requestId}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('admin_token') || ''}` },
+        body: JSON.stringify({ refund_type: refundType }),
+      });
+      const data = await res.json();
+      if (!res.ok) return toast({ title: 'Erro: ' + (data.error || 'Falha ao processar'), variant: 'destructive' });
+      toast({ title: data.message || 'Processado com sucesso!' });
+      loadReservations();
+      loadRefundRequests();
+    } catch (err) { toast({ title: 'Erro de conexão', variant: 'destructive' }); }
+  };
+
+  const handleRejectRefund = async (requestId: number) => {
+    const reason = prompt('Motivo da rejeição (opcional):');
+    if (reason === null) return;
+    try {
+      const res = await fetch(`/api/refund-requests/${requestId}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('admin_token') || ''}` },
+        body: JSON.stringify({ reason }),
+      });
+      if (res.ok) { toast({ title: 'Solicitação rejeitada.' }); loadRefundRequests(); }
+    } catch (err) { toast({ title: 'Erro ao rejeitar', variant: 'destructive' }); }
+  };
+
   // ── Abre modal de chat e marca lidas ────────────────────────────────────────
   const openChatModal = (reservation: Reservation) => {
     setChatReservation(reservation);
@@ -477,6 +526,12 @@ export default function AdminReservas() {
               <span className="text-yellow-600 font-medium">{counts.pending} pendente{counts.pending > 1 ? "s" : ""} · </span>
             )}
             {counts.all} reserva{counts.all !== 1 ? "s" : ""} no total
+          {pendingRefunds.length > 0 && (
+            <span className="ml-2 inline-flex items-center gap-1 bg-orange-100 text-orange-700 text-xs font-medium px-2 py-0.5 rounded-full border border-orange-200">
+              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
+              {pendingRefunds.length} solicitação{pendingRefunds.length !== 1 ? 'ões' : ''} de cancelamento
+            </span>
+          )}
           {totalUnreadMessages > 0 && (
             <span className="text-blue-600 font-medium">
               {' · '}{totalUnreadMessages} mensagem{totalUnreadMessages !== 1 ? "ns" : ""} não lida{totalUnreadMessages !== 1 ? "s" : ""}
@@ -522,6 +577,60 @@ export default function AdminReservas() {
           </SelectContent>
         </Select>
       </div>
+
+      {/* Solicitações de Reembolso */}
+      {pendingRefunds.length > 0 && (
+        <Card className="border-orange-200 bg-orange-50 mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base text-orange-800 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              Solicitações de Cancelamento Pendentes
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {pendingRefunds.map(req => (
+              <div key={req.id} className="bg-white rounded-lg border border-orange-200 p-4 space-y-3">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-medium text-sm">{req.guest_name}</p>
+                    <p className="text-xs text-muted-foreground">{req.guest_email}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Reserva #{req.reservation_id} · {req.room_type_name} ·{" "}
+                      {new Date(req.check_in_date).toLocaleDateString('pt-BR')} →{" "}
+                      {new Date(req.check_out_date).toLocaleDateString('pt-BR')}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Total pago: <strong>R$ {req.total_amount?.toFixed(2)}</strong>
+                    </p>
+                    {req.reason && (
+                      <p className="text-xs text-muted-foreground mt-1 italic">
+                        Motivo: "{req.reason}"
+                      </p>
+                    )}
+                    <p className="text-xs mt-1">
+                      Sugestão:{" "}
+                      <span className={req.refund_type === 'full' ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                        {req.refund_type === 'full' ? 'Reembolso total (dentro do prazo)' : 'Sem reembolso (fora do prazo)'}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 shrink-0">
+                    <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white text-xs" onClick={() => handleApproveRefund(req.id, 'full')}>
+                      ✓ Aprovar + Reembolso Total
+                    </Button>
+                    <Button size="sm" variant="outline" className="text-orange-600 border-orange-300 text-xs" onClick={() => handleApproveRefund(req.id, 'none')}>
+                      ✓ Cancelar sem Reembolso
+                    </Button>
+                    <Button size="sm" variant="ghost" className="text-red-500 text-xs" onClick={() => handleRejectRefund(req.id)}>
+                      ✗ Rejeitar Solicitação
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tabela / Cards */}
       {loading ? (

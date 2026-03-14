@@ -7,6 +7,7 @@ const cors     = require('cors');
 const path     = require('path');
 const multer   = require('multer');
 const fs       = require('fs');
+const bcrypt   = require('bcryptjs');
 
 const router = express.Router();
 const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } });
@@ -33,6 +34,7 @@ async function getDb() {
     filename: path.join(dbDir, 'center-plaza.sqlite'),
     driver: sqlite3.Database,
   });
+  await _db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;');
   return _db;
 }
 
@@ -104,6 +106,22 @@ async function initDatabase() {
       name TEXT, email TEXT, message TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS refund_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      reservation_id INTEGER NOT NULL,
+      requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      reason TEXT,
+      status TEXT DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+      refund_type TEXT DEFAULT 'full' CHECK(refund_type IN ('full','partial','none')),
+      refund_amount REAL,
+      approved_by TEXT,
+      approved_at DATETIME,
+      rejected_reason TEXT,
+      stripe_refund_id TEXT,
+      stripe_refund_status TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(reservation_id) REFERENCES reservations(id)
+    );
   `);
 
   // Migrações seguras
@@ -116,9 +134,11 @@ async function initDatabase() {
   // Admin padrão
   const admin = await db.get("SELECT id FROM users WHERE username = 'admin@centerplaza.com'");
   if (!admin) {
+    const adminPassword = process.env.ADMIN_PASSWORD || 'CenterPlaza@2026!';
+    const hash = await bcrypt.hash(adminPassword, 12);
     await db.run("INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-      ['admin@centerplaza.com', 'admin', 'admin']);
-    console.log('✅ Admin criado: admin@centerplaza.com / admin');
+      ['admin@centerplaza.com', hash, 'admin']);
+    console.log('✅ Admin criado: admin@centerplaza.com / ' + adminPassword);
   }
 
   // Seed hotel
@@ -172,7 +192,7 @@ const authMiddleware = (req, res, next) => {
 const requireAuth = (req, res, next) => {
   const token = req.headers['authorization']?.replace('Bearer ', '');
   // auth check
-  if (token === ADMIN_TOKEN || token === 'admin-token' || token === 'dev-token') {
+  if (token === ADMIN_TOKEN) {
     req.user = { role: 'admin', id: 1 };
     next();
   } else {
@@ -189,22 +209,45 @@ router.get('/auth/me', (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: 'Usuário e senha obrigatórios' });
     const db   = await getDb();
-    const user = await db.get("SELECT * FROM users WHERE username = ? AND password = ?", [username, password]);
-    if (user) {
-      res.json({ token: user.role === 'admin' ? ADMIN_TOKEN : 'user-token',
-        role: user.role, username: user.username });
+    const user = await db.get("SELECT * FROM users WHERE username = ?", [username]);
+    if (!user) return res.status(401).json({ error: 'Credenciais inválidas' });
+
+    // Suporte a senhas em texto plano legadas (migração automática)
+    let valid = false;
+    const isHashed = user.password.startsWith('$2');
+    if (isHashed) {
+      valid = await bcrypt.compare(password, user.password);
     } else {
-      res.status(401).json({ error: 'Credenciais inválidas' });
+      // Senha ainda em texto plano — valida e migra para hash automaticamente
+      valid = user.password === password;
+      if (valid) {
+        const hash = await bcrypt.hash(password, 12);
+        await db.run("UPDATE users SET password = ? WHERE id = ?", [hash, user.id]);
+        console.log('🔐 Senha migrada para hash:', username);
+      }
     }
+
+    if (!valid) return res.status(401).json({ error: 'Credenciais inválidas' });
+
+    res.json({
+      token: user.role === 'admin' ? ADMIN_TOKEN : 'user-token',
+      role: user.role,
+      username: user.username
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/register', async (req, res) => {
   try {
     const { username, password } = req.body;
+    if (!username || !password || password.length < 6) {
+      return res.status(400).json({ error: 'Dados inválidos. Senha deve ter no mínimo 6 caracteres.' });
+    }
     const db = await getDb();
-    await db.run("INSERT INTO users (username, password, role) VALUES (?, ?, 'user')", [username, password]);
+    const hash = await bcrypt.hash(password, 12);
+    await db.run("INSERT INTO users (username, password, role) VALUES (?, ?, 'user')", [username, hash]);
     res.status(201).json({ message: 'Usuário criado com sucesso' });
   } catch (err) { res.status(400).json({ error: 'Usuário já existe ou dados inválidos' }); }
 });
@@ -405,7 +448,7 @@ router.get('/rooms/:id/availability', async (req, res) => {
     }
     
     const booked = await db.get(
-      "SELECT COUNT(*) as c FROM reservations WHERE room_type_id=? AND status IN ('confirmed','pending') AND check_in_date<? AND check_out_date>?",
+      "SELECT COUNT(*) as c FROM reservations WHERE room_type_id=? AND (status='confirmed' OR (status='pending' AND created_at > datetime('now','-30 minutes'))) AND check_in_date<? AND check_out_date>?",
       [req.params.id, check_out, check_in]
     );
     
@@ -425,7 +468,7 @@ router.get('/rooms/:id/blocked-dates', async (req, res) => {
   try {
     const db = await getDb();
     const reservations = await db.all(
-      "SELECT check_in_date, check_out_date FROM reservations WHERE room_type_id=? AND status IN ('confirmed','pending') AND check_out_date >= date('now')",
+      "SELECT check_in_date, check_out_date FROM reservations WHERE room_type_id=? AND (status='confirmed' OR (status='pending' AND created_at > datetime('now','-30 minutes'))) AND check_out_date >= date('now')",
       [req.params.id]
     );
     // Expandir cada reserva em array de datas bloqueadas
@@ -566,6 +609,54 @@ router.get('/reservations/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// POST /api/reservations/:id/request-cancellation
+router.post('/reservations/:id/request-cancellation', async (req, res) => {
+  try {
+    const { reason, guest_email } = req.body;
+    if (!guest_email) return res.status(400).json({ error: 'Email obrigatório para validação' });
+
+    const db = await getDb();
+    const reservation = await db.get(
+      'SELECT * FROM reservations WHERE id = ?',
+      [req.params.id]
+    );
+
+    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
+    if (reservation.guest_email.toLowerCase() !== guest_email.toLowerCase()) {
+      return res.status(403).json({ error: 'Email não corresponde à reserva' });
+    }
+    if (reservation.status === 'cancelled') {
+      return res.status(400).json({ error: 'Reserva já cancelada' });
+    }
+    if (reservation.payment_status !== 'paid') {
+      return res.status(400).json({ error: 'Reserva sem pagamento confirmado' });
+    }
+
+    const existing = await db.get(
+      "SELECT id FROM refund_requests WHERE reservation_id=? AND status='pending'",
+      [req.params.id]
+    );
+    if (existing) {
+      return res.status(400).json({ error: 'Já existe uma solicitação de cancelamento pendente para esta reserva' });
+    }
+
+    const checkIn = new Date(reservation.check_in_date);
+    const now = new Date();
+    const hoursUntilCheckIn = (checkIn.getTime() - now.getTime()) / (1000 * 60 * 60);
+    const freeCancellation = hoursUntilCheckIn >= 24;
+
+    const ins = await db.run(
+      'INSERT INTO refund_requests (reservation_id, reason, status, refund_type, refund_amount) VALUES (?,?,?,?,?)',
+      [req.params.id, reason || 'Solicitação de cancelamento pelo hóspede', 'pending', freeCancellation ? 'full' : 'none', freeCancellation ? reservation.total_amount : 0]
+    );
+
+    res.status(201).json({
+      ok: true, request_id: ins.lastID, free_cancellation: freeCancellation, hours_until_checkin: Math.round(hoursUntilCheckIn),
+      message: freeCancellation ? 'Solicitação registrada. Você está dentro do prazo de cancelamento gratuito. Nossa equipe processará em breve.' : 'Solicitação registrada. Você está fora do prazo de cancelamento gratuito (24h). Nossa equipe analisará sua solicitação.',
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.post('/reservations/:id/cancel', async (req, res) => {
   try {
     const db = await getDb();
@@ -655,7 +746,7 @@ router.post('/reservations', async (req, res) => {
 
       const totalUnits = room.total_units || 1;
       const conflict = await db.get(
-        "SELECT COUNT(*) as c FROM reservations WHERE room_type_id=? AND status IN ('confirmed','pending') AND check_in_date<? AND check_out_date>?",
+        "SELECT COUNT(*) as c FROM reservations WHERE room_type_id=? AND (status='confirmed' OR (status='pending' AND created_at > datetime('now','-30 minutes'))) AND check_in_date<? AND check_out_date>?",
         [room_type_id, check_out_date, check_in_date]);
       if (conflict.c >= totalUnits) { await db.run('ROLLBACK'); return res.status(409).json({ error: 'Não há unidades disponíveis para as datas selecionadas' }); }
 
@@ -831,7 +922,7 @@ router.post('/create-checkout-session', async (req, res) => {
 
     const totalUnits = room.total_units || 1;
     const conflict = await db.get(
-      "SELECT COUNT(*) as c FROM reservations WHERE room_type_id=? AND status IN ('confirmed','pending') AND check_in_date<? AND check_out_date>?",
+      "SELECT COUNT(*) as c FROM reservations WHERE room_type_id=? AND (status='confirmed' OR (status='pending' AND created_at > datetime('now','-30 minutes'))) AND check_in_date<? AND check_out_date>?",
       [room_type_id, check_out_date, check_in_date]
     );
     if (conflict.c >= totalUnits) return res.status(409).json({ error: 'Não há unidades disponíveis para as datas selecionadas' });
@@ -946,6 +1037,114 @@ router.get('/reservations/:id/payment-status', async (req, res) => {
     );
     if (!r) return res.status(404).json({ error: 'Reserva não encontrada' });
     res.json(r);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Reembolsos (Refund Requests) ──────────────────────────────────────────────
+
+router.get('/refund-requests', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
+  try {
+    const db = await getDb();
+    const requests = await db.all(`
+      SELECT rr.*,
+        r.guest_name, r.guest_email, r.guest_phone,
+        r.check_in_date, r.check_out_date, r.total_amount,
+        r.status as reservation_status, r.payment_status,
+        r.stripe_payment_intent_id,
+        h.name as hotel_name, rt.name as room_type_name
+      FROM refund_requests rr
+      JOIN reservations r ON rr.reservation_id = r.id
+      JOIN hotels h ON r.hotel_id = h.id
+      JOIN room_types rt ON r.room_type_id = rt.id
+      ORDER BY rr.created_at DESC
+    `);
+    res.json(requests);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/refund-requests/:id/approve', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
+  try {
+    const { refund_type, custom_amount } = req.body;
+    const db = await getDb();
+
+    const request = await db.get('SELECT * FROM refund_requests WHERE id = ?', [req.params.id]);
+    if (!request) return res.status(404).json({ error: 'Solicitação não encontrada' });
+    if (request.status !== 'pending') return res.status(400).json({ error: 'Solicitação já processada' });
+
+    const reservation = await db.get('SELECT * FROM reservations WHERE id = ?', [request.reservation_id]);
+    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
+
+    if (reservation.payment_status === 'refunded') return res.status(400).json({ error: 'Esta reserva já foi reembolsada' });
+    if (!reservation.stripe_payment_intent_id && refund_type !== 'none') return res.status(400).json({ error: 'Reserva sem payment_intent do Stripe — reembolso manual necessário' });
+    if (reservation.payment_status !== 'paid') return res.status(400).json({ error: 'Reserva não possui pagamento confirmado' });
+
+    let stripeRefundId = null;
+    let stripeRefundStatus = null;
+    let finalRefundType = refund_type || request.refund_type;
+    let refundAmount = 0;
+
+    if (finalRefundType === 'full' || finalRefundType === 'partial') {
+      if (!stripe) return res.status(503).json({ error: 'Stripe não configurado no backend' });
+      try {
+        let paymentIntentId = reservation.stripe_payment_intent_id;
+        if (paymentIntentId && paymentIntentId.startsWith('cs_')) {
+          const session = await stripe.checkout.sessions.retrieve(paymentIntentId);
+          paymentIntentId = session.payment_intent;
+        }
+        if (!paymentIntentId) return res.status(400).json({ error: 'Sessão do Stripe não gerou um Payment Intent' });
+
+        const existingRefunds = await stripe.refunds.list({ payment_intent: paymentIntentId, limit: 1 });
+        if (existingRefunds.data.length > 0 && existingRefunds.data[0].status === 'succeeded') {
+          return res.status(400).json({ error: 'Já existe um reembolso processado para este pagamento no Stripe' });
+        }
+
+        const refundParams = { payment_intent: paymentIntentId, reason: 'requested_by_customer' };
+        if (finalRefundType === 'partial' && custom_amount) {
+          refundAmount = parseFloat(custom_amount);
+          if (refundAmount <= 0 || refundAmount > reservation.total_amount) return res.status(400).json({ error: 'Valor de reembolso inválido' });
+          refundParams.amount = Math.round(refundAmount * 100);
+        } else {
+          refundAmount = reservation.total_amount;
+        }
+
+        const refund = await stripe.refunds.create(refundParams);
+        stripeRefundId = refund.id;
+        stripeRefundStatus = refund.status;
+      } catch (stripeErr) {
+        return res.status(502).json({ error: 'Erro ao processar reembolso no Stripe: ' + stripeErr.message });
+      }
+    }
+
+    await db.run('BEGIN TRANSACTION');
+    try {
+      await db.run(
+        `UPDATE refund_requests SET status='approved', refund_type=?, refund_amount=?, approved_by='admin', approved_at=CURRENT_TIMESTAMP, stripe_refund_id=?, stripe_refund_status=? WHERE id=?`,
+        [finalRefundType, refundAmount, stripeRefundId, stripeRefundStatus, req.params.id]
+      );
+      const newPaymentStatus = finalRefundType === 'none' ? 'paid' : finalRefundType === 'partial' ? 'partially_refunded' : 'refunded';
+      await db.run("UPDATE reservations SET status='cancelled', payment_status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?", [newPaymentStatus, request.reservation_id]);
+      await db.run('COMMIT');
+    } catch (dbErr) {
+      await db.run('ROLLBACK');
+      throw dbErr;
+    }
+    res.json({ ok: true, refund_type: finalRefundType, refund_amount: refundAmount, stripe_refund_id: stripeRefundId, stripe_refund_status: stripeRefundStatus, message: finalRefundType === 'none' ? 'Reserva cancelada sem reembolso.' : `Reembolso de R$ ${refundAmount.toFixed(2)} processado com sucesso.` });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/refund-requests/:id/reject', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
+  try {
+    const { reason } = req.body;
+    const db = await getDb();
+    const request = await db.get('SELECT * FROM refund_requests WHERE id = ?', [req.params.id]);
+    if (!request) return res.status(404).json({ error: 'Solicitação não encontrada' });
+    if (request.status !== 'pending') return res.status(400).json({ error: 'Solicitação já processada' });
+
+    await db.run("UPDATE refund_requests SET status='rejected', rejected_reason=?, approved_at=CURRENT_TIMESTAMP WHERE id=?", [reason || 'Rejeitado pelo administrador', req.params.id]);
+    res.json({ ok: true, message: 'Solicitação rejeitada.' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

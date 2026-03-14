@@ -7,6 +7,9 @@ import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { 
   ArrowLeft, 
@@ -17,6 +20,7 @@ import {
   Phone, 
   Mail,
   Download,
+  Loader2,
   CheckCircle,
   Clock,
   XCircle,
@@ -41,6 +45,9 @@ const ReservationDetails = () => {
     deadline_formatted: string;
     policy: string;
   } | null>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -50,6 +57,33 @@ const ReservationDetails = () => {
         .catch(() => {});
     }
   }, [id]);
+
+  const handleRequestCancellation = async () => {
+    if (!reservation) return;
+    setCancelLoading(true);
+    try {
+      const res = await fetch(`/api/reservations/${reservation.id}/request-cancellation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reason: cancelReason,
+          guest_email: reservation.email,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Erro ao solicitar cancelamento');
+        return;
+      }
+      toast.success(data.message || 'Solicitação enviada! Nossa equipe entrará em contato.');
+      setCancelDialogOpen(false);
+      setCancelReason('');
+    } catch (err) {
+      toast.error('Erro de conexão. Tente novamente.');
+    } finally {
+      setCancelLoading(false);
+    }
+  };
 
   if (!user) {
     navigate("/");
@@ -188,6 +222,44 @@ ${reservation.specialRequests || 'Nenhuma solicitação especial'}
                   <Download className="mr-2 h-4 w-4" />
                   Baixar Voucher
                 </Button>
+                {reservation && ['confirmed', 'confirmada'].includes(reservation.status) && (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="text-red-600 border-red-300 hover:bg-red-50"
+                      onClick={() => setCancelDialogOpen(true)}
+                    >
+                      Solicitar Cancelamento
+                    </Button>
+                    <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Solicitar Cancelamento</DialogTitle>
+                          <DialogDescription>
+                            Sua solicitação será analisada pela nossa equipe.
+                          </DialogDescription>
+                        </DialogHeader>
+                        {cancelPolicy && (
+                          <div className={`rounded-lg p-3 text-sm ${cancelPolicy.free_cancellation ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-orange-50 border border-orange-200 text-orange-800'}`}>
+                            {cancelPolicy.free_cancellation ? `✓ Você está dentro do prazo de cancelamento gratuito (até ${cancelPolicy.deadline_formatted})` : `⚠ Você está fora do prazo de cancelamento gratuito. O reembolso fica a critério do hotel.`}
+                          </div>
+                        )}
+                        <div className="space-y-2">
+                          <Label>Motivo (opcional)</Label>
+                          <Textarea placeholder="Descreva o motivo do cancelamento..." value={cancelReason} onChange={e => setCancelReason(e.target.value)} rows={3} />
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                          <Button variant="outline" onClick={() => setCancelDialogOpen(false)}>
+                            Voltar
+                          </Button>
+                          <Button variant="destructive" onClick={handleRequestCancellation} disabled={cancelLoading}>
+                            {cancelLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Confirmar Solicitação
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </>
+                )}
               </div>
             </div>
           </div>

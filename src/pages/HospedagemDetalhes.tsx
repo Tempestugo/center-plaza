@@ -507,6 +507,7 @@ if (room.amenities) {
         onOpenChange={setBookingFlowOpen}
         accommodation={{
           id: accommodation.id,
+          hotelId: room.hotel_id,
           name: accommodation.name,
           location: accommodation.location,
           price: accommodation.price,

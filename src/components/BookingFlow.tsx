@@ -20,6 +20,7 @@ interface BookingFlowProps {
   onOpenChange: (open: boolean) => void;
   accommodation: {
     id: number | string;
+    hotelId?: number;
     name: string;
     location: string;
     price: number;
@@ -96,7 +97,7 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            hotel_id: 1,
+            hotel_id: accommodation.hotelId ?? 1,
             room_type_id: accommodation.id,
             guest_name: guestDetails.name,
             guest_email: guestDetails.email,
