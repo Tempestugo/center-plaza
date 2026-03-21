@@ -16,6 +16,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminHospedagens from "./pages/AdminHospedagens";
 import AdminReservas from "./pages/AdminReservas";
 import AdminRelatorios from "./pages/AdminRelatorios";
+const AdminSettings = lazy(() => import("./pages/AdminSettings"));
 import UserDashboard from "./pages/UserDashboard";
 import ReservationDetails from "./pages/ReservationDetails";
 import UserProfile from "./pages/UserProfile";
@@ -54,6 +55,7 @@ const App = () => (
                 <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
                 <Route path="/admin/hospedagens" element={<AdminRoute><AdminHospedagens /></AdminRoute>} />
                 <Route path="/admin/reservas" element={<AdminRoute><AdminReservas /></AdminRoute>} />
+                <Route path="/admin/settings" element={<Suspense fallback={<div/>}><AdminRoute><AdminSettings /></AdminRoute></Suspense>} />
                 <Route path="/admin/relatorios" element={<AdminRoute><AdminRelatorios /></AdminRoute>} />
 
                 <Route path="*" element={<NotFound />} />

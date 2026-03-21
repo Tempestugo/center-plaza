@@ -201,6 +201,41 @@ const requireAuth = (req, res, next) => {
 };
 router.use(authMiddleware);
 
+
+router.patch('/auth/change-credentials', requireAuth, async (req, res) => {
+  try {
+    const { current_password, new_password, new_username } = req.body;
+    if (!current_password) return res.status(400).json({ error: 'Senha atual obrigatória' });
+    const db = await getDb();
+    const user = await db.get('SELECT * FROM users WHERE role = ?', ['admin']);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+    
+    const bcrypt = require('bcryptjs');
+    const isHashed = user.password.startsWith('$2');
+    const valid = isHashed 
+      ? await bcrypt.compare(current_password, user.password)
+      : user.password === current_password;
+    
+    if (!valid) return res.status(401).json({ error: 'Senha atual incorreta' });
+    
+    const updates = [];
+    const params = [];
+    if (new_password) {
+      const hash = await bcrypt.hash(new_password, 12);
+      updates.push('password = ?');
+      params.push(hash);
+    }
+    if (new_username) {
+      updates.push('username = ?');
+      params.push(new_username);
+    }
+    if (updates.length === 0) return res.status(400).json({ error: 'Nada para atualizar' });
+    params.push(user.id);
+    await db.run('UPDATE users SET ' + updates.join(', ') + ' WHERE id = ?', params);
+    res.json({ message: 'Credenciais atualizadas com sucesso' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/auth/me', (req, res) => {
   res.json({ role: req.user.role,
     permissions: req.user.role === 'admin' ? ['view_admin','manage_reservations'] : ['view_public'] });
