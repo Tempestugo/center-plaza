@@ -43,7 +43,7 @@ console.log('dist exists:', fs.existsSync(distPath));
 // CRÍTICO: raw para webhook do Stripe ANTES do express.json()
 // Deve bater com a rota definida no sqlite-server.js: /webhooks/stripe
 // Montado em /api → caminho final: /api/webhooks/stripe
-app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
+app.use('/api/stripe-webhook', express.raw({ type: 'application/json' }));
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));

@@ -183,7 +183,7 @@ const ADMIN_TOKEN = process.env.ADMIN_SECRET_TOKEN || 'center_plaza_admin_2026_s
 const authMiddleware = (req, res, next) => {
   const auth   = req.headers['authorization'];
   const secret = process.env.ADMIN_SECRET || 'Admin-Secret-123';
-  req.user = (auth === secret || auth === 'Bearer admin-token')
+  req.user = (auth === secret)
     ? { role: 'admin', id: 1 }
     : { role: 'guest', id: 0 };
   next();
@@ -792,6 +792,18 @@ router.put('/reservations/:id', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+
+router.patch('/reservations/:id/cancel-pending', async (req, res) => {
+  try {
+    const db = await getDb();
+    const r = await db.get('SELECT * FROM reservations WHERE id = ?', [req.params.id]);
+    if (!r) return res.status(404).json({ error: 'Nao encontrada' });
+    if (r.status !== 'pending') return res.json({ message: 'Reserva nao esta pendente', status: r.status });
+    await db.run("UPDATE reservations SET status='cancelled', updated_at=CURRENT_TIMESTAMP WHERE id=?", [req.params.id]);
+    res.json({ message: 'Reserva cancelada', id: req.params.id });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.patch('/reservations/:id/status', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
@@ -978,7 +990,7 @@ router.post('/create-checkout-session', async (req, res) => {
   }
 });
 
-router.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+router.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   let event;
