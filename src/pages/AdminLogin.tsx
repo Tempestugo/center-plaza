@@ -6,9 +6,7 @@ import { Lock, User, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
-// ─── Credenciais de acesso (ajuste conforme seu backend) ──────────────────────
-const ADMIN_EMAIL    = "admin@centerplaza.com";
-const ADMIN_PASSWORD = "admin123";
+
 
 // Se tiver rota de login no backend, define aqui. Se não, usa null e vai pelo fallback.
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? null;
@@ -54,7 +52,7 @@ const AdminLogin = () => {
 
       // Fallback: credenciais hardcoded para ambiente sem backend de auth
       if (!token) {
-        if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+        if (false) { // fallback desabilitado
           await new Promise(r => setTimeout(r, 600)); // simula delay
           token = null; // Login requer API funcionando
         }
@@ -113,7 +111,7 @@ const AdminLogin = () => {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="admin@centerplaza.com"
+                    placeholder="seu@email.com"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     className="pl-9"
@@ -157,7 +155,6 @@ const AdminLogin = () => {
 
             <div className="mt-5 p-3 bg-muted rounded-lg">
               <p className="text-xs text-muted-foreground">
-                <strong>Credenciais:</strong> {ADMIN_EMAIL} / {ADMIN_PASSWORD}
               </p>
             </div>
           </CardContent>

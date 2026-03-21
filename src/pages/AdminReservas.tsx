@@ -69,7 +69,10 @@ function ChatModal({
     try {
       await fetch('/api/reservations/' + id + '/status', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('admin_token')
+        },
         body: JSON.stringify({ status }),
       });
       const messages = { confirmed: 'Reserva confirmada!', cancelled: 'Reserva cancelada!', pending: 'Revertida para pendente!' };
@@ -395,7 +398,10 @@ export default function AdminReservas() {
   useEffect(() => {
     const checkNewMessages = async () => {
       try {
-        const res = await fetch("/api/reservations");
+        const token = localStorage.getItem("admin_token");
+      const res = await fetch("/api/reservations", {
+        headers: { "Authorization": "Bearer " + token }
+      });
         if (!res.ok) return;
         const reservations = await res.json();
         const active = reservations.filter((r: any) =>
