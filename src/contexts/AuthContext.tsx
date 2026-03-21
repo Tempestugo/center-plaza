@@ -53,11 +53,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (savedUser) {
       try { setUser(JSON.parse(savedUser)); } catch {}
     }
-    // Restaurar sessão admin
-    const adminToken = localStorage.getItem('admin_token');
-    if (adminToken === 'center_plaza_admin_2026_secure_token') {
-      setUser({ id: 'admin', name: 'Administrador', email: 'admin@centerplaza.com', role: 'admin' } as any);
-    }
+    // Restaurar sessao admin — confiar no user salvo com role admin
+    // A validacao real acontece no backend via token
     setLoading(false);
   }, []);
 

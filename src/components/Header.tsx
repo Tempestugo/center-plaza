@@ -89,7 +89,6 @@ const Header = () => {
             )}
             
             <Button variant="outline" asChild>
-              <Link to="/admin">Painel Admin</Link>
             </Button>
           </nav>
 
@@ -164,11 +163,7 @@ const Header = () => {
               </Button>
             )}
             
-            <Button variant="outline" className="w-full mt-4" asChild>
-              <Link to="/admin" onClick={() => setIsMenuOpen(false)}>
-                Painel Admin
-              </Link>
-            </Button>
+
           </nav>
         )}
       </div>

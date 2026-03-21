@@ -37,10 +37,10 @@ const AdminLogin = () => {
       // Tenta autenticar via API se a URL estiver configurada
       if (API_BASE_URL) {
         try {
-          const res = await fetch(`${API_BASE_URL}/auth/login`, {
+          const res = await fetch(`${API_BASE_URL}/login`, {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
-            body:    JSON.stringify({ email, password }),
+            body:    JSON.stringify({ username: email, password }),
           });
 
           if (res.ok) {
@@ -56,7 +56,7 @@ const AdminLogin = () => {
       if (!token) {
         if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
           await new Promise(r => setTimeout(r, 600)); // simula delay
-          token = "center_plaza_admin_2026_secure_token";
+          token = null; // Login requer API funcionando
         }
       }
 
@@ -64,6 +64,7 @@ const AdminLogin = () => {
         localStorage.setItem("admin_token", token);
         // Salvar user admin no contexto
         localStorage.setItem("user", JSON.stringify({ id: "admin", name: "Administrador", email: "admin@centerplaza.com", role: "admin" }));
+        localStorage.setItem("admin_token", token);
         toast({ title: "Login realizado com sucesso!" });
         navigate("/admin/dashboard");
       } else {

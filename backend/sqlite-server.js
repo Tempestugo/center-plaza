@@ -182,7 +182,7 @@ const ADMIN_TOKEN = process.env.ADMIN_SECRET_TOKEN || 'center_plaza_admin_2026_s
 
 const authMiddleware = (req, res, next) => {
   const auth   = req.headers['authorization'];
-  const secret = process.env.ADMIN_SECRET || 'Admin-Secret-123';
+  const secret = process.env.ADMIN_SECRET_TOKEN;
   req.user = (auth === secret)
     ? { role: 'admin', id: 1 }
     : { role: 'guest', id: 0 };
@@ -951,7 +951,7 @@ router.post('/create-checkout-session', async (req, res) => {
     const reservationId = ins.lastID;
 
     // Criar Checkout Session
-    const baseUrl = process.env.FRONTEND_URL || 'https://lightgrey-echidna-641630.hostingersite.com';
+    const baseUrl = process.env.FRONTEND_URL || 'https://centerplazahotel.com.br';
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
