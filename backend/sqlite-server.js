@@ -139,6 +139,7 @@ async function initDatabase() {
   // Migrações seguras
   try { await db.run("ALTER TABLE reservations ADD COLUMN stripe_payment_intent_id TEXT"); } catch (e) {}
   try { await db.run("ALTER TABLE room_types ADD COLUMN stripe_price_id TEXT"); } catch (e) {}
+  try { await db.run("ALTER TABLE room_images ADD COLUMN url TEXT"); } catch (e) {}
   try { await db.run("ALTER TABLE reservations ADD COLUMN payment_status TEXT DEFAULT 'pending'"); } catch (e) {}
   try { await db.run("ALTER TABLE room_types ADD COLUMN is_active BOOLEAN DEFAULT 1"); } catch (e) {}
   try { await db.run("ALTER TABLE room_types ADD COLUMN total_units INTEGER DEFAULT 1"); } catch (e) {}
@@ -329,8 +330,10 @@ router.get('/debug', async (req, res) => {
 router.get('/room-images/:id', async (req, res) => {
   try {
     const db  = await getDb();
-    const img = await db.get('SELECT image_data, image_type FROM room_images WHERE id = ?', [req.params.id]);
+    const img = await db.get('SELECT image_data, image_type, url FROM room_images WHERE id = ?', [req.params.id]);
     if (!img) return res.status(404).send('Imagem não encontrada');
+    // Se tem url em disco, redirecionar
+    if (img.url) return res.redirect(img.url);
     let data = img.image_data || '';
     if (data.includes('base64,')) data = data.split('base64,')[1];
     const buf = Buffer.from(data, 'base64');
@@ -345,11 +348,30 @@ router.post('/room-images/:roomId', requireAuth, async (req, res) => {
     if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
     const { image_data, image_type } = req.body;
     const db = await getDb();
+    let imageUrl = null;
+    let savedData = null;
+    // Salvar em disco em vez de base64 no banco
+    if (image_data && image_data.length > 100) {
+      try {
+        const ext = (image_type || 'image/jpeg').split('/')[1] || 'jpg';
+        const fname = 'img_' + Date.now() + '_' + Math.random().toString(36).slice(2) + '.' + ext;
+        const fpath = 'public/uploads/' + fname;
+        if (!require('fs').existsSync('public/uploads')) require('fs').mkdirSync('public/uploads', { recursive: true });
+        const base64Clean = image_data.replace(/^data:[^;]+;base64,/, '');
+        require('fs').writeFileSync(fpath, Buffer.from(base64Clean, 'base64'));
+        imageUrl = '/uploads/' + fname;
+      } catch(e) {
+        // Fallback: salvar base64 no banco se falhar
+        savedData = image_data;
+        console.error('Erro ao salvar imagem em disco:', e.message);
+      }
+    }
     const r = await db.run(
-      'INSERT INTO room_images (room_type_id,image_data,image_type,display_order) VALUES (?,?,?,0)',
-      [req.params.roomId, image_data, image_type]
+      'INSERT INTO room_images (room_type_id,image_data,image_type,url,display_order) VALUES (?,?,?,?,0)',
+      [req.params.roomId, savedData, image_type, imageUrl]
     );
-    res.status(201).json({ id: r.lastID, url: `/api/room-images/${r.lastID}` });
+    const finalUrl = imageUrl || `/api/room-images/${r.lastID}`;
+    res.status(201).json({ id: r.lastID, url: finalUrl });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -653,6 +675,15 @@ router.get('/reservations/:id', async (req, res) => {
     const db = await getDb();
     const r  = await db.get(reservationJoin + ' WHERE r.id = ?', [req.params.id]);
     if (!r) return res.status(404).json({ error: 'Reserva não encontrada' });
+    // Protecao IDOR: so admin ou dono da reserva
+    const token = req.headers['authorization']?.replace('Bearer ', '');
+    const isAdmin = token && token === process.env.ADMIN_SECRET_TOKEN;
+    if (!isAdmin) {
+      const guestEmail = req.query.email || req.query.guest_email || req.headers['x-guest-email'];
+      if (!guestEmail || r.guest_email.toLowerCase() !== String(guestEmail).toLowerCase()) {
+        return res.status(403).json({ error: 'Acesso negado' });
+      }
+    }
     res.json(r);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
