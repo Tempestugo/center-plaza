@@ -12,7 +12,19 @@ const bcrypt   = require('bcryptjs');
 const router = express.Router();
 const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } });
 
-router.use(cors());
+router.use(cors({
+  origin: function(origin, callback) {
+    const allowed = [
+      process.env.FRONTEND_URL || 'https://centerplazahotel.com.br',
+      'https://centerplazahotel.com.br',
+      'http://localhost:5173',
+      'http://localhost:3000'
+    ];
+    if (!origin || allowed.includes(origin)) return callback(null, true);
+    return callback(new Error('Bloqueado pelo CORS'));
+  },
+  credentials: true
+}));
 
 router.use((req, res, next) => {
   console.log(new Date().toISOString() + ' - ' + req.method + ' /api' + req.path);
@@ -34,7 +46,7 @@ async function getDb() {
     filename: path.join(dbDir, 'center-plaza.sqlite'),
     driver: sqlite3.Database,
   });
-  await _db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;');
+  await _db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;');
   return _db;
 }
 
@@ -178,7 +190,8 @@ router.use((req, res, next) => {
 
 // ── Autenticação ──────────────────────────────────────────────────────────────
 
-const ADMIN_TOKEN = process.env.ADMIN_SECRET_TOKEN || 'center_plaza_admin_2026_secure_token';
+const ADMIN_TOKEN = process.env.ADMIN_SECRET_TOKEN;
+if (!ADMIN_TOKEN) { console.error('URGENTE: ADMIN_SECRET_TOKEN nao configurado!'); process.exit(1); }
 
 const authMiddleware = (req, res, next) => {
   const auth   = req.headers['authorization'];
@@ -988,6 +1001,7 @@ router.post('/create-checkout-session', async (req, res) => {
     // Criar Checkout Session
     const baseUrl = process.env.FRONTEND_URL || 'https://centerplazahotel.com.br';
     const session = await stripe.checkout.sessions.create({
+        expires_at: Math.floor(Date.now() / 1000) + (30 * 60),
       payment_method_types: ['card'],
       mode: 'payment',
       customer_email: guest_email,
@@ -1164,7 +1178,7 @@ router.post('/refund-requests/:id/approve', requireAuth, async (req, res) => {
       }
     }
 
-    await db.run('BEGIN TRANSACTION');
+    await db.run('BEGIN EXCLUSIVE TRANSACTION');
     try {
       await db.run(
         `UPDATE refund_requests SET status='approved', refund_type=?, refund_amount=?, approved_by='admin', approved_at=CURRENT_TIMESTAMP, stripe_refund_id=?, stripe_refund_status=? WHERE id=?`,
