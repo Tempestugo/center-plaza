@@ -13,7 +13,12 @@ export default function ReservaSucesso() {
 
   useEffect(() => {
     if (!reservationId) return;
-    fetch(`/api/reservations/${reservationId}`)
+    // Buscar reserva pelo session_id do Stripe (mais seguro)
+    const sessionId = searchParams.get("session_id");
+    const url = sessionId 
+      ? `/api/reservations/${reservationId}?session_id=${sessionId}`
+      : `/api/reservations/${reservationId}`;
+    fetch(url)
       .then(r => r.json())
       .then(data => setReservation(data))
       .finally(() => setLoading(false));

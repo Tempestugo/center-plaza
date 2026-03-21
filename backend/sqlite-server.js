@@ -687,7 +687,10 @@ router.get('/reservations/:id', async (req, res) => {
     const isAdmin = token && token === process.env.ADMIN_SECRET_TOKEN;
     if (!isAdmin) {
       const guestEmail = req.query.email || req.query.guest_email || req.headers['x-guest-email'];
-      if (!guestEmail || r.guest_email.toLowerCase() !== String(guestEmail).toLowerCase()) {
+      const sessionId = req.query.session_id;
+      // Permitir acesso com session_id do Stripe (página de sucesso)
+      const validSession = sessionId && r.stripe_payment_intent_id;
+      if (!validSession && (!guestEmail || r.guest_email.toLowerCase() !== String(guestEmail).toLowerCase())) {
         return res.status(403).json({ error: 'Acesso negado' });
       }
     }
@@ -1037,7 +1040,7 @@ router.post('/create-checkout-session', async (req, res) => {
     const reservationId = ins.lastID;
 
     // Criar Checkout Session
-    const baseUrl = process.env.FRONTEND_URL || 'https://centerplazahotel.com.br';
+    const baseUrl = (process.env.FRONTEND_URL || 'https://centerplazahotel.com.br').replace(/\/$/, '');
     const session = await stripe.checkout.sessions.create({
         expires_at: Math.floor(Date.now() / 1000) + (30 * 60),
       payment_method_types: ['card'],
