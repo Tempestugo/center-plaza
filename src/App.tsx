@@ -2,6 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ReservationProvider } from "@/contexts/ReservationContext";
@@ -12,10 +13,10 @@ import Hospedagens from "./pages/Hospedagens";
 import HospedagemDetalhes from "./pages/HospedagemDetalhes";
 import ConsultarReserva from "./pages/ConsultarReserva";
 import AdminLogin from "./pages/AdminLogin";
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminHospedagens from "./pages/AdminHospedagens";
-import AdminReservas from "./pages/AdminReservas";
-import AdminRelatorios from "./pages/AdminRelatorios";
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const AdminHospedagens = lazy(() => import("./pages/AdminHospedagens"));
+const AdminReservas = lazy(() => import("./pages/AdminReservas"));
+const AdminRelatorios = lazy(() => import("./pages/AdminRelatorios"));
 const AdminSettings = lazy(() => import("./pages/AdminSettings"));
 import UserDashboard from "./pages/UserDashboard";
 import ReservationDetails from "./pages/ReservationDetails";
@@ -37,6 +38,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div></div>}>
               <Routes>
                 {/* Rotas públicas */}
                 <Route path="/" element={<Index />} />
@@ -55,11 +57,12 @@ const App = () => (
                 <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
                 <Route path="/admin/hospedagens" element={<AdminRoute><AdminHospedagens /></AdminRoute>} />
                 <Route path="/admin/reservas" element={<AdminRoute><AdminReservas /></AdminRoute>} />
-                <Route path="/admin/settings" element={<Suspense fallback={<div/>}><AdminRoute><AdminSettings /></AdminRoute></Suspense>} />
+                <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
                 <Route path="/admin/relatorios" element={<AdminRoute><AdminRelatorios /></AdminRoute>} />
 
                 <Route path="*" element={<NotFound />} />
               </Routes>
+            </Suspense>
               <FloatingChat />
             </BrowserRouter>
           </TooltipProvider>
