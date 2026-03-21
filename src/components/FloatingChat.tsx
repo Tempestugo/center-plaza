@@ -114,7 +114,8 @@ export default function FloatingChat() {
   useEffect(() => {
     if (!open || view !== "chat" || !selectedReservation) return;
     fetchMessages(selectedReservation.id);
-    const interval = setInterval(() => fetchMessages(selectedReservation.id, true), 5000);
+    const delay = document.hidden ? 60000 : 15000;
+    const interval = setInterval(() => fetchMessages(selectedReservation.id, true), delay);
     return () => clearInterval(interval);
   }, [open, view, selectedReservation?.id]);
 
@@ -157,7 +158,7 @@ export default function FloatingChat() {
       } catch (e) {}
     };
     checkUnread();
-    const interval = setInterval(checkUnread, 30000);
+    const interval = setInterval(checkUnread, document.hidden ? 120000 : 30000);
     return () => clearInterval(interval);
   }, [isAuthenticated, email, open]);
 

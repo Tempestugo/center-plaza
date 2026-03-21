@@ -649,6 +649,13 @@ const reservationJoin = `
 `;
 
 router.get('/reservations', async (req, res) => {
+  // Se nao for admin e nao passar guest_email, negar acesso
+  const token = req.headers['authorization']?.replace('Bearer ', '');
+  const isAdmin = token && token === process.env.ADMIN_SECRET_TOKEN;
+  if (!isAdmin && !req.query.guest_email) {
+    return res.status(403).json({ error: 'Acesso negado' });
+  }
+  // Nao expor dados sensiveis para nao-admins
   try {
     const { guest_email, code, guest_name } = req.query;
     const db     = await getDb();

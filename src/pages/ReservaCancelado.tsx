@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,18 @@ export default function ReservaCancelado() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const reservationId = searchParams.get("reservation_id");
+
+  
+  useEffect(() => {
+    // Cancelar reserva pending ao voltar do Stripe
+    const reservationId = new URLSearchParams(window.location.search).get('reservation_id');
+    if (reservationId) {
+      fetch('/api/reservations/' + reservationId + '/cancel-pending', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+      }).catch(() => {});
+    }
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
