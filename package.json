@@ -7,9 +7,11 @@
   "license": "UNLICENSED",
   "scripts": {
     "dev": "vite",
-    "build": "/opt/alt/alt-nodejs18/root/bin/npm install && vite build && cp dist/index.html index.html",
+    "build": "vite build",
     "start": "/opt/alt/alt-nodejs18/root/usr/bin/node server.js",
-    "start:dev": "node --watch server.js"
+    "start:dev": "node --watch server.js",
+    "prebuild": "node -e \"const fs=require('fs');fs.writeFileSync('index.html','<!doctype html><html lang=\\\"pt-BR\\\"><head><meta charset=\\\"UTF-8\\\"/><meta name=\\\"viewport\\\" content=\\\"width=device-width, initial-scale=1.0\\\"/><title>Center Plaza Hotel</title></head><body><div id=\\\"root\\\"></div><script type=\\\"module\\\" src=\\\"/src/main.tsx\\\"></script></body></html>')\"",
+    "build:server": "/opt/alt/alt-nodejs18/root/usr/bin/node node_modules/.bin/vite build"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.1.2",
