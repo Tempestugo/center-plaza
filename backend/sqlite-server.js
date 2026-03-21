@@ -474,7 +474,7 @@ router.get('/rooms', async (req, res) => {
 });
 
 
-router.get('/rooms/all', async (req, res) => {
+router.get('/rooms/all', requireAuth, async (req, res) => {
   try {
     const db   = await getDb();
     const rows = await db.all(
