@@ -33,8 +33,10 @@ const AdminLogin = () => {
       let token: string | null = null;
 
       // Tenta autenticar via API se a URL estiver configurada
+      console.log('API_BASE_URL:', API_BASE_URL);
       if (API_BASE_URL) {
         try {
+          console.log('Tentando login em:', `${API_BASE_URL}/login`);
           const res = await fetch(`${API_BASE_URL}/login`, {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
@@ -45,7 +47,8 @@ const AdminLogin = () => {
             const data = await res.json();
             token = data.token ?? "api-token";
           }
-        } catch {
+        } catch (err: any) {
+          console.error('ERRO NO LOGIN:', err.message, err);
           // API indisponível — cai no fallback abaixo
         }
       }
