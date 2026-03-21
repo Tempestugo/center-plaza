@@ -62,6 +62,8 @@ const AdminLogin = () => {
 
       if (token) {
         localStorage.setItem("admin_token", token);
+        // Salvar user admin no contexto
+        localStorage.setItem("user", JSON.stringify({ id: "admin", name: "Administrador", email: "admin@centerplaza.com", role: "admin" }));
         toast({ title: "Login realizado com sucesso!" });
         navigate("/admin/dashboard");
       } else {

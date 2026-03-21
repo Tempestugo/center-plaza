@@ -21,6 +21,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
@@ -50,7 +51,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Verificar se há um usuário logado no localStorage
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      try { setUser(JSON.parse(savedUser)); } catch {}
+    }
+    // Restaurar sessão admin
+    const adminToken = localStorage.getItem('admin_token');
+    if (adminToken === 'center_plaza_admin_2026_secure_token') {
+      setUser({ id: 'admin', name: 'Administrador', email: 'admin@centerplaza.com', role: 'admin' } as any);
     }
     setLoading(false);
   }, []);
@@ -116,6 +122,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('admin_token');
   };
 
   const updateUser = (userData: Partial<User>) => {
@@ -131,6 +138,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
+    isAdmin: !!(user && (user as any).role === 'admin'),
     login,
     register,
     logout,

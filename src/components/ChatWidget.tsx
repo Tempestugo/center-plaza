@@ -33,10 +33,7 @@ export default function ChatWidget() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Só mostrar se logado e não for admin
-  if (!user || (user as any).role === "admin") return null;
-
-  const email = (user as any).email;
+  const email = (user as any)?.email;
 
   // Carregar reservas do usuário
   useEffect(() => {
@@ -107,6 +104,9 @@ export default function ChatWidget() {
     try { return new Date(str).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); }
     catch { return ""; }
   };
+
+  // Só mostrar se logado e não for admin — DEPOIS dos hooks
+  if (!user || (user as any).role === "admin") return null;
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">

@@ -58,7 +58,7 @@ export default function FloatingChat() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const email = (user as any)?.email;
 
-  if (location.pathname.startsWith("/admin")) return null;
+
 
   const fetchReservations = useCallback(async () => {
     if (!email) return;
@@ -209,6 +209,8 @@ export default function FloatingChat() {
 
   const formatTime = (d: string) =>
     new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+  if (location.pathname.startsWith("/admin") || !user) return null;
 
   return (
     <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-3">
