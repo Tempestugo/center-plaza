@@ -307,7 +307,9 @@ export const roomService = {
 
   // Listar todos os quartos (incluindo inativos) - Para Admin
   async getAllAdmin(): Promise<RoomType[]> {
-    return apiRequest<RoomType[]>('/rooms/all');
+    return apiRequest<RoomType[]>('/rooms/all', {
+      headers: getAuthHeaders(),
+    });
   },
 
   // Atualizar disponibilidade (Ativar/Desativar)
