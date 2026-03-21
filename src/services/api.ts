@@ -401,7 +401,9 @@ export const roomService = {
 export const reservationService = {
   // Listar todas as reservas
   async getAll(): Promise<Reservation[]> {
-    return apiRequest<Reservation[]>('/reservations');
+    return apiRequest<Reservation[]>('/reservations', {
+      headers: getAuthHeaders(),
+    });
   },
 
   // Buscar reserva por ID
