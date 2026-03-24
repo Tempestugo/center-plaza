@@ -32,7 +32,7 @@ router.use((req, res, next) => {
 });
 
 // Servir a pasta de uploads estaticamente (necessário para a imagem de capa e acesso direto)
-router.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
+router.use('/uploads', express.static(path.join(__dirname, '..', 'public', 'uploads')));
 
 // ── Banco de Dados ────────────────────────────────────────────────────────────
 
@@ -340,7 +340,7 @@ router.get('/room-images/:id', async (req, res) => {
     // Se tem url em disco, ler o arquivo físico diretamente para evitar 404
     if (img.url) {
       const filename = img.url.split('/').pop();
-      const filepath = path.join(process.cwd(), 'public', 'uploads', filename);
+      const filepath = path.join(__dirname, '..', 'public', 'uploads', filename);
       if (require('fs').existsSync(filepath)) {
         return res.sendFile(filepath);
       }
@@ -367,8 +367,9 @@ router.post('/room-images/:roomId', requireAuth, async (req, res) => {
       try {
         const ext = (image_type || 'image/jpeg').split('/')[1] || 'jpg';
         const fname = 'img_' + Date.now() + '_' + Math.random().toString(36).slice(2) + '.' + ext;
-        const fpath = 'public/uploads/' + fname;
-        if (!require('fs').existsSync('public/uploads')) require('fs').mkdirSync('public/uploads', { recursive: true });
+        const uploadDir = path.join(__dirname, '..', 'public', 'uploads');
+        const fpath = path.join(uploadDir, fname);
+        if (!require('fs').existsSync(uploadDir)) require('fs').mkdirSync(uploadDir, { recursive: true });
         const base64Clean = image_data.replace(/^data:[^;]+;base64,/, '');
         require('fs').writeFileSync(fpath, Buffer.from(base64Clean, 'base64'));
         imageUrl = '/api/uploads/' + fname;
@@ -399,8 +400,8 @@ router.delete('/room-images/:id', requireAuth, async (req, res) => {
 router.post('/admin/hero-image', requireAuth, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Nenhuma imagem enviada' });
-    const ext = req.file.mimetype.split('/')[1] || 'jpg';
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+    const ext = (req.file.mimetype || 'image/jpeg').split('/')[1] || 'jpg';
+    const uploadDir = path.join(__dirname, '..', 'public', 'uploads');
     if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
     const fileName = 'hero-image.' + ext;
     const dest = path.join(uploadDir, fileName);
