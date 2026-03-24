@@ -25,6 +25,7 @@ import NotFound from "./pages/NotFound";
 import ReservaSucesso from "@/pages/ReservaSucesso";
 import ReservaCancelado from "@/pages/ReservaCancelado";
 import FAQ from "@/components/FAQ";
+import Contato from "@/pages/Contato";
 import FloatingChat from "@/components/FloatingChat";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ const App = () => (
                 <Route path="/reserva/sucesso" element={<ReservaSucesso />} />
                 <Route path="/reserva/cancelado" element={<ReservaCancelado />} />
                 <Route path="/faq" element={<FAQ />} />
+                <Route path="/contato" element={<Contato />} />
 
                 {/* Rotas admin — protegidas por AdminRoute */}
                 <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />

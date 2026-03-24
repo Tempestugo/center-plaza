@@ -400,13 +400,16 @@ router.post('/admin/hero-image', requireAuth, upload.single('image'), async (req
   try {
     if (!req.file) return res.status(400).json({ error: 'Nenhuma imagem enviada' });
     const ext = req.file.mimetype.split('/')[1] || 'jpg';
-    const dest = 'public/uploads/hero-image.' + ext;
-    if (!require('fs').existsSync('public/uploads')) require('fs').mkdirSync('public/uploads', { recursive: true });
-    require('fs').writeFileSync(dest, req.file.buffer);
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+    const fileName = 'hero-image.' + ext;
+    const dest = path.join(uploadDir, fileName);
+    fs.writeFileSync(dest, req.file.buffer);
     // Salvar caminho no banco para uso futuro
     const db = await getDb();
-    await db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('hero_image', ?)", ['/api/uploads/hero-image.' + ext]);
-    res.json({ url: '/api/uploads/hero-image.' + ext });
+    await db.run("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)");
+    await db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('hero_image', ?)", ['/api/uploads/' + fileName]);
+    res.json({ url: '/api/uploads/' + fileName });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
