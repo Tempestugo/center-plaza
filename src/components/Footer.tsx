@@ -78,20 +78,20 @@ const Footer = () => {
               <div className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 mt-0.5 text-accent-warm" />
                 <span className="text-primary-foreground/80">
-                  Estrada da Serra, 1000<br />
-                  Campos do Jordão - SP
+                  Rua Maestro Cardim, 418<br />
+                  Bela Vista, São Paulo/SP — CEP 01323-000
                 </span>
               </div>
               <div className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-accent-warm" />
                 <span className="text-primary-foreground/80">
-                  (11) 9 9999-9999
+                  (11) 3289-3757
                 </span>
               </div>
               <div className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-accent-warm" />
                 <span className="text-primary-foreground/80">
-                  contato@centerplaza.com.br
+                  contato@centerplazahotel.com.br
                 </span>
               </div>
             </div>

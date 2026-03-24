@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Lock, Mail, Shield } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
+import bgHeroImage from "@/assets/bg-hero-hootel.jpg";
 
 export default function AdminSettings() {
   const [loading, setSaving] = useState(false);
@@ -15,6 +16,10 @@ export default function AdminSettings() {
     new_password: "",
     confirm_password: "",
   });
+
+  const [heroFile, setHeroFile] = useState<File | null>(null);
+  const [heroPreview, setHeroPreview] = useState<string>(bgHeroImage);
+  const [uploadingHero, setUploadingHero] = useState(false);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +59,36 @@ export default function AdminSettings() {
       toast.error(err.message || "Erro ao atualizar");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleHeroChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setHeroFile(e.target.files[0]);
+      setHeroPreview(URL.createObjectURL(e.target.files[0]));
+    }
+  };
+
+  const handleSaveHero = async () => {
+    if (!heroFile) return toast.error("Selecione uma imagem de capa");
+    setUploadingHero(true);
+    try {
+      const token = localStorage.getItem("admin_token");
+      const formData = new FormData();
+      formData.append("image", heroFile);
+      const res = await fetch("/api/admin/hero-image", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success("Imagem de capa atualizada com sucesso!");
+      setHeroFile(null);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao atualizar a imagem");
+    } finally {
+      setUploadingHero(false);
     }
   };
 
@@ -128,6 +163,28 @@ export default function AdminSettings() {
         <p className="text-xs text-muted-foreground text-center mt-4">
           Após salvar, você será redirecionado para o login com as novas credenciais.
         </p>
+
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle className="text-base">Imagem de Capa Principal</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-4">
+              <img 
+                src={heroPreview} 
+                alt="Preview Capa" 
+                className="w-full rounded-md object-cover aspect-video border"
+              />
+              <Label className="text-muted-foreground text-xs">
+                Proporção ideal: 16:9 (1920×1080px)
+              </Label>
+              <Input type="file" accept="image/*" onChange={handleHeroChange} />
+              <Button onClick={handleSaveHero} disabled={!heroFile || uploadingHero}>
+                {uploadingHero ? "Salvando..." : "Salvar Nova Capa"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </AdminLayout>
   );

@@ -10,7 +10,7 @@ const fs       = require('fs');
 const bcrypt   = require('bcryptjs');
 
 const router = express.Router();
-const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.use(cors({
   origin: function(origin, callback) {
@@ -135,6 +135,7 @@ async function initDatabase() {
       FOREIGN KEY(reservation_id) REFERENCES reservations(id)
     );
   `);
+  await db.run(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)`);
 
   // Migrações seguras
   try { await db.run("ALTER TABLE reservations ADD COLUMN stripe_payment_intent_id TEXT"); } catch (e) {}
@@ -381,6 +382,28 @@ router.delete('/room-images/:id', requireAuth, async (req, res) => {
     const db = await getDb();
     await db.run('DELETE FROM room_images WHERE id = ?', [req.params.id]);
     res.json({ message: 'Imagem excluída' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/admin/hero-image', requireAuth, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Nenhuma imagem enviada' });
+    const ext = req.file.mimetype.split('/')[1] || 'jpg';
+    const dest = 'public/uploads/hero-image.' + ext;
+    if (!require('fs').existsSync('public/uploads')) require('fs').mkdirSync('public/uploads', { recursive: true });
+    require('fs').writeFileSync(dest, req.file.buffer);
+    // Salvar caminho no banco para uso futuro
+    const db = await getDb();
+    await db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('hero_image', ?)", ['/uploads/hero-image.' + ext]);
+    res.json({ url: '/uploads/hero-image.' + ext });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/settings/:key', async (req, res) => {
+  try {
+    const db = await getDb();
+    const setting = await db.get('SELECT value FROM settings WHERE key = ?', [req.params.key]);
+    res.json({ key: req.params.key, value: setting?.value || null });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

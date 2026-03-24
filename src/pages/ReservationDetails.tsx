@@ -167,8 +167,8 @@ Valor Total: R$ ${reservation.total.toFixed(2)}
 ${reservation.amenities?.join(', ') || 'Wi-Fi, Estacionamento, Café da manhã'}
 
 --- CONTATO ---
-E-mail: contato@centerplaza.com.br
-Telefone: (11) 99999-9999
+E-mail: contato@centerplazahotel.com.br
+Telefone: (11) 3289-3757
 
 --- OBSERVAÇÕES ---
 ${reservation.specialRequests || 'Nenhuma solicitação especial'}
@@ -481,12 +481,12 @@ ${reservation.specialRequests || 'Nenhuma solicitação especial'}
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-primary" />
-                      <span className="text-sm">(11) 99999-9999</span>
+                      <span className="text-sm">(11) 3289-3757</span>
                     </div>
                     
                     <div className="flex items-center gap-2">
                       <Mail className="h-4 w-4 text-primary" />
-                      <span className="text-sm">contato@centerplaza.com.br</span>
+                      <span className="text-sm">contato@centerplazahotel.com.br</span>
                     </div>
                   </div>
                   

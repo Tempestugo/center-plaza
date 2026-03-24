@@ -1,15 +1,25 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, MapPin, Star } from "lucide-react";
 import { Link } from "react-router-dom";
-import heroImage from "@/assets/bg-hero-hootel.jpg";
+import bgHeroImage from "@/assets/bg-hero-hootel.jpg";
 
 const HeroSection = () => {
+  const [heroImage, setHeroImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/settings/hero_image')
+      .then(r => r.json())
+      .then(d => { if (d.value) setHeroImage(d.value); })
+      .catch(() => {});
+  }, []);
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background Image */}
       <div className="absolute inset-0">
         <img
-          src={heroImage}
+          src={heroImage || bgHeroImage}
           alt="Acomodação luxuosa na serra"
           className="w-full h-full object-cover"
         />
