@@ -31,6 +31,9 @@ router.use((req, res, next) => {
   next();
 });
 
+// Servir a pasta de uploads estaticamente (necessário para a imagem de capa e acesso direto)
+router.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
+
 // ── Banco de Dados ────────────────────────────────────────────────────────────
 
 let _db = null;
@@ -333,8 +336,16 @@ router.get('/room-images/:id', async (req, res) => {
     const db  = await getDb();
     const img = await db.get('SELECT image_data, image_type, url FROM room_images WHERE id = ?', [req.params.id]);
     if (!img) return res.status(404).send('Imagem não encontrada');
-    // Se tem url em disco, redirecionar
-    if (img.url) return res.redirect(img.url);
+    
+    // Se tem url em disco, ler o arquivo físico diretamente para evitar 404
+    if (img.url) {
+      const filename = img.url.split('/').pop();
+      const filepath = path.join(process.cwd(), 'public', 'uploads', filename);
+      if (require('fs').existsSync(filepath)) {
+        return res.sendFile(filepath);
+      }
+    }
+    
     let data = img.image_data || '';
     if (data.includes('base64,')) data = data.split('base64,')[1];
     const buf = Buffer.from(data, 'base64');
@@ -360,7 +371,7 @@ router.post('/room-images/:roomId', requireAuth, async (req, res) => {
         if (!require('fs').existsSync('public/uploads')) require('fs').mkdirSync('public/uploads', { recursive: true });
         const base64Clean = image_data.replace(/^data:[^;]+;base64,/, '');
         require('fs').writeFileSync(fpath, Buffer.from(base64Clean, 'base64'));
-        imageUrl = '/uploads/' + fname;
+        imageUrl = '/api/uploads/' + fname;
       } catch(e) {
         // Fallback: salvar base64 no banco se falhar
         savedData = image_data;
@@ -394,8 +405,8 @@ router.post('/admin/hero-image', requireAuth, upload.single('image'), async (req
     require('fs').writeFileSync(dest, req.file.buffer);
     // Salvar caminho no banco para uso futuro
     const db = await getDb();
-    await db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('hero_image', ?)", ['/uploads/hero-image.' + ext]);
-    res.json({ url: '/uploads/hero-image.' + ext });
+    await db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('hero_image', ?)", ['/api/uploads/hero-image.' + ext]);
+    res.json({ url: '/api/uploads/hero-image.' + ext });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
