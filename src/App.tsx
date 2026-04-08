@@ -26,6 +26,9 @@ import ReservaSucesso from "@/pages/ReservaSucesso";
 import ReservaCancelado from "@/pages/ReservaCancelado";
 import FAQ from "@/components/FAQ";
 import Contato from "@/pages/Contato";
+import PoliticaPrivacidade from "./pages/PoliticaPrivacidade";
+import TermosUso from "./pages/TermosUso";
+import PoliticaCancelamento from "./pages/PoliticaCancelamento";
 import FloatingChat from "@/components/FloatingChat";
 
 const queryClient = new QueryClient();
@@ -54,6 +57,9 @@ const App = () => (
                 <Route path="/reserva/cancelado" element={<ReservaCancelado />} />
                 <Route path="/faq" element={<FAQ />} />
                 <Route path="/contato" element={<Contato />} />
+                <Route path="/privacidade" element={<PoliticaPrivacidade />} />
+                <Route path="/termos" element={<TermosUso />} />
+                <Route path="/cancelamento" element={<PoliticaCancelamento />} />
 
                 {/* Rotas admin — protegidas por AdminRoute */}
                 <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
