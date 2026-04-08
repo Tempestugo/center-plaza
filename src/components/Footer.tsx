@@ -1,4 +1,4 @@
-import { MapPin, Phone, Mail, Instagram, Facebook, Twitter } from "lucide-react";
+import { MapPin, Phone, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Footer = () => {
@@ -14,17 +14,7 @@ const Footer = () => {
               Experiências únicas de hospedagem na serra, onde o conforto 
               encontra a natureza em perfeita harmonia.
             </p>
-            <div className="flex space-x-4">
-              <a href="#" className="text-primary-foreground/80 hover:text-accent-warm transition-colors">
-                <Instagram className="w-5 h-5" />
-              </a>
-              <a href="#" className="text-primary-foreground/80 hover:text-accent-warm transition-colors">
-                <Facebook className="w-5 h-5" />
-              </a>
-              <a href="#" className="text-primary-foreground/80 hover:text-accent-warm transition-colors">
-                <Twitter className="w-5 h-5" />
-              </a>
-            </div>
+
           </div>
 
           {/* Quick Links */}
@@ -63,11 +53,11 @@ const Footer = () => {
           <div className="space-y-4">
             <h4 className="text-lg font-semibold">Serviços</h4>
             <ul className="space-y-2 text-primary-foreground/80">
-              <li>Hospedagem Exclusiva</li>
-              <li>Experiências na Natureza</li>
-              <li>Café da Manhã Regional</li>
-              <li>Transfer Privado</li>
-              <li>Trilhas Guiadas</li>
+              <li>Acomodações Confortáveis</li>
+              <li>Wi-Fi Gratuito</li>
+              <li>Estacionamento Privativo</li>
+              <li>Café da Manhã</li>
+              <li>Recepção 24 Horas</li>
             </ul>
           </div>
 
@@ -102,7 +92,7 @@ const Footer = () => {
         <div className="border-t border-primary-foreground/20 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-primary-foreground/60 text-sm">
-              © 2024 Center Plaza. Todos os direitos reservados.
+              © 2026 Center Plaza Hotel. Todos os direitos reservados.
             </p>
             <div className="flex gap-6 text-sm">
               <Link to="/privacidade" className="text-primary-foreground/60 hover:text-accent-warm transition-colors">
@@ -110,6 +100,9 @@ const Footer = () => {
               </Link>
               <Link to="/termos" className="text-primary-foreground/60 hover:text-accent-warm transition-colors">
                 Termos de Uso
+              </Link>
+              <Link to="/cancelamento" className="text-primary-foreground/60 hover:text-accent-warm transition-colors">
+                Cancelamento
               </Link>
             </div>
           </div>
