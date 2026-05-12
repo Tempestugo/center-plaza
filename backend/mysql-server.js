@@ -10,7 +10,14 @@ const fs       = require('fs');
 const bcrypt   = require('bcryptjs');
 const mysql    = require('mysql2/promise');
 
-cnuuciottps://centerplazahotel.com.br',
+const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+router.use(cors({
+  origin: function(origin, callback) {
+    const allowed = [
+      process.env.FRONTEND_URL || 'https://centerplazahotel.com.br',
+      'https://centerplazahotel.com.br',
       'http://localhost:5173',
       'http://localhost:3000'
     ];
@@ -387,14 +394,30 @@ router.post('/room-images/:roomId', requireAuth, async (req, res) => {
       [req.params.roomId, image_data, image_type, null]
     );
     const finalUrl = `/api/room-images/${r.insertId}`;
-    res.status(201).json({gU
-es.json({ url: imageUrl });
+    res.status(201).json({ id: r.insertId, url: finalUrl });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.get('/settings/:keyeq, re
+router.post('/admin/hero-image', requireAuth, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Nenhuma imagem enviada' });
+    
+    const base64Data = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype || 'image/jpeg';
+    const imageUrl = `data:${mimeType};base64,${base64Data}`;
+
     const db = await getDb();
-    const [[setting] query('SELECT value FROM settings WHERE `key` = ?', [req.params.key]);
-    eva tn(err) { res.status(500).json({ error: err.message }); }
+    await db.execute("REPLACE INTO settings (`key`, value) VALUES ('hero_image', ?)", [imageUrl]);
+    res.json({ url: imageUrl });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/settings/:key', async (req, res) => {
+  try {
+    const db = await getDb();
+    const [[setting]] = await db.query('SELECT value FROM settings WHERE `key` = ?', [req.params.key]);
+    res.json({ key: req.params.key, value: setting?.value || null });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── Helper ────────────────────────────────────────────────────────────────────
