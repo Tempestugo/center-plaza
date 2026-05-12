@@ -11,8 +11,8 @@ const Footer = () => {
           <div className="space-y-4">
             <h3 className="text-2xl font-bold">Center Plaza</h3>
             <p className="text-primary-foreground/80 leading-relaxed">
-              Experiências únicas de hospedagem na serra, onde o conforto 
-              encontra a natureza em perfeita harmonia.
+              Sua melhor opção de hospedagem no coração de São Paulo, combinando
+              conforto, praticidade e uma localização privilegiada.
             </p>
 
           </div>

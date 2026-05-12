@@ -50,7 +50,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // API principal
 try {
-  const apiRouter = require('./backend/sqlite-server.js');
+  const apiRouter = require('./backend/mysql-server.js');
   app.use('/api', apiRouter);
   console.log('✅ API router carregado');
 } catch (err) {
