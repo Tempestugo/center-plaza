@@ -67,8 +67,6 @@
     "react-router-dom": "^6.22.3",
     "recharts": "^3.8.0",
     "sonner": "^1.4.3",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.6",
     "stripe": "^14.14.0",
     "tailwind-merge": "^2.2.1",
     "tailwindcss-animate": "^1.0.7",

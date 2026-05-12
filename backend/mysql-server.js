@@ -58,7 +58,8 @@ async function getDb() {
       database: cleanName,
       waitForConnections: true,
       connectionLimit: 10,
-      queueLimit: 0
+      queueLimit: 0,
+      decimalNumbers: true
     });
   } else if (process.env.DATABASE_URL) {
     const cleanUrl = process.env.DATABASE_URL.replace(/^["']|["']$/g, '').trim();
@@ -66,7 +67,8 @@ async function getDb() {
       uri: cleanUrl,
       waitForConnections: true,
       connectionLimit: 10,
-      queueLimit: 0
+      queueLimit: 0,
+      decimalNumbers: true
     });
   } else {
     throw new Error('Credenciais do banco não configuradas nas Variáveis de Ambiente.');
