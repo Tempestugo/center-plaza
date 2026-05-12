@@ -42,15 +42,30 @@ let dbInitializationError = null;
 
 async function getDb() {
   if (_dbPool) return _dbPool;
-  if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL não está definida no arquivo .env');
+
+  // Usaras variáveis separadas para evitar problemas na senha
+  if (process.env.DB_USER && process.env.DB_NAME) {
+    _dbPool = mysql.createPool({
+      host: process.env.DB_HOST || 'localhost',
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0
+    });
+  } else if (process.env.DATABASE_URL) {
+    const cleanUrl = process.env.DATABASE_URL.replace(/^["']|["']$/g, '').trim();
+    _dbPool = mysql.createPool({
+      uri: cleanUrl,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0
+    });
+  } else {
+    throw new Error('Credenciais do banco não configuradas nas Variáveis de Ambiente.');
   }
-  _dbPool = mysql.createPool({
-    uri: process.env.DATABASE_URL,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-  });
+
   // Testa a conexão
   const connection = await _dbPool.getConnection();
   connection.release();
