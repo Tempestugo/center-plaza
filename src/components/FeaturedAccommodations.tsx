@@ -17,8 +17,8 @@ const FeaturedAccommodations = () => {
               Acomodações em Destaque
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Descubra nossas acomodações mais exclusivas, cuidadosamente
-              selecionadas para proporcionar uma experiência inesquecível
+              Descubra nossas acomodações, perfeitamente localizadas
+              para quem busca praticidade e conforto no centro de São Paulo.
             </p>
           </div>
           
@@ -40,8 +40,8 @@ const FeaturedAccommodations = () => {
               Acomodações em Destaque
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Descubra nossas acomodações mais exclusivas, cuidadosamente
-              selecionadas para proporcionar uma experiência inesquecível
+              Descubra nossas acomodações, perfeitamente localizadas
+              para quem busca praticidade e conforto no centro de São Paulo.
             </p>
           </div>
           
@@ -62,8 +62,8 @@ const FeaturedAccommodations = () => {
             Acomodações em Destaque
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Descubra nossas acomodações mais exclusivas, cuidadosamente
-            selecionadas para proporcionar uma experiência inesquecível
+            Descubra nossas acomodações, perfeitamente localizadas
+            para quem busca praticidade e conforto no centro de São Paulo.
           </p>
         </div>
 
