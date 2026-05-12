@@ -20,7 +20,7 @@ const HeroSection = () => {
       <div className="absolute inset-0">
         <img
           src={heroImage || bgHeroImage}
-          alt="Acomodação luxuosa na serra"
+          alt="Acomodação de excelência no centro de São Paulo"
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-gray-800/50 to-transparent" />
@@ -32,7 +32,7 @@ const HeroSection = () => {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-background/20 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
             <MapPin className="w-4 h-4" />
-            <span className="text-sm font-medium">Experiências únicas na serra</span>
+            <span className="text-sm font-medium">Conforto e praticidade no centro</span>
           </div>
 
           {/* Main Heading */}
@@ -45,8 +45,8 @@ const HeroSection = () => {
 
           {/* Subtitle */}
           <p className="text-xl md:text-2xl mb-8 text-primary-foreground/90 max-w-2xl mx-auto leading-relaxed">
-            Descubra acomodações exclusivas cercadas pela natureza exuberante da serra, 
-            onde cada momento se torna uma memória especial.
+            Sua melhor opção de hospedagem no coração de São Paulo.
+            Aqui, cada momento de descanso se torna uma experiência de conforto.
           </p>
 
           {/* Statistics */}
