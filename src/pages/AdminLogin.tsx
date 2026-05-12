@@ -70,7 +70,6 @@ const AdminLogin = () => {
         navigate("/admin/dashboard");
       } else {
         toast({
-          title:       "Credenciais inválidas",
           description: "Verifique seu e-mail e senha.",
           variant:     "destructive",
         });
