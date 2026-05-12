@@ -39,6 +39,7 @@ router.use('/uploads', express.static(path.join(__dirname, '..', 'public', 'uplo
 let _db = null;
 let dbInitializationError = null;
 
+
 async function getDb() {
   if (_db) return _db;
   const sqlite  = require('sqlite');
