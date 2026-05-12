@@ -45,11 +45,17 @@ async function getDb() {
 
   // Usaras variáveis separadas para evitar problemas na senha
   if (process.env.DB_USER && process.env.DB_NAME) {
+    const cleanUser = process.env.DB_USER.replace(/^["']|["']$/g, '').trim();
+    const cleanPass = process.env.DB_PASSWORD ? process.env.DB_PASSWORD.replace(/^["']|["']$/g, '') : '';
+    const cleanName = process.env.DB_NAME.replace(/^["']|["']$/g, '').trim();
+    let cleanHost = process.env.DB_HOST ? process.env.DB_HOST.replace(/^["']|["']$/g, '').trim() : '127.0.0.1';
+    if (cleanHost === 'localhost') cleanHost = '127.0.0.1';
+
     _dbPool = mysql.createPool({
-      host: (process.env.DB_HOST === 'localhost' || !process.env.DB_HOST) ? '127.0.0.1' : process.env.DB_HOST,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
+      host: cleanHost,
+      user: cleanUser,
+      password: cleanPass,
+      database: cleanName,
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0
