@@ -6,7 +6,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
 import logoImage from "@/assets/logo-center-plaza.png";
-import { gtmEvent } from "@/main";
+import { gtmEvent } from "@/lib/gtm";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);

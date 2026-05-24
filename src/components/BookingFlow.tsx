@@ -14,7 +14,7 @@ import { Calendar as CalendarIcon, Check, ArrowLeft, ArrowRight, MapPin } from "
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
-import { gtmEvent } from "@/main";
+import { gtmEvent } from "@/lib/gtm";
 
 interface BookingFlowProps {
   open: boolean;

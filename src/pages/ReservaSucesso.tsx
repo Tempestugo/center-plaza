@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Loader2 } from "lucide-react";
-import { gtmEvent } from "@/main";
+import { gtmEvent } from "@/lib/gtm";
 
 export default function ReservaSucesso() {
   const [searchParams] = useSearchParams();
