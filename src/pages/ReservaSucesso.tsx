@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Loader2 } from "lucide-react";
+import { gtmEvent } from "@/main";
 
 export default function ReservaSucesso() {
   const [searchParams] = useSearchParams();
@@ -20,7 +21,10 @@ export default function ReservaSucesso() {
       : `/api/reservations/${reservationId}`;
     fetch(url)
       .then(r => r.json())
-      .then(data => setReservation(data))
+      .then(data => {
+        setReservation(data);
+        gtmEvent('reserva_confirmada', { reserva_id: reservationId, valor: data?.total_amount });
+      })
       .finally(() => setLoading(false));
   }, [reservationId]);
 

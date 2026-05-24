@@ -6,6 +6,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
 import logoImage from "@/assets/logo-center-plaza.png";
+import { gtmEvent } from "@/main";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -83,7 +84,10 @@ const Header = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button variant="outline" onClick={() => setAuthModalOpen(true)}>
+              <Button variant="outline" onClick={() => {
+                gtmEvent('click_login');
+                setAuthModalOpen(true);
+              }}>
                 Entrar
               </Button>
             )}
@@ -155,6 +159,7 @@ const Header = () => {
                 variant="outline" 
                 className="w-full mt-2" 
                 onClick={() => {
+                  gtmEvent('click_login');
                   setAuthModalOpen(true);
                   setIsMenuOpen(false);
                 }}

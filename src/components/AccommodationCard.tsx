@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { gtmEvent } from "@/main";
 
 interface AccommodationCardProps {
   id: number | string;
@@ -105,7 +106,10 @@ const AccommodationCard = ({
             <Button 
               className="flex-1" 
               variant="hero"
-              onClick={() => navigate(`/hospedagem/${id}`)}
+              onClick={() => {
+                gtmEvent('click_reservar', { quarto: name, preco: price });
+                navigate(`/hospedagem/${id}`);
+              }}
             >
               Reservar
             </Button>

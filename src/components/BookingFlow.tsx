@@ -14,6 +14,7 @@ import { Calendar as CalendarIcon, Check, ArrowLeft, ArrowRight, MapPin } from "
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
+import { gtmEvent } from "@/main";
 
 interface BookingFlowProps {
   open: boolean;
@@ -115,7 +116,8 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
           throw new Error(err.error || 'Erro ao criar sessão de pagamento');
         }
 
-        const { url } = await response.json();
+        const { url, reservationId } = await response.json();
+        gtmEvent('iniciar_pagamento', { reserva_id: reservationId, valor: total });
         window.location.href = url; // Redireciona para o Stripe Checkout
       } catch (err: any) {
         toast.error(err.message || "Erro ao processar. Tente novamente.");
