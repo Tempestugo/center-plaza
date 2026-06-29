@@ -198,7 +198,7 @@ export default function FloatingChat() {
 
   const handleButtonClick = () => {
     if (!isAuthenticated) {
-      window.open("https://wa.me/5511328937570", "_blank");
+      window.open("https://wa.me/551132893757", "_blank");
       return;
     }
     setOpen(true);
@@ -250,7 +250,7 @@ export default function FloatingChat() {
                 <div className="text-center py-8 px-4 text-muted-foreground text-sm space-y-3">
                   <p>Nenhuma reserva ativa encontrada.</p>
                   <a
-                    href="https://wa.me/5511328937570"
+                    href="https://wa.me/551132893757"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 text-green-600 hover:text-green-700 font-medium text-sm"

@@ -190,7 +190,7 @@ export default function FAQ() {
               Nossa equipe está disponível para ajudar via WhatsApp ou chat no site.
             </p>
             <a
-              href="https://wa.me/5511328937570"
+              href="https://wa.me/551132893757"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-colors"

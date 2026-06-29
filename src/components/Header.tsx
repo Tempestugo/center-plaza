@@ -51,7 +51,7 @@ const Header = () => {
             ))}
             
             <a
-              href="https://wa.me/5511328937570"
+              href="https://wa.me/551132893757"
               target="_blank"
               rel="noopener noreferrer"
               title="Fale conosco no WhatsApp"
@@ -124,7 +124,7 @@ const Header = () => {
             ))}
             
             <a
-              href="https://wa.me/5511328937570"
+              href="https://wa.me/551132893757"
               target="_blank"
               rel="noopener noreferrer"
               className="block py-2 text-sm font-medium text-green-600 hover:text-green-700"
