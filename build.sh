@@ -2,7 +2,7 @@
 set -e
 cd /home/u556180082/domains/lightgrey-echidna-641630.hostingersite.com/nodejs
 
-# Garantir que o index.html raiz está correto ANTES do build
+
 cat > index.html << 'HTMLEOF'
 <!doctype html>
 <html lang="pt-BR">
@@ -21,5 +21,5 @@ HTMLEOF
 chmod +x node_modules/vite/node_modules/@esbuild/linux-x64/bin/esbuild
 /opt/alt/alt-nodejs18/root/usr/bin/node node_modules/.bin/vite build
 
-# NÃO copiar dist/index.html para raiz — o server.js serve de dist/ diretamente
+
 echo "BUILD OK — dist/ atualizado"

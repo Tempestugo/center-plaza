@@ -16,11 +16,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { reservationService, chatService, Reservation, Message } from "@/services/api";
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+
 
 type StatusFilter = "all" | "pending" | "confirmed" | "cancelled";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 
 const statusConfig = {
   pending:   { label: "Pendente",   color: "bg-yellow-100 text-yellow-800 border-yellow-200" },
@@ -50,7 +50,7 @@ function playNotificationSound() {
   } catch (e) {}
 }
 
-// ─── Sub-componente: Modal de Chat ────────────────────────────────────────────
+
 
 function ChatModal({
   reservation,
@@ -77,7 +77,7 @@ function ChatModal({
       });
       const messages = { confirmed: 'Reserva confirmada!', cancelled: 'Reserva cancelada!', pending: 'Revertida para pendente!' };
       toast({ title: messages[status] });
-      // loadReservations(); // Se necessário
+      
     } catch {
       toast({ title: 'Erro ao atualizar status', variant: 'destructive' });
     }
@@ -96,7 +96,7 @@ function ChatModal({
 
   useEffect(() => {
     loadMessages();
-    const interval = setInterval(loadMessages, 5000); // polling a cada 5s
+    const interval = setInterval(loadMessages, 5000); 
     return () => clearInterval(interval);
   }, [loadMessages]);
 
@@ -118,7 +118,7 @@ function ChatModal({
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-lg h-[600px] flex flex-col p-0 gap-0">
-        {/* Header */}
+        {}
         <DialogHeader className="px-4 py-3 border-b">
           <DialogTitle className="text-base">
             Chat — {reservation.guest_name}
@@ -128,7 +128,7 @@ function ChatModal({
           </p>
         </DialogHeader>
 
-        {/* Mensagens */}
+        {}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
           {loading ? (
             <div className="flex justify-center pt-8">
@@ -163,7 +163,7 @@ function ChatModal({
           )}
         </div>
 
-        {/* Input */}
+        {}
         <div className="border-t px-4 py-3 flex gap-2">
           <Textarea
             value={text}
@@ -186,7 +186,7 @@ function ChatModal({
   );
 }
 
-// ─── Sub-componente: Modal de Detalhes ────────────────────────────────────────
+
 
 function DetailModal({
   reservation,
@@ -229,12 +229,12 @@ function DetailModal({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Status badge */}
+          {}
           <Badge className={`${statusConfig[reservation.status].color} border`}>
             {statusConfig[reservation.status].label}
           </Badge>
 
-          {/* Hóspede */}
+          {}
           <div className="rounded-lg border p-3 space-y-2">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Hóspede</p>
             <p className="font-medium">{reservation.guest_name}</p>
@@ -248,7 +248,7 @@ function DetailModal({
             )}
           </div>
 
-          {/* Acomodação */}
+          {}
           <div className="rounded-lg border p-3 space-y-2">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Acomodação</p>
             <div className="flex items-center gap-1.5 text-sm">
@@ -258,7 +258,7 @@ function DetailModal({
             <p className="text-sm text-muted-foreground">{reservation.room_type_name}</p>
           </div>
 
-          {/* Datas e valores */}
+          {}
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground mb-1">Check-in</p>
@@ -297,7 +297,7 @@ function DetailModal({
             </div>
           )}
 
-          {/* Ações */}
+          {}
           {reservation.status === "pending" && (
             <div className="flex gap-2 pt-1">
               <Button
@@ -345,7 +345,7 @@ function DetailModal({
   );
 }
 
-// ─── Componente Principal ─────────────────────────────────────────────────────
+
 
 export default function AdminReservas() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -361,7 +361,7 @@ export default function AdminReservas() {
   const [refundRequests, setRefundRequests] = useState<any[]>([]);
   const [refundLoading, setRefundLoading] = useState(false);
 
-  // ── Carrega reservas ────────────────────────────────────────────────────────
+  
   const loadReservations = useCallback(async () => {
     try {
       const data = await reservationService.getAll();
@@ -394,7 +394,7 @@ export default function AdminReservas() {
 
   const pendingRefunds = refundRequests.filter(r => r.status === 'pending');
 
-  // ── Polling de mensagens para notificação sonora ────────────────────────────
+  
   useEffect(() => {
     const checkNewMessages = async () => {
       try {
@@ -434,7 +434,7 @@ export default function AdminReservas() {
     return () => clearInterval(interval);
   }, [lastGuestMessageId]);
 
-  // ── Atualiza status ─────────────────────────────────────────────────────────
+  
   const handleStatusChange = async (id: number, status: "confirmed" | "cancelled" | "pending") => {
     await reservationService.updateStatus(id, status);
     setReservations((prev) =>
@@ -451,7 +451,7 @@ export default function AdminReservas() {
     });
   };
 
-  // ── Aprovação e Rejeição de Reembolso ───────────────────────────────────────
+  
   const handleApproveRefund = async (requestId: number, refundType: 'full' | 'partial' | 'none') => {
     if (!confirm(`Confirmar ${refundType === 'full' ? 'reembolso total' : 'cancelamento sem reembolso'}?`)) return;
     try {
@@ -481,7 +481,7 @@ export default function AdminReservas() {
     } catch (err) { toast({ title: 'Erro ao rejeitar', variant: 'destructive' }); }
   };
 
-  // ── Abre modal de chat e marca lidas ────────────────────────────────────────
+  
   const openChatModal = (reservation: Reservation) => {
     setChatReservation(reservation);
     setSoundPlayCount((prev) => ({ ...prev, [reservation.id]: 0 }));
@@ -491,7 +491,7 @@ export default function AdminReservas() {
     );
   };
 
-  // ── Filtragem ───────────────────────────────────────────────────────────────
+  
   const filtered = reservations.filter((r) => {
     const matchesStatus = statusFilter === "all" || r.status === statusFilter;
     const term = search.toLowerCase();
@@ -504,7 +504,7 @@ export default function AdminReservas() {
     return matchesStatus && matchesSearch;
   });
 
-  // ── Contadores por status ───────────────────────────────────────────────────
+  
   const counts = {
     all:       reservations.length,
     pending:   reservations.filter((r) => r.status === "pending").length,
@@ -512,13 +512,13 @@ export default function AdminReservas() {
     cancelled: reservations.filter((r) => r.status === "cancelled").length,
   };
 
-  // ── Mensagens não lidas ─────────────────────────────────────────────────────
+  
   const totalUnreadMessages = reservations.reduce((sum, r) => sum + (r.unread_count ?? 0), 0);
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Cabeçalho */}
+      {}
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3">
@@ -551,7 +551,7 @@ export default function AdminReservas() {
         </Button>
       </div>
 
-      {/* Filtros */}
+      {}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -584,7 +584,7 @@ export default function AdminReservas() {
         </Select>
       </div>
 
-      {/* Solicitações de Reembolso */}
+      {}
       {pendingRefunds.length > 0 && (
         <Card className="border-orange-200 bg-orange-50 mb-6">
           <CardHeader className="pb-3">
@@ -638,7 +638,7 @@ export default function AdminReservas() {
         </Card>
       )}
 
-      {/* Tabela / Cards */}
+      {}
       {loading ? (
         <div className="flex justify-center py-16">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -650,7 +650,7 @@ export default function AdminReservas() {
         </div>
       ) : (
         <>
-          {/* Desktop: tabela */}
+          {}
           <div className="hidden md:block rounded-lg border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
@@ -775,7 +775,7 @@ export default function AdminReservas() {
             </table>
           </div>
 
-          {/* Mobile: cards */}
+          {}
           <div className="md:hidden space-y-3">
             {filtered.map((r) => (
               <div key={r.id} className="rounded-lg border p-4 space-y-3">
@@ -854,7 +854,7 @@ export default function AdminReservas() {
         </>
       )}
 
-      {/* Modais */}
+      {}
       {selectedReservation && (
         <DetailModal
           reservation={selectedReservation}

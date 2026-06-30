@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 interface ImageFile {
   file?: File;
   preview: string;
-  id?: number; // Para imagens já existentes
+  id?: number; 
 }
 
 interface ImageUploadProps {
@@ -16,7 +16,7 @@ interface ImageUploadProps {
   existingImages?: { id: number; url: string }[];
   onDeleteExisting?: (id: number) => void;
   maxFiles?: number;
-  maxFileSize?: number; // em MB
+  maxFileSize?: number; 
   acceptedTypes?: string[];
 }
 
@@ -34,7 +34,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Notifica o pai apenas sobre os arquivos novos
+    
     onFilesChange(newImages.map(img => img.file!).filter(Boolean));
   }, [newImages, onFilesChange]);
 
@@ -104,7 +104,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Upload Area */}
+      {}
       <div
         className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
           dragOver
@@ -133,7 +133,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
         />
       </div>
 
-      {/* Error Message */}
+      {}
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -141,7 +141,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
         </Alert>
       )}
 
-      {/* Images Grid */}
+      {}
       {(existingImages.length > 0 || newImages.length > 0) && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -149,7 +149,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {/* Existing Images */}
+            {}
             {existingImages.map((img) => (
               <Card key={`existing-${img.id}`} className="relative group">
                 <CardContent className="p-2">
@@ -177,7 +177,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
               </Card>
             ))}
 
-            {/* New Images */}
+            {}
             {newImages.map((image, index) => (
               <Card key={`new-${index}`} className="relative group border-primary/50">
                 <CardContent className="p-2">

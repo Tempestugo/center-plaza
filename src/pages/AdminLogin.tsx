@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 
 
 
-// Se tiver rota de login no backend, define aqui. Se não, usa null e vai pelo fallback.
+
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? null;
 
 const AdminLogin = () => {
@@ -32,7 +32,7 @@ const AdminLogin = () => {
     try {
       let token: string | null = null;
 
-      // Tenta autenticar via API se a URL estiver configurada
+      
       console.log('API_BASE_URL:', API_BASE_URL);
       if (API_BASE_URL) {
         try {
@@ -49,21 +49,21 @@ const AdminLogin = () => {
           }
         } catch (err: any) {
           console.error('ERRO NO LOGIN:', err.message, err);
-          // API indisponível — cai no fallback abaixo
+          
         }
       }
 
-      // Fallback: credenciais hardcoded para ambiente sem backend de auth
+      
       if (!token) {
-        if (false) { // fallback desabilitado
-          await new Promise(r => setTimeout(r, 600)); // simula delay
-          token = null; // Login requer API funcionando
+        if (false) { 
+          await new Promise(r => setTimeout(r, 600)); 
+          token = null; 
         }
       }
 
       if (token) {
         localStorage.setItem("admin_token", token);
-        // Salvar user admin no contexto
+        
         localStorage.setItem("user", JSON.stringify({ id: "admin", name: "Administrador", email: "admin@centerplaza.com", role: "admin" }));
         localStorage.setItem("admin_token", token);
         toast({ title: "Login realizado com sucesso!" });
@@ -88,7 +88,7 @@ const AdminLogin = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary via-primary/80 to-primary/60 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
+        {}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-primary-foreground mb-1">Center Plaza</h1>
           <p className="text-primary-foreground/75">Painel Administrativo</p>
@@ -105,7 +105,7 @@ const AdminLogin = () => {
 
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
-              {/* E-mail */}
+              {}
               <div className="space-y-1.5">
                 <label htmlFor="email" className="text-sm font-medium">E-mail</label>
                 <div className="relative">
@@ -122,7 +122,7 @@ const AdminLogin = () => {
                 </div>
               </div>
 
-              {/* Senha */}
+              {}
               <div className="space-y-1.5">
                 <label htmlFor="password" className="text-sm font-medium">Senha</label>
                 <div className="relative">

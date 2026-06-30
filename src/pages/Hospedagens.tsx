@@ -40,7 +40,7 @@ const Hospedagens = () => {
       <Header />
       
       <main className="pt-20">
-        {/* Hero Section */}
+        {}
         <section className="bg-gradient-to-r from-primary to-primary-light py-20">
           <div className="container mx-auto px-4 text-center text-primary-foreground">
             <h1 className="text-5xl md:text-6xl font-bold mb-6">
@@ -52,7 +52,7 @@ const Hospedagens = () => {
           </div>
         </section>
 
-        {/* Filters */}
+        {}
         <section className="py-8 bg-secondary/30 sticky top-20 z-40 backdrop-blur-sm">
           <div className="container mx-auto px-4">
             <div className="flex flex-col md:flex-row gap-4 items-center">
@@ -90,7 +90,7 @@ const Hospedagens = () => {
           </div>
         </section>
 
-        {/* Results */}
+        {}
         <section className="py-16">
           <div className="container mx-auto px-4">
             {loading ? (

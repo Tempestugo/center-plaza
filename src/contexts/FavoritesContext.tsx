@@ -31,7 +31,7 @@ export const useFavorites = () => {
 export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
 
-  // Carregar favoritos do localStorage na inicialização
+  
   useEffect(() => {
     const savedFavorites = localStorage.getItem('centerplaza_favorites');
     if (savedFavorites) {
@@ -44,7 +44,7 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, []);
 
-  // Salvar favoritos no localStorage sempre que a lista mudar
+  
   useEffect(() => {
     localStorage.setItem('centerplaza_favorites', JSON.stringify(favorites));
   }, [favorites]);
@@ -59,7 +59,7 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     setFavorites(prev => {
-      // Verificar se já existe
+      
       const exists = prev.some(fav => fav.id === accommodation.id && fav.userId === currentUser.id);
       if (exists) return prev;
       

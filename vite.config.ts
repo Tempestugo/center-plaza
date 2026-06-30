@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
-// https://vitejs.dev/config/
+
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
@@ -23,8 +23,8 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    outDir: "dist", // Mantém o build na pasta dist
-    // Aumenta o limite do aviso para 1000kb (o padrão é 500kb)
+    outDir: "dist", 
+    
     chunkSizeWarningLimit: 1000,
     emptyOutDir: true,
   },

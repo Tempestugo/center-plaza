@@ -177,7 +177,7 @@ export default function AdminHospedagens() {
       await roomService.deleteImage(imageId);
       setExistingImages(prev => prev.filter(i => i.id !== imageId));
       toast.success("Imagem removida");
-      // Recarregar quartos para atualizar a lista principal também
+      
       loadRooms();
     } catch (err) {
       toast.error("Erro ao excluir imagem");
@@ -231,7 +231,7 @@ Se houver reservas ativas, o quarto será desativado em vez de excluído.`)) ret
           <p className="text-muted-foreground text-sm mt-0.5">Gerencie a disponibilidade dos quartos</p>
         </div>
 
-        {/* Cards de resumo */}
+        {}
         <div className="grid gap-4 grid-cols-3">
           {[
             { label: "Total de Quartos", value: rooms.length,    icon: Bed,          color: "text-muted-foreground" },
@@ -250,7 +250,7 @@ Se houver reservas ativas, o quarto será desativado em vez de excluído.`)) ret
           ))}
         </div>
 
-        {/* Filtros */}
+        {}
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
           <div className="flex gap-2 flex-wrap">
             <div className="relative">
@@ -274,7 +274,7 @@ Se houver reservas ativas, o quarto será desativado em vez de excluído.`)) ret
           </div>
         </div>
 
-        {/* Lista de quartos */}
+        {}
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
         ) : filtered.length === 0 ? (
@@ -358,7 +358,7 @@ Se houver reservas ativas, o quarto será desativado em vez de excluído.`)) ret
         )}
       </div>
 
-      {/* Modal de Quarto */}
+      {}
       <Dialog open={roomModal !== null} onOpenChange={() => setRoomModal(null)}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>

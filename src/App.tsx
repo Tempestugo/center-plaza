@@ -44,7 +44,7 @@ const App = () => (
             <BrowserRouter>
               <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div></div>}>
               <Routes>
-                {/* Rotas públicas */}
+                {}
                 <Route path="/" element={<Index />} />
                 <Route path="/hospedagens" element={<Hospedagens />} />
                 <Route path="/hospedagem/:id" element={<HospedagemDetalhes />} />
@@ -61,7 +61,7 @@ const App = () => (
                 <Route path="/termos" element={<TermosUso />} />
                 <Route path="/cancelamento" element={<PoliticaCancelamento />} />
 
-                {/* Rotas admin — protegidas por AdminRoute */}
+                {}
                 <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
                 <Route path="/admin/hospedagens" element={<AdminRoute><AdminHospedagens /></AdminRoute>} />
                 <Route path="/admin/reservas" element={<AdminRoute><AdminReservas /></AdminRoute>} />

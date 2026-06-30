@@ -2,13 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+
 
 @layer base {
   :root {
-    /* Base colors - Neutral palette with sophisticated touches */
+    
     --background: 0 0% 100%;
     --foreground: 220 13% 18%;
 
@@ -18,23 +16,23 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 220 13% 18%;
 
-    /* Primary - Deep burgundy */
+    
     --primary: 330 85% 22%;
     --primary-foreground: 0 0% 98%;
     --primary-light: 330 80% 32%;
     --primary-dark: 330 90% 15%;
 
-    /* Secondary - Elegant gold */
+    
     --secondary: 40 35% 95%;
     --secondary-foreground: 330 85% 22%;
     --secondary-warm: 40 40% 88%;
 
-    /* Accent - Rich gold */
+    
     --accent: 40 40% 88%;
     --accent-foreground: 330 85% 22%;
     --accent-warm: 40 45% 75%;
 
-    /* Muted tones */
+    
     --muted: 220 13% 96%;
     --muted-foreground: 220 9% 46%;
 
@@ -47,7 +45,7 @@ All colors MUST be HSL.
 
     --radius: 0.75rem;
 
-    /* Luxury hotel color palette */
+    
     --gold: 40 35% 57%;
     --gold-light: 40 40% 67%;
     --gold-dark: 40 30% 47%;
@@ -57,7 +55,7 @@ All colors MUST be HSL.
     --cream: 40 35% 95%;
     --warm-white: 40 20% 98%;
 
-    /* Custom design tokens */
+    
     --gradient-hero: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-light)));
     --gradient-warm: linear-gradient(135deg, hsl(var(--accent-warm)), hsl(var(--accent)));
     --gradient-overlay: linear-gradient(180deg, transparent 0%, hsl(var(--primary)) 100%);
@@ -85,7 +83,7 @@ All colors MUST be HSL.
 
     --sidebar-ring: 217.2 91.2% 59.8%;
     
-    /* Dark mode luxury colors */
+    
     --gold: 40 40% 67%;
     --gold-light: 40 45% 77%;
     --gold-dark: 40 35% 57%;
@@ -146,19 +144,19 @@ All colors MUST be HSL.
 }
 
 @layer components {
-  /* Hero button variant */
+  
   .btn-hero {
     @apply bg-gradient-to-r from-primary to-primary-light text-primary-foreground hover:shadow-hover;
     @apply transform transition-all duration-300 hover:-translate-y-1 hover:scale-105;
   }
   
-  /* Elegant card styling */
+  
   .card-elegant {
     @apply bg-card border border-border rounded-lg shadow-card;
     @apply transition-all duration-300 hover:shadow-hover hover:-translate-y-2;
   }
   
-  /* Image overlay effects */
+  
   .image-overlay {
     @apply relative overflow-hidden rounded-lg;
   }
@@ -173,7 +171,7 @@ All colors MUST be HSL.
     @apply opacity-100;
   }
   
-  /* Smooth animations */
+  
   .animate-fade-in-up {
     animation: fade-in-up 0.6s ease-out forwards;
   }
@@ -184,7 +182,7 @@ All colors MUST be HSL.
 }
 
 @layer utilities {
-  /* Luxury color utilities */
+  
   .text-gold { color: hsl(var(--gold)); }
   .text-gold-light { color: hsl(var(--gold-light)); }
   .text-gold-dark { color: hsl(var(--gold-dark)); }
@@ -196,7 +194,7 @@ All colors MUST be HSL.
   .border-gold { border-color: hsl(var(--gold)); }
   .border-burgundy { border-color: hsl(var(--burgundy)); }
   
-  /* Custom animations */
+  
   @keyframes fade-in-up {
     from {
       opacity: 0;

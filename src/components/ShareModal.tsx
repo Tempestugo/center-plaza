@@ -74,8 +74,8 @@ export const ShareModal = ({ open, onOpenChange, accommodationName, accommodatio
   };
 
   const handleInstagramShare = () => {
-    // Instagram não permite compartilhamento direto de links via URL
-    // Vamos copiar o link e orientar o usuário
+    
+    
     handleCopyLink();
     toast.info("Link copiado! Cole no Instagram Stories ou posts.");
   };
@@ -91,7 +91,7 @@ export const ShareModal = ({ open, onOpenChange, accommodationName, accommodatio
         </DialogHeader>
         
         <div className="space-y-6">
-          {/* Link direto */}
+          {}
           <div className="space-y-2">
             <Label>Link direto</Label>
             <div className="flex gap-2">
@@ -112,7 +112,7 @@ export const ShareModal = ({ open, onOpenChange, accommodationName, accommodatio
 
           <Separator />
 
-          {/* Redes sociais */}
+          {}
           <div className="space-y-3">
             <Label>Compartilhar em redes sociais</Label>
             <div className="grid grid-cols-2 gap-3">
@@ -156,7 +156,7 @@ export const ShareModal = ({ open, onOpenChange, accommodationName, accommodatio
 
           <Separator />
 
-          {/* Compartilhar por email */}
+          {}
           <div className="space-y-3">
             <Label>Enviar por email</Label>
             <div className="flex gap-2">

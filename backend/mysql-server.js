@@ -32,10 +32,10 @@ router.use((req, res, next) => {
   next();
 });
 
-// Servir a pasta de uploads estaticamente
+
 router.use('/uploads', express.static(path.join(__dirname, '..', 'public', 'uploads')));
 
-// ── Banco de Dados ────────────────────────────────────────────────────────────
+
 
 let _dbPool = null;
 let dbInitializationError = null;
@@ -43,7 +43,7 @@ let dbInitializationError = null;
 async function getDb() {
   if (_dbPool) return _dbPool;
 
-  // Usaras variáveis separadas para evitar problemas na senha
+  
   if (process.env.DB_USER && process.env.DB_NAME) {
     const cleanUser = process.env.DB_USER.replace(/^["']|["']$/g, '').trim();
     const cleanPass = process.env.DB_PASSWORD ? process.env.DB_PASSWORD.replace(/^["']|["']$/g, '') : '';
@@ -74,7 +74,7 @@ async function getDb() {
     throw new Error('Credenciais do banco não configuradas nas Variáveis de Ambiente.');
   }
 
-  // Testa a conexão
+  
   const connection = await _dbPool.getConnection();
   connection.release();
   return _dbPool;
@@ -83,7 +83,7 @@ async function getDb() {
 async function initDatabase() {
   const db = await getDb();
 
-  // A sintaxe foi ajustada para MySQL
+  
   await db.query(`
     CREATE TABLE IF NOT EXISTS users (
       id INT PRIMARY KEY AUTO_INCREMENT,
@@ -179,7 +179,7 @@ async function initDatabase() {
     );`);
   await db.query(`CREATE TABLE IF NOT EXISTS settings (\`key\` VARCHAR(255) PRIMARY KEY, value TEXT)`);
 
-  // Migrações seguras (MySQL ignora se a coluna já existe)
+  
   try { await db.query("ALTER TABLE reservations ADD COLUMN stripe_payment_intent_id TEXT"); } catch (e) { if(e.code !== 'ER_DUP_FIELDNAME') throw e; }
   try { await db.query("ALTER TABLE room_types ADD COLUMN stripe_price_id TEXT"); } catch (e) { if(e.code !== 'ER_DUP_FIELDNAME') throw e; }
   try { await db.query("ALTER TABLE room_images ADD COLUMN url VARCHAR(255)"); } catch (e) { if(e.code !== 'ER_DUP_FIELDNAME') throw e; }
@@ -188,7 +188,7 @@ async function initDatabase() {
   try { await db.query("ALTER TABLE room_types ADD COLUMN total_units INT DEFAULT 1"); } catch (e) { if(e.code !== 'ER_DUP_FIELDNAME') throw e; }
   try { await db.query("ALTER TABLE settings MODIFY COLUMN value LONGTEXT"); } catch (e) {}
 
-  // Admin padrão
+  
   const [[admin]] = await db.query("SELECT id FROM users WHERE username = 'admin@centerplaza.com'");
   if (!admin) {
     const adminPassword = process.env.ADMIN_PASSWORD || 'CenterPlaza@2026!';
@@ -198,7 +198,7 @@ async function initDatabase() {
     console.log('✅ Admin criado: admin@centerplaza.com / ' + adminPassword);
   }
 
-  // Seed hotel
+  
   const [[hCount]] = await db.query("SELECT COUNT(*) as c FROM hotels");
   if (hCount.c === 0) {
     await db.execute(
@@ -210,7 +210,7 @@ async function initDatabase() {
     console.log('✅ Hotel seed criado');
   }
 
-  // Seed quarto
+  
   const [[rCount]] = await db.query("SELECT COUNT(*) as c FROM room_types");
   if (rCount.c === 0) {
     const [[hotel]] = await db.query("SELECT id FROM hotels LIMIT 1");
@@ -225,7 +225,7 @@ async function initDatabase() {
   }
 }
 
-// Guard de banco
+
 router.use((req, res, next) => {
   if (dbInitializationError && req.path !== '/health' && req.path !== '/debug') {
     return res.status(500).json({ error: 'Banco de dados indisponível', details: dbInitializationError.message });
@@ -233,7 +233,7 @@ router.use((req, res, next) => {
   next();
 });
 
-// ── Autenticação ──────────────────────────────────────────────────────────────
+
 
 const ADMIN_TOKEN = process.env.ADMIN_SECRET_TOKEN;
 if (!ADMIN_TOKEN) { console.error('URGENTE: ADMIN_SECRET_TOKEN nao configurado!'); process.exit(1); }
@@ -346,7 +346,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// ── Health & Debug ────────────────────────────────────────────────────────────
+
 
 router.get('/health', async (req, res) => {
   let dbStatus = 'disconnected';
@@ -381,7 +381,7 @@ router.get('/debug', async (req, res) => {
   res.json(info);
 });
 
-// ── Imagens ───────────────────────────────────────────────────────────────────
+
 
 router.get('/room-images/:id', async (req, res) => {
   try {
@@ -443,7 +443,7 @@ router.get('/settings/:key', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── Helper ────────────────────────────────────────────────────────────────────
+
 
 async function roomsWithImages(db, rows) {
   return Promise.all(rows.map(async (room) => {
@@ -451,7 +451,7 @@ async function roomsWithImages(db, rows) {
       'SELECT id FROM room_images WHERE room_type_id = ? ORDER BY display_order', [room.id]);
     return {
       ...room,
-      amenities: room.amenities, // JSON is handled automatically by mysql2
+      amenities: room.amenities, 
       images: imgs.map(i => ({ id: i.id, url: '/api/room-images/' + i.id }))
     };
   }));
@@ -501,7 +501,7 @@ router.delete('/hotels/:id', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── Quartos ───────────────────────────────────────────────────────────────────
+
 
 router.get('/rooms', async (req, res) => {
   try {
@@ -672,7 +672,7 @@ router.delete('/rooms/:id', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── Reservas ──────────────────────────────────────────────────────────────────
+
 
 const reservationJoin = `
   SELECT r.*,
@@ -942,7 +942,7 @@ router.delete('/reservations/:id', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── Contato ───────────────────────────────────────────────────────────────────
+
 
 router.post('/contact', async (req, res) => {
   try {
@@ -961,7 +961,7 @@ router.get('/contacts', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── Chat ──────────────────────────────────────────────────────────────────────
+
 
 router.get('/admin/chat-threads', async (req, res) => {
   try {
@@ -1022,7 +1022,7 @@ router.patch('/chat/:reservationId/read', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
  
-// ── Stripe ───────────────────────────────────────────────────────────────────
+
 
 let stripe = null;
 try {
@@ -1166,7 +1166,7 @@ router.get('/reservations/:id/payment-status', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── Reembolsos (Refund Requests) ──────────────────────────────────────────────
+
 
 router.get('/refund-requests', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
@@ -1278,14 +1278,14 @@ router.post('/refund-requests/:id/reject', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── Error handler ─────────────────────────────────────────────────────────────
+
 
 router.use((err, req, res, next) => {
   console.error('Erro na API:', err);
   res.status(500).json({ error: 'Erro interno do servidor' });
 });
 
-// ── Iniciar banco ao carregar o módulo ────────────────────────────────────────
+
 
 initDatabase()
   .then(() => console.log('✅ Banco de dados MySQL pronto'))

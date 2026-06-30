@@ -49,7 +49,7 @@ export default function AdminSettings() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       toast.success("Credenciais atualizadas! Faça login novamente.");
-      // Limpar sessão para forçar novo login
+      
       setTimeout(() => {
         localStorage.removeItem("admin_token");
         localStorage.removeItem("user");

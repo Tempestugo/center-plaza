@@ -9,7 +9,7 @@ import {
 import AdminLayout from "@/components/admin/AdminLayout";
 import { reservationService } from "@/services/api";
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+
 
 interface Reservation {
   id: number;
@@ -36,7 +36,7 @@ const fmtCurrency = (v: number) =>
 
 const MONTH_NAMES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
-// ─── Componente ───────────────────────────────────────────────────────────────
+
 
 const AdminRelatorios = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -49,7 +49,7 @@ const AdminRelatorios = () => {
       const data = await reservationService.getAll();
       setReservations(data as any);
     } catch {
-      /* silencioso */
+      
     } finally {
       setLoading(false);
     }
@@ -57,14 +57,14 @@ const AdminRelatorios = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  // ── Filtra pelo período selecionado ─────────────────────────────────────────
+  
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - Number(period));
 
   const filtered = reservations.filter(r => new Date(r.created_at) >= cutoff);
   const active   = filtered.filter(r => r.status !== "cancelled");
 
-  // ── Receita por mês ─────────────────────────────────────────────────────────
+  
   const revenueByMonth: Record<string, number> = {};
   const bookingsByMonth: Record<string, number> = {};
 
@@ -81,7 +81,7 @@ const AdminRelatorios = () => {
 
   const maxRevenue = Math.max(...monthlyData.map(d => d.revenue), 1);
 
-  // ── Top hospedagens ─────────────────────────────────────────────────────────
+  
   const hotelMap: Record<string, { bookings: number; revenue: number }> = {};
   active.forEach(r => {
     const k = r.hotel_name ?? "Desconhecido";
@@ -95,7 +95,7 @@ const AdminRelatorios = () => {
     .sort((a, b) => b.bookings - a.bookings)
     .slice(0, 5);
 
-  // ── Cards de resumo ─────────────────────────────────────────────────────────
+  
   const totalRevenue   = active.reduce((s, r) => s + (r.total_amount ?? 0), 0);
   const totalBookings  = filtered.length;
   const confirmedCount = filtered.filter(r => r.status === "confirmed").length;
@@ -136,7 +136,7 @@ const AdminRelatorios = () => {
           <p className="text-muted-foreground text-sm">{PERIOD_LABELS[period]}</p>
         </div>
 
-        {/* Cards resumo */}
+        {}
         <div className="grid gap-4 md:grid-cols-4">
           {summaryCards.map(s => (
             <Card key={s.title}>
@@ -158,7 +158,7 @@ const AdminRelatorios = () => {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Receita por mês */}
+          {}
           <Card>
             <CardHeader>
               <CardTitle>Receita Mensal</CardTitle>
@@ -194,7 +194,7 @@ const AdminRelatorios = () => {
             </CardContent>
           </Card>
 
-          {/* Top hospedagens */}
+          {}
           <Card>
             <CardHeader>
               <CardTitle>Hospedagens com Melhor Performance</CardTitle>
@@ -232,7 +232,7 @@ const AdminRelatorios = () => {
             </CardContent>
           </Card>
 
-          {/* Reservas por mês (contagem) */}
+          {}
           <Card>
             <CardHeader>
               <CardTitle>Volume de Reservas</CardTitle>
@@ -269,7 +269,7 @@ const AdminRelatorios = () => {
             </CardContent>
           </Card>
 
-          {/* Ações de exportação */}
+          {}
           <Card>
             <CardHeader>
               <CardTitle>Exportar Relatórios</CardTitle>

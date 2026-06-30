@@ -18,13 +18,13 @@ export const AuthModal = ({ open, onOpenChange, defaultTab = "login" }: AuthModa
   const { login, register, loading } = useAuth();
   const [activeTab, setActiveTab] = useState(defaultTab);
   
-  // Login form state
+  
   const [loginData, setLoginData] = useState({
     email: "",
     password: ""
   });
   
-  // Register form state
+  
   const [registerData, setRegisterData] = useState({
     name: "",
     email: "",

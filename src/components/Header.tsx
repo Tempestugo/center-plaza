@@ -25,7 +25,7 @@ const Header = () => {
     <header className="fixed top-0 w-full bg-background/95 backdrop-blur-md border-b border-border z-50 transition-all duration-300">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          {/* Logo */}
+          {}
           <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
             <img 
               src={logoImage} 
@@ -34,7 +34,7 @@ const Header = () => {
             />
           </Link>
 
-          {/* Desktop Navigation */}
+          {}
           <nav className="hidden md:flex items-center space-x-8">
             {navItems.map((item) => (
               <Link
@@ -96,7 +96,7 @@ const Header = () => {
             </Button>
           </nav>
 
-          {/* Mobile Menu Button */}
+          {}
           <Button
             variant="ghost"
             size="icon"
@@ -107,7 +107,7 @@ const Header = () => {
           </Button>
         </div>
 
-        {/* Mobile Navigation */}
+        {}
         {isMenuOpen && (
           <nav className="md:hidden mt-4 pb-4 space-y-2 animate-fade-in">
             {navItems.map((item) => (

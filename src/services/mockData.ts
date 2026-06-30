@@ -1,4 +1,4 @@
-// Dados mockados para uso em produção
+
 import { Hotel, RoomType, Reservation } from './api';
 
 export const mockHotels: Hotel[] = [
@@ -86,11 +86,11 @@ export const mockReservations: Reservation[] = [
   }
 ];
 
-// Simulação de delay de rede para tornar mais realista
+
 export const simulateNetworkDelay = (ms: number = 500) => 
   new Promise(resolve => setTimeout(resolve, ms));
 
-// Gerador de IDs únicos para novos registros
+
 let nextId = Math.max(
   Math.max(...mockHotels.map(h => h.id), 0),
   Math.max(...mockRoomTypes.map(r => r.id), 0),

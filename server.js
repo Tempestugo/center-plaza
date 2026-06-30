@@ -40,15 +40,15 @@ console.log('CWD:', process.cwd());
 console.log('distPath:', distPath);
 console.log('dist exists:', fs.existsSync(distPath));
 
-// CRÍTICO: raw para webhook do Stripe ANTES do express.json()
-// Deve bater com a rota definida no sqlite-server.js: /webhooks/stripe
-// Montado em /api → caminho final: /api/webhooks/stripe
+
+
+
 app.use('/api/stripe-webhook', express.raw({ type: 'application/json' }));
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// API principal
+
 try {
   const apiRouter = require('./backend/mysql-server.js');
   app.use('/api', apiRouter);
@@ -57,7 +57,7 @@ try {
   console.error('❌ API router falhou:', err.message);
 }
 
-// Frontend estático
+
 app.use((req, res, next) => {
   const filePath = path.join(distPath, req.path);
   try {
@@ -73,7 +73,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// SPA fallback
+
 app.get('*', (req, res) => {
   const ext = path.extname(req.path);
   if (ext !== '') return res.status(404).send('Not found: ' + req.path);

@@ -11,7 +11,7 @@ export default function ReservaCancelado() {
 
   
   useEffect(() => {
-    // Cancelar reserva pending ao voltar do Stripe
+    
     const reservationId = new URLSearchParams(window.location.search).get('reservation_id');
     if (reservationId) {
       fetch('/api/reservations/' + reservationId + '/cancel-pending', {

@@ -35,7 +35,7 @@ export default function ChatWidget() {
 
   const email = (user as any)?.email;
 
-  // Carregar reservas do usuário
+  
   useEffect(() => {
     if (!email) return;
     fetch(`/api/reservations?guest_email=${encodeURIComponent(email)}`)
@@ -48,7 +48,7 @@ export default function ChatWidget() {
       .catch(() => {});
   }, [email]);
 
-  // Carregar mensagens quando abrir ou trocar reserva
+  
   useEffect(() => {
     if (!selectedRes) return;
     loadMessages();
@@ -58,7 +58,7 @@ export default function ChatWidget() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [selectedRes, open]);
 
-  // Scroll para o fim
+  
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -105,18 +105,18 @@ export default function ChatWidget() {
     catch { return ""; }
   };
 
-  // Só mostrar se logado e não for admin — DEPOIS dos hooks
+  
   if (!user || (user as any).role === "admin") return null;
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
 
-      {/* Janela de chat */}
+      {}
       {open && (
         <div className="w-80 bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden"
           style={{ height: "420px" }}>
 
-          {/* Header */}
+          {}
           <div className="bg-primary text-primary-foreground p-4 flex items-center justify-between">
             <div>
               <p className="font-semibold text-sm">Suporte Center Plaza</p>
@@ -128,7 +128,7 @@ export default function ChatWidget() {
             </Button>
           </div>
 
-          {/* Seletor de reserva */}
+          {}
           {reservations.length > 1 && (
             <div className="px-3 pt-2">
               <select
@@ -145,7 +145,7 @@ export default function ChatWidget() {
             </div>
           )}
 
-          {/* Mensagens */}
+          {}
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {reservations.length === 0 ? (
               <div className="text-center text-muted-foreground text-xs pt-8">
@@ -178,7 +178,7 @@ export default function ChatWidget() {
             <div ref={bottomRef} />
           </div>
 
-          {/* Input */}
+          {}
           {reservations.length > 0 && (
             <div className="p-3 border-t flex gap-2">
               <Input
@@ -197,7 +197,7 @@ export default function ChatWidget() {
         </div>
       )}
 
-      {/* Botão flutuante */}
+      {}
       <button
         onClick={open ? () => setOpen(false) : handleOpen}
         className="w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg flex items-center justify-center hover:scale-105 transition-transform relative"

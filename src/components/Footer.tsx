@@ -5,9 +5,9 @@ const Footer = () => {
   return (
     <footer className="bg-primary text-primary-foreground">
       <div className="container mx-auto px-4">
-        {/* Main Footer Content */}
+        {}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 py-16">
-          {/* Brand Section */}
+          {}
           <div className="space-y-4">
             <h3 className="text-2xl font-bold">Center Plaza</h3>
             <p className="text-primary-foreground/80 leading-relaxed">
@@ -17,7 +17,7 @@ const Footer = () => {
 
           </div>
 
-          {/* Quick Links */}
+          {}
           <div className="space-y-4">
             <h4 className="text-lg font-semibold">Links Rápidos</h4>
             <ul className="space-y-2">
@@ -49,7 +49,7 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Services */}
+          {}
           <div className="space-y-4">
             <h4 className="text-lg font-semibold">Serviços</h4>
             <ul className="space-y-2 text-primary-foreground/80">
@@ -61,7 +61,7 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Contact Info */}
+          {}
           <div className="space-y-4">
             <h4 className="text-lg font-semibold">Contato</h4>
             <div className="space-y-3">
@@ -88,7 +88,7 @@ const Footer = () => {
           </div>
         </div>
 
-        {/* Bottom Bar */}
+        {}
         <div className="border-t border-primary-foreground/20 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-primary-foreground/60 text-sm">

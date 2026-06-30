@@ -29,7 +29,7 @@ const UserProfile = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
-  // Formulário de dados pessoais
+  
   const [formData, setFormData] = useState({
     name: user?.name || "",
     email: user?.email || "",
@@ -46,7 +46,7 @@ const UserProfile = () => {
     }
   });
   
-  // Formulário de alteração de senha
+  
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -79,7 +79,7 @@ const UserProfile = () => {
   };
 
   const handleSaveProfile = () => {
-    // Validações básicas
+    
     if (!formData.name || !formData.email) {
       toast.error("Nome e e-mail são obrigatórios!");
       return;
@@ -95,7 +95,7 @@ const UserProfile = () => {
       return;
     }
 
-    // Atualizar dados do usuário
+    
     const updatedUser = {
       ...user,
       ...formData
@@ -107,7 +107,7 @@ const UserProfile = () => {
   };
 
   const handleChangePassword = () => {
-    // Validações
+    
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
       toast.error("Todos os campos de senha são obrigatórios!");
       return;
@@ -123,10 +123,10 @@ const UserProfile = () => {
       return;
     }
 
-    // Verificação básica da senha atual (em produção, seria validado no backend)
-    // Por enquanto, aceitar qualquer senha atual válida
     
-    // Alterar senha
+    
+    
+    
     setPasswordData({
       currentPassword: "",
       newPassword: "",
@@ -162,7 +162,7 @@ const UserProfile = () => {
       
       <main className="pt-20 pb-16">
         <div className="container mx-auto px-4">
-          {/* Header */}
+          {}
           <div className="flex items-center gap-4 mb-8">
             <Button variant="ghost" onClick={() => navigate("/minha-conta")}>
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -172,7 +172,7 @@ const UserProfile = () => {
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8">
-            {/* Informações Pessoais */}
+            {}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -231,7 +231,7 @@ const UserProfile = () => {
 
                 <Separator />
 
-                {/* Endereço */}
+                {}
                 <div>
                   <h3 className="font-semibold mb-3 flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
@@ -315,7 +315,7 @@ const UserProfile = () => {
                   </div>
                 </div>
 
-                {/* Botões de ação */}
+                {}
                 <div className="flex gap-2 pt-4">
                   {!isEditing ? (
                     <Button onClick={() => setIsEditing(true)}>
@@ -356,7 +356,7 @@ const UserProfile = () => {
               </CardContent>
             </Card>
 
-            {/* Alteração de Senha */}
+            {}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">

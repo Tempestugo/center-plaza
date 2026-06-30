@@ -66,11 +66,11 @@ const UserDashboard = () => {
 
   const userReservations = reservasAPI;
   
-  // Separar reservas ativas das concluídas
+  
   const reservas = userReservations.filter(r => r.status === 'confirmed' || r.status === 'pending' || r.status === 'confirmada');
   const historico = userReservations.filter(r => r.status === 'cancelled' || r.status === 'cancelada');
   
-  // Gerar dados de pagamento baseados nas reservas
+  
   const pagamentos = userReservations.map(reserva => ({
     id: `PAG${String(reserva.id).slice(-3)}`,
     reservaId: reserva.id,
@@ -81,7 +81,7 @@ const UserDashboard = () => {
     status: reserva.paymentStatus === 'pago' ? 'aprovado' : reserva.paymentStatus
   }));
 
-  // Favoritos reais do usuário
+  
   const favoritos = user ? getUserFavorites(user.id) : [];
 
   const getStatusColor = (status: string) => {
@@ -138,7 +138,7 @@ const UserDashboard = () => {
     amenities?: string[];
     specialRequests?: string;
   }) => {
-    // Criar conteúdo do voucher
+    
     const voucherContent = `
 === VOUCHER DE RESERVA - CENTER PLAZA ===
 
@@ -176,7 +176,7 @@ ${reserva.specialRequests || 'Nenhuma solicitação especial'}
 === CENTER PLAZA - HOSPEDAGEM DE QUALIDADE ===
     `;
 
-    // Criar e baixar arquivo
+    
     const blob = new Blob([voucherContent], { type: 'text/plain;charset=utf-8' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -201,7 +201,7 @@ ${reserva.specialRequests || 'Nenhuma solicitação especial'}
       
       <main className="pt-20 pb-16">
         <div className="container mx-auto px-4">
-          {/* Header do Dashboard */}
+          {}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
@@ -231,7 +231,7 @@ ${reserva.specialRequests || 'Nenhuma solicitação especial'}
             </div>
           </div>
 
-          {/* Tabs do Dashboard */}
+          {}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="reservas">Minhas Reservas</TabsTrigger>
@@ -240,7 +240,7 @@ ${reserva.specialRequests || 'Nenhuma solicitação especial'}
               <TabsTrigger value="favoritos">Favoritos</TabsTrigger>
             </TabsList>
 
-            {/* Reservas Ativas */}
+            {}
             <TabsContent value="reservas" className="space-y-4 mt-6">
               {loadingReservas ? (
                 <div className="flex justify-center py-12">
@@ -332,7 +332,7 @@ ${reserva.specialRequests || 'Nenhuma solicitação especial'}
               </div>)}
             </TabsContent>
 
-            {/* Histórico */}
+            {}
             <TabsContent value="historico" className="space-y-4 mt-6">
               <div className="grid gap-4">
                 {historico.map((reserva) => (
@@ -398,7 +398,7 @@ ${reserva.specialRequests || 'Nenhuma solicitação especial'}
               </div>
             </TabsContent>
 
-            {/* Pagamentos */}
+            {}
             <TabsContent value="pagamentos" className="space-y-4 mt-6">
               <div className="grid gap-4">
                 {pagamentos.map((pagamento) => (
@@ -432,7 +432,7 @@ ${reserva.specialRequests || 'Nenhuma solicitação especial'}
               </div>
             </TabsContent>
 
-            {/* Favoritos */}
+            {}
             <TabsContent value="favoritos" className="space-y-4 mt-6">
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {favoritos.length === 0 ? (

@@ -43,7 +43,7 @@ interface ReservationContextType {
 
 const ReservationContext = createContext<ReservationContextType | undefined>(undefined);
 
-// Função para converter reserva da API para o formato do frontend
+
 const convertApiReservationToFrontend = (apiReservation: ApiReservation): Reservation => {
   return {
     id: apiReservation.id.toString(),
@@ -72,11 +72,11 @@ const convertApiReservationToFrontend = (apiReservation: ApiReservation): Reserv
   };
 };
 
-// Função para converter reserva do frontend para o formato da API
+
 const convertFrontendReservationToApi = (frontendReservation: Omit<Reservation, 'id' | 'createdAt'>): Omit<ApiReservation, 'id' | 'created_at' | 'updated_at'> => {
   return {
     hotel_id: frontendReservation.accommodationId,
-    room_type_id: 1, // Assumindo room_type_id padrão por enquanto
+    room_type_id: 1, 
     guest_name: frontendReservation.guestName,
     guest_email: frontendReservation.email,
     guest_phone: frontendReservation.phone,
@@ -94,7 +94,7 @@ export const ReservationProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Carregar reservas da API na inicialização
+  
   useEffect(() => {
     refreshReservations();
   }, []);
@@ -109,7 +109,7 @@ export const ReservationProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error('Erro ao carregar reservas:', err);
       setError('Erro ao carregar reservas');
-      // Fallback para localStorage em caso de erro
+      
       const savedReservations = localStorage.getItem('center_plaza_reservations');
       if (savedReservations) {
         try {
@@ -135,7 +135,7 @@ export const ReservationProvider = ({ children }: { children: ReactNode }) => {
       
       setReservations(prev => [...prev, newReservation]);
       
-      // Backup no localStorage
+      
       const updatedReservations = [...reservations, newReservation];
       localStorage.setItem('center_plaza_reservations', JSON.stringify(updatedReservations));
       
@@ -144,7 +144,7 @@ export const ReservationProvider = ({ children }: { children: ReactNode }) => {
       console.error('Erro ao criar reserva:', err);
       setError('Erro ao criar reserva');
       
-      // Fallback para localStorage
+      
       const newId = `RS${Date.now().toString().slice(-6)}`;
       const newReservation: Reservation = {
         ...reservationData,
@@ -171,14 +171,14 @@ export const ReservationProvider = ({ children }: { children: ReactNode }) => {
       return convertApiReservationToFrontend(apiReservation);
     } catch (err) {
       console.error('Erro ao buscar reserva por ID:', err);
-      // Fallback para busca local
+      
       return reservations.find(reservation => reservation.id === id);
     }
   };
 
   const getReservationByCodeAndName = async (code: string, lastName: string): Promise<Reservation | undefined> => {
     try {
-      // Buscar todas as reservas e filtrar localmente
+      
       await refreshReservations();
       return reservations.find(reservation => {
         const reservationLastName = reservation.guestName.split(' ').pop()?.toLowerCase();
@@ -223,7 +223,7 @@ export const ReservationProvider = ({ children }: { children: ReactNode }) => {
         )
       );
       
-      // Backup no localStorage
+      
       const updatedReservations = reservations.map(reservation => 
         reservation.id === id ? { ...reservation, status } : reservation
       );
@@ -233,7 +233,7 @@ export const ReservationProvider = ({ children }: { children: ReactNode }) => {
       console.error('Erro ao atualizar status da reserva:', err);
       setError('Erro ao atualizar status da reserva');
       
-      // Fallback para atualização local
+      
       setReservations(prev => 
         prev.map(reservation => 
           reservation.id === id ? { ...reservation, status } : reservation
@@ -249,14 +249,14 @@ export const ReservationProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       setError(null);
       
-      // Como não temos endpoint específico para payment status, atualizamos localmente
+      
       setReservations(prev => 
         prev.map(reservation => 
           reservation.id === id ? { ...reservation, paymentStatus } : reservation
         )
       );
       
-      // Backup no localStorage
+      
       const updatedReservations = reservations.map(reservation => 
         reservation.id === id ? { ...reservation, paymentStatus } : reservation
       );

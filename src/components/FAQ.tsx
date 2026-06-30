@@ -151,7 +151,7 @@ export default function FAQ() {
     <div className="min-h-screen">
       <Header />
       <main className="pt-20">
-        {/* Hero */}
+        {}
         <section className="bg-primary text-primary-foreground py-12">
           <div className="container mx-auto px-4 text-center">
             <h1 className="text-3xl font-bold mb-3">Perguntas Frequentes</h1>
@@ -161,7 +161,7 @@ export default function FAQ() {
           </div>
         </section>
 
-        {/* Política de cancelamento em destaque */}
+        {}
         <section className="border-b bg-green-50">
           <div className="container mx-auto px-4 py-6">
             <div className="flex items-start gap-4 max-w-2xl mx-auto">
@@ -177,13 +177,13 @@ export default function FAQ() {
           </div>
         </section>
 
-        {/* FAQ Sections */}
+        {}
         <section className="container mx-auto px-4 py-10 max-w-3xl">
           {FAQ_SECTIONS.map(section => (
             <FAQSection key={section.title} {...section} />
           ))}
 
-          {/* Contato */}
+          {}
           <div className="mt-8 p-6 bg-muted/30 rounded-xl text-center border">
             <h2 className="font-bold text-lg mb-2">Não encontrou o que procurava?</h2>
             <p className="text-muted-foreground text-sm mb-4">

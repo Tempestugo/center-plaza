@@ -12,7 +12,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import api from "@/services/api";
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+
 
 interface ReservationResult {
   id: number;
@@ -29,7 +29,7 @@ interface ReservationResult {
   room_type_name: string;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 
 const fmt = (d: string) => new Date(d).toLocaleDateString("pt-BR");
 
@@ -63,7 +63,7 @@ const STATUS_CONFIG = {
   },
 };
 
-// ─── Componente ───────────────────────────────────────────────────────────────
+
 
 const ConsultarReserva = () => {
   const [reservationCode, setReservationCode] = useState("");
@@ -88,7 +88,7 @@ const ConsultarReserva = () => {
     setReservation(null);
 
     try {
-      // A rota do backend aceita ?code=X&guest_name=Y
+      
       const { data } = await api.get<ReservationResult[]>("/reservations", {
         params: { code: reservationCode.trim(), guest_name: lastName.trim() },
       });
@@ -132,7 +132,7 @@ const ConsultarReserva = () => {
       <Header />
 
       <main className="flex-1 pt-20">
-        {/* Hero */}
+        {}
         <section className="bg-gradient-to-r from-primary to-primary-light py-16">
           <div className="container mx-auto px-4 text-center text-primary-foreground">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Consultar Reserva</h1>
@@ -142,7 +142,7 @@ const ConsultarReserva = () => {
           </div>
         </section>
 
-        {/* Formulário */}
+        {}
         <section className="py-12">
           <div className="container mx-auto px-4 max-w-lg">
             <Card>
@@ -189,7 +189,7 @@ const ConsultarReserva = () => {
           </div>
         </section>
 
-        {/* Resultado */}
+        {}
         {reservation && (
           <section className="pb-16">
             <div className="container mx-auto px-4 max-w-2xl">
@@ -206,7 +206,7 @@ const ConsultarReserva = () => {
                 </CardHeader>
 
                 <CardContent className="space-y-6">
-                  {/* Hóspede */}
+                  {}
                   <div>
                     <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                       Informações do Hóspede
@@ -229,7 +229,7 @@ const ConsultarReserva = () => {
                     </div>
                   </div>
 
-                  {/* Detalhes da estadia */}
+                  {}
                   <div>
                     <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                       Detalhes da Estadia
@@ -263,7 +263,7 @@ const ConsultarReserva = () => {
                     </div>
                   </div>
 
-                  {/* Pedidos especiais */}
+                  {}
                   {reservation.special_requests && (
                     <div className="rounded-lg bg-muted p-3">
                       <p className="text-xs font-semibold text-muted-foreground mb-1">Pedidos especiais</p>
@@ -271,7 +271,7 @@ const ConsultarReserva = () => {
                     </div>
                   )}
 
-                  {/* Contato */}
+                  {}
                   <div className="border-t pt-4 text-center">
                     <p className="text-sm text-muted-foreground mb-3">Precisa de ajuda com sua reserva?</p>
                     <div className="flex flex-col sm:flex-row gap-2 justify-center">

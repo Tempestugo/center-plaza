@@ -48,23 +48,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar se há um usuário logado no localStorage
+    
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
       try { setUser(JSON.parse(savedUser)); } catch {}
     }
-    // Restaurar sessao admin — confiar no user salvo com role admin
-    // A validacao real acontece no backend via token
+    
+    
     setLoading(false);
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setLoading(true);
     try {
-      // Simular chamada de API
+      
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Mock de validação - em produção, fazer chamada real para API
+      
       if (email && password.length >= 6) {
         const mockUser: User = {
           id: '1',
@@ -90,10 +90,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (name: string, email: string, password: string): Promise<boolean> => {
     setLoading(true);
     try {
-      // Simular chamada de API
+      
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Mock de registro - em produção, fazer chamada real para API
+      
       if (name && email && password.length >= 6) {
         const mockUser: User = {
           id: Date.now().toString(),
@@ -127,7 +127,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const updatedUser = { ...user, ...userData };
       setUser(updatedUser);
       localStorage.setItem('user', JSON.stringify(updatedUser));
-      // Também atualizar no localStorage com a chave que o contexto de favoritos usa
+      
       localStorage.setItem('centerplaza_user', JSON.stringify(updatedUser));
     }
   };

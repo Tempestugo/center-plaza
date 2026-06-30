@@ -1,16 +1,16 @@
-// Serviço de API para comunicação com o backend SQLite
 
-// Configuração dinâmica da URL da API baseada no ambiente
+
+
 const getApiBaseUrl = () => {
-  // Priorizar variável de ambiente se definida
+  
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  // Em produção (Hostinger), usar caminho relativo para que o navegador use o domínio atual
+  
   if (import.meta.env.PROD) {
     return '/api';
   }
-  // Em desenvolvimento, usar API local
+  
   return 'http://localhost:3001/api';
 };
 
@@ -21,13 +21,13 @@ const getAuthHeaders = () => ({
   'Authorization': `Bearer ${localStorage.getItem('admin_token') || localStorage.getItem('token') || ''}`,
 });
 
-// Tipos para as entidades
+
 export interface Hotel {
   id: number;
   name: string;
   description?: string;
   address?: string;
-  location?: string; // Campo para compatibilidade com frontend
+  location?: string; 
   phone?: string;
   email?: string;
   created_at?: string;
@@ -86,7 +86,7 @@ export interface Message {
   created_at: string;
 }
 
-// Classe de erro personalizada para API
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -94,15 +94,15 @@ export class ApiError extends Error {
   }
 }
 
-// Importar dados mockados
+
 import { mockHotels, mockRoomTypes, mockReservations, simulateNetworkDelay, generateId } from './mockData';
 
-// Função auxiliar para fazer requisições
+
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  // Se API_BASE_URL for null, usar dados mockados
+  
   if (API_BASE_URL === null) {
     return handleMockRequest<T>(endpoint, options);
   }
@@ -134,14 +134,14 @@ async function apiRequest<T>(
   }
 }
 
-// Função para lidar com requisições mockadas
+
 async function handleMockRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  await simulateNetworkDelay(300); // Simular delay de rede
+  await simulateNetworkDelay(300); 
   
   const method = options.method || 'GET';
   const body = options.body ? JSON.parse(options.body as string) : null;
   
-  // Roteamento para diferentes endpoints
+  
   if (endpoint === '/hotels') {
     if (method === 'GET') {
       return mockHotels as T;
@@ -251,7 +251,7 @@ async function handleMockRequest<T>(endpoint: string, options: RequestInit = {})
   }
   
   if (endpoint.startsWith('/reservations/search')) {
-    // Implementar busca por código e nome se necessário
+    
     return mockReservations as T;
   }
   
@@ -262,19 +262,19 @@ async function handleMockRequest<T>(endpoint: string, options: RequestInit = {})
   throw new ApiError(404, `Endpoint not found: ${endpoint}`);
 }
 
-// Serviços para Hotels
+
 export const hotelService = {
-  // Listar todos os hotéis
+  
   async getAll(): Promise<Hotel[]> {
     return apiRequest<Hotel[]>('/hotels');
   },
 
-  // Buscar hotel por ID
+  
   async getById(id: number): Promise<Hotel> {
     return apiRequest<Hotel>(`/hotels/${id}`);
   },
 
-  // Criar novo hotel
+  
   async create(hotel: Omit<Hotel, 'id' | 'created_at' | 'updated_at'>): Promise<Hotel> {
     return apiRequest<Hotel>('/hotels', {
       method: 'POST',
@@ -282,7 +282,7 @@ export const hotelService = {
     });
   },
 
-  // Atualizar hotel
+  
   async update(id: number, hotel: Partial<Omit<Hotel, 'id' | 'created_at' | 'updated_at'>>): Promise<Hotel> {
     return apiRequest<Hotel>(`/hotels/${id}`, {
       method: 'PUT',
@@ -290,7 +290,7 @@ export const hotelService = {
     });
   },
 
-  // Deletar hotel
+  
   async delete(id: number): Promise<void> {
     return apiRequest<void>(`/hotels/${id}`, {
       method: 'DELETE',
@@ -298,21 +298,21 @@ export const hotelService = {
   },
 };
 
-// Serviços para Room Types
+
 export const roomService = {
-  // Listar todos os tipos de quarto
+  
   async getAll(): Promise<RoomType[]> {
     return apiRequest<RoomType[]>('/rooms');
   },
 
-  // Listar todos os quartos (incluindo inativos) - Para Admin
+  
   async getAllAdmin(): Promise<RoomType[]> {
     return apiRequest<RoomType[]>('/rooms/all', {
       headers: getAuthHeaders(),
     });
   },
 
-  // Atualizar disponibilidade (Ativar/Desativar)
+  
   async updateAvailability(id: number, is_active: number): Promise<RoomType> {
     const response = await fetch(`${API_BASE_URL}/rooms/${id}`, {
       method: 'PUT',
@@ -333,17 +333,17 @@ export const roomService = {
     });
   },
 
-  // Buscar tipo de quarto por ID
+  
   async getById(id: number): Promise<RoomType> {
     return apiRequest<RoomType>(`/rooms/${id}`);
   },
 
-  // Buscar tipos de quarto por hotel
+  
   async getByHotel(hotelId: number): Promise<RoomType[]> {
     return apiRequest<RoomType[]>(`/hotels/${hotelId}/rooms`);
   },
 
-  // Criar novo tipo de quarto
+  
   async create(room: Omit<RoomType, 'id' | 'created_at' | 'updated_at'>): Promise<RoomType> {
     return apiRequest<RoomType>('/rooms', {
       method: 'POST',
@@ -352,7 +352,7 @@ export const roomService = {
     });
   },
 
-  // Atualizar tipo de quarto
+  
   async update(id: number, room: Partial<Omit<RoomType, 'id' | 'created_at' | 'updated_at'>>): Promise<RoomType> {
     return apiRequest<RoomType>(`/rooms/${id}`, {
       method: 'PUT',
@@ -361,7 +361,7 @@ export const roomService = {
     });
   },
 
-  // Upload de imagem (Base64)
+  
   async uploadImage(roomId: number, base64Data: string, imageType: string): Promise<{ id: number; url: string }> {
     return apiRequest<{ id: number; url: string }>(`/room-images/${roomId}`, {
       method: 'POST',
@@ -370,7 +370,7 @@ export const roomService = {
     });
   },
 
-  // Deletar imagem
+  
   async deleteImage(imageId: number): Promise<void> {
     return apiRequest<void>(`/room-images/${imageId}`, {
       method: 'DELETE',
@@ -378,11 +378,11 @@ export const roomService = {
     });
   },
 
-  // Criar quarto com imagens (2 passos)
+  
   async createWithImages(data: any, imageFiles: File[]): Promise<RoomType> {
-    // 1. Criar quarto
+    
     const room = await this.create(data);
-    // 2. Upload imagens
+    
     for (const file of imageFiles) {
       const base64 = await fileToBase64(file);
       await this.uploadImage(room.id, base64, file.type);
@@ -390,7 +390,7 @@ export const roomService = {
     return room;
   },
 
-  // Deletar tipo de quarto
+  
   async delete(id: number): Promise<void> {
     return apiRequest<void>(`/rooms/${id}`, {
       method: 'DELETE',
@@ -399,26 +399,26 @@ export const roomService = {
   },
 };
 
-// Serviços para Reservations
+
 export const reservationService = {
-  // Listar todas as reservas
+  
   async getAll(): Promise<Reservation[]> {
     return apiRequest<Reservation[]>('/reservations', {
       headers: getAuthHeaders(),
     });
   },
 
-  // Buscar reserva por ID
+  
   async getById(id: number): Promise<Reservation> {
     return apiRequest<Reservation>(`/reservations/${id}`);
   },
 
-  // Buscar reservas por email do hóspede
+  
   async getByGuestEmail(email: string): Promise<Reservation[]> {
     return apiRequest<Reservation[]>(`/reservations?guest_email=${encodeURIComponent(email)}`);
   },
 
-  // Buscar reserva por código e nome
+  
   async getByCodeAndName(code: string, guestName: string): Promise<Reservation | null> {
     try {
       const reservations = await apiRequest<Reservation[]>(
@@ -433,7 +433,7 @@ export const reservationService = {
     }
   },
 
-  // Criar nova reserva
+  
   async create(reservation: Omit<Reservation, 'id' | 'created_at' | 'updated_at'>): Promise<Reservation> {
     return apiRequest<Reservation>('/reservations', {
       method: 'POST',
@@ -441,7 +441,7 @@ export const reservationService = {
     });
   },
 
-  // Atualizar reserva
+  
   async update(id: number, reservation: Partial<Omit<Reservation, 'id' | 'created_at' | 'updated_at'>>): Promise<Reservation> {
     return apiRequest<Reservation>(`/reservations/${id}`, {
       method: 'PUT',
@@ -449,7 +449,7 @@ export const reservationService = {
     });
   },
 
-  // Atualizar status da reserva
+  
   async updateStatus(id: number, status: 'confirmed' | 'cancelled' | 'pending' | Reservation['status']): Promise<Reservation> {
     return apiRequest<Reservation>(`/reservations/${id}/status`, {
       method: 'PATCH',
@@ -458,7 +458,7 @@ export const reservationService = {
     });
   },
 
-  // Deletar reserva
+  
   async delete(id: number): Promise<void> {
     return apiRequest<void>(`/reservations/${id}`, {
       method: 'DELETE',
@@ -483,14 +483,14 @@ export const chatService = {
   },
 };
 
-// Serviço de health check
+
 export const healthService = {
   async check(): Promise<{ status: string; timestamp: string }> {
     return apiRequest<{ status: string; timestamp: string }>('/health');
   },
 };
 
-// Exportar tudo como default também
+
 export default {
   hotel: hotelService,
   room: roomService,
@@ -500,7 +500,7 @@ export default {
   ApiError,
 };
 
-// Helper
+
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

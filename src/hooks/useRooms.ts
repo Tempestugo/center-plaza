@@ -32,7 +32,7 @@ function mapRoomToAccommodation(
     }
   }
 
-  // Usar imagens reais do banco se existirem
+  
   const images: string[] = [];
   if (room.images && Array.isArray(room.images) && room.images.length > 0) {
     room.images.forEach((img: any) => {

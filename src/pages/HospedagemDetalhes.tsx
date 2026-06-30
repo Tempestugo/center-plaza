@@ -100,7 +100,7 @@ const HospedagemDetalhes = () => {
     );
   }
 
-  // Parse amenities
+  
 let amenities: string[] = [];
 if (room.amenities) {
   if (Array.isArray(room.amenities)) {
@@ -210,7 +210,7 @@ if (room.amenities) {
       <Header />
       
       <main className="pt-20">
-        {/* Back Button */}
+        {}
         <div className="container mx-auto px-4 py-4">
           <Button variant="ghost" onClick={() => navigate("/hospedagens")} className="mb-4">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -218,7 +218,7 @@ if (room.amenities) {
           </Button>
         </div>
 
-        {/* Image Gallery */}
+        {}
         <section className="container mx-auto px-4 mb-8">
           <div className="relative h-96 md:h-[500px] rounded-xl overflow-hidden mb-4">
             <img 
@@ -232,7 +232,7 @@ if (room.amenities) {
               }}
             />
             
-            {/* Navigation Arrows */}
+            {}
             <button 
               onClick={prevImage}
               className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition-colors"
@@ -246,7 +246,7 @@ if (room.amenities) {
               <ChevronRight className="w-5 h-5" />
             </button>
 
-            {/* Image Indicators */}
+            {}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
               {accommodation.images.map((_, index) => (
                 <button
@@ -259,7 +259,7 @@ if (room.amenities) {
               ))}
             </div>
 
-            {/* Action Buttons */}
+            {}
             <div className="absolute top-4 right-4 flex gap-2">
               <Button variant="secondary" size="icon" className="bg-white/90 hover:bg-white" onClick={handleShare}>
                 <Share2 className="h-4 w-4" />
@@ -276,12 +276,12 @@ if (room.amenities) {
           </div>
         </section>
 
-        {/* Content */}
+        {}
         <section className="container mx-auto px-4 mb-16">
           <div className="grid lg:grid-cols-3 gap-8">
-            {/* Main Content */}
+            {}
             <div className="lg:col-span-2 space-y-8">
-              {/* Header Info */}
+              {}
               <div>
                 <div className="flex items-start justify-between mb-4">
                   <div>
@@ -313,7 +313,7 @@ if (room.amenities) {
                   </div>
                 </div>
 
-                {/* Quick Info */}
+                {}
                 <div className="flex gap-4 text-sm text-muted-foreground">
                   <span>{accommodation.bedrooms} quartos</span>
                   <span>•</span>
@@ -323,7 +323,7 @@ if (room.amenities) {
                 </div>
               </div>
 
-              {/* Description */}
+              {}
               <div>
                 <h2 className="text-xl font-semibold mb-4">Sobre esta hospedagem</h2>
                 <p className="text-muted-foreground leading-relaxed">
@@ -331,7 +331,7 @@ if (room.amenities) {
                 </p>
               </div>
 
-              {/* Features */}
+              {}
               <div>
                 <h2 className="text-xl font-semibold mb-4">O que este lugar oferece</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -344,7 +344,7 @@ if (room.amenities) {
                 </div>
               </div>
 
-              {/* Amenities */}
+              {}
               <div>
                 <h2 className="text-xl font-semibold mb-4">Comodidades</h2>
                 <div className="flex gap-4">
@@ -361,7 +361,7 @@ if (room.amenities) {
                 </div>
               </div>
 
-              {/* Reviews */}
+              {}
               <div>
                 <h2 className="text-xl font-semibold mb-4">Avaliações</h2>
                 <div className="space-y-4">
@@ -387,7 +387,7 @@ if (room.amenities) {
               </div>
             </div>
 
-            {/* Booking Card */}
+            {}
             <div className="lg:col-span-1">
               <Card className="sticky top-24">
                 <CardContent className="p-6">
@@ -399,7 +399,7 @@ if (room.amenities) {
                       <div className="text-muted-foreground">por noite</div>
                     </div>
 
-                    {/* Date Selection */}
+                    {}
                     <div>
                       <label className="text-sm font-medium mb-2 block">Data de check-in</label>
                       <div className="relative">
@@ -412,7 +412,7 @@ if (room.amenities) {
                       </div>
                     </div>
 
-                    {/* Guests */}
+                    {}
                     <div>
                       <label className="text-sm font-medium mb-2 block">Hóspedes</label>
                       <div className="flex items-center gap-2">
@@ -434,7 +434,7 @@ if (room.amenities) {
                       </div>
                     </div>
 
-                    {/* Nights */}
+                    {}
                     <div>
                       <label className="text-sm font-medium mb-2 block">Noites</label>
                       <div className="flex items-center gap-2">
@@ -456,7 +456,7 @@ if (room.amenities) {
                       </div>
                     </div>
 
-                    {/* Price Breakdown */}
+                    {}
                     <div className="border-t pt-4">
                       <div className="flex justify-between mb-2">
                         <span>R$ {accommodation.price} x {nights} noites</span>
@@ -494,7 +494,7 @@ if (room.amenities) {
 
       <Footer />
 
-      {/* Modals */}
+      {}
       <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
       <ShareModal 
         open={shareModalOpen}

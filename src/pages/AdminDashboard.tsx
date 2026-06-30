@@ -8,7 +8,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import AdminLayout from "@/components/admin/AdminLayout";
 import { reservationService, roomService, Reservation } from "@/services/api";
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+
 
 interface Stats {
   totalReservations: number;
@@ -17,7 +17,7 @@ interface Stats {
   totalRevenue: number;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 
 const fmtCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -28,7 +28,7 @@ const statusConfig = {
   cancelled: { label: "Cancelada",  className: "bg-red-100    text-red-800    border border-red-200"    },
 };
 
-// ─── Componente ───────────────────────────────────────────────────────────────
+
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -46,7 +46,7 @@ const AdminDashboard = () => {
       setReservations(resData);
       setRoomCount(roomData.length);
     } catch {
-      /* falha silenciosa — mostra zeros nos cards */
+      
     } finally {
       setLoading(false);
     }
@@ -54,7 +54,7 @@ const AdminDashboard = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  // ── Calcula stats a partir dos dados reais ──────────────────────────────────
+  
   const stats: Stats = {
     totalReservations:    reservations.length,
     pendingReservations:  reservations.filter(r => r.status === "pending").length,
@@ -64,7 +64,7 @@ const AdminDashboard = () => {
                             .reduce((sum, r) => sum + (r.total_amount ?? 0), 0),
   };
 
-  // ── Dados para o gráfico (Últimos 6 meses) ──────────────────────────────────
+  
   const MONTH_NAMES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
   const monthlyData = (() => {
     const now = new Date();
@@ -133,7 +133,7 @@ const AdminDashboard = () => {
       }
     >
       <div className="space-y-6">
-        {/* Welcome */}
+        {}
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
           <p className="text-muted-foreground text-sm">
@@ -141,7 +141,7 @@ const AdminDashboard = () => {
           </p>
         </div>
 
-        {/* Stats */}
+        {}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {statCards.map((s) => (
             <Card key={s.title}>
@@ -163,9 +163,9 @@ const AdminDashboard = () => {
           ))}
         </div>
 
-        {/* Gráficos */}
+        {}
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Reservas por mês */}
+          {}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Reservas por Mês</CardTitle>
@@ -202,7 +202,7 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Receita por mês */}
+          {}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Receita por Mês</CardTitle>
@@ -239,7 +239,7 @@ const AdminDashboard = () => {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Reservas Recentes */}
+          {}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -286,7 +286,7 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Acesso Rápido */}
+          {}
           <Card>
             <CardHeader>
               <CardTitle>Acesso Rápido</CardTitle>

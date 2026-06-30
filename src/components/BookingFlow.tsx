@@ -47,7 +47,7 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
   const [currentStep, setCurrentStep] = useState<BookingStep>("dates");
   const [loading,     setLoading]     = useState(false);
 
-  // Dados da reserva
+  
   const [checkIn,  setCheckIn]  = useState<Date | undefined>();
   const [checkOut, setCheckOut] = useState<Date | undefined>();
   const [guests,   setGuests]   = useState(2);
@@ -74,7 +74,7 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
   };
 
 
-  // Cálculos
+  
   const nights     = checkIn && checkOut ? differenceInDays(checkOut, checkIn) : 0;
   const subtotal   = nights * accommodation.price;
   const serviceFee = subtotal * 0.1;
@@ -88,9 +88,9 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
     details: !!(guestDetails.name && guestDetails.email && guestDetails.phone && guestDetails.document),
   };
 
-  // ── Navegar para frente (no passo "details" → cria a reserva no backend) ────
+  
   const handleNext = async () => {
-    // Ao sair de "details", criar reserva E redirecionar para Stripe Checkout
+    
     if (currentStep === "details") {
       setLoading(true);
       try {
@@ -118,7 +118,7 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
 
         const { url, reservationId } = await response.json();
         gtmEvent('iniciar_pagamento', { reserva_id: reservationId, valor: total });
-        window.location.href = url; // Redireciona para o Stripe Checkout
+        window.location.href = url; 
       } catch (err: any) {
         toast.error(err.message || "Erro ao processar. Tente novamente.");
       } finally {
@@ -154,7 +154,7 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
         </DialogHeader>
 
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* ── Resumo lateral ──────────────────────────────────────────────── */}
+          {}
           <div className="lg:col-span-1">
             <Card>
               <CardHeader><CardTitle className="text-lg">Resumo da Reserva</CardTitle></CardHeader>
@@ -196,9 +196,9 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
             </Card>
           </div>
 
-          {/* ── Conteúdo principal ──────────────────────────────────────────── */}
+          {}
           <div className="lg:col-span-2">
-            {/* Progress indicator */}
+            {}
             <div className="flex items-center justify-between mb-6">
               {STEPS.map((step, index) => (
                 <div key={step.id} className="flex items-center">
@@ -218,7 +218,7 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
               ))}
             </div>
 
-            {/* ── Passo 1: Datas ────────────────────────────────────────────── */}
+            {}
             {currentStep === "dates" && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Selecione as datas da sua estadia</h3>
@@ -255,7 +255,7 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
               </div>
             )}
 
-            {/* ── Passo 2: Hóspedes ─────────────────────────────────────────── */}
+            {}
             {currentStep === "guests" && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Quantos hóspedes?</h3>
@@ -275,7 +275,7 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
               </div>
             )}
 
-            {/* ── Passo 3: Detalhes ─────────────────────────────────────────── */}
+            {}
             {currentStep === "details" && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Informações do hóspede principal</h3>
@@ -302,7 +302,7 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
                   <Textarea id="requests" value={guestDetails.specialRequests} onChange={e => setGuestDetails(p => ({ ...p, specialRequests: e.target.value }))} placeholder="Alguma solicitação especial?" rows={3} />
                 </div>
                 
-                {/* Política de Cancelamento */}
+                {}
                 <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm mt-6">
                   <p className="font-medium text-green-800">✓ Cancelamento gratuito</p>
                   <p className="text-green-700 text-xs mt-0.5">
@@ -312,7 +312,7 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
               </div>
             )}
 
-            {/* ── Botões de navegação ───────────────────────────────────────── */}
+            {}
             {
               <div className="flex justify-between mt-8">
                 <Button variant="outline" onClick={handlePrevious} disabled={currentStep === "dates"}>

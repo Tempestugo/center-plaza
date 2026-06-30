@@ -138,7 +138,7 @@ const ReservationDetails = () => {
   };
 
   const handleDownloadVoucher = () => {
-    // Criar conteúdo do voucher
+    
     const voucherContent = `
 === VOUCHER DE RESERVA - CENTER PLAZA ===
 
@@ -176,7 +176,7 @@ ${reservation.specialRequests || 'Nenhuma solicitação especial'}
 === CENTER PLAZA - HOSPEDAGEM DE QUALIDADE ===
     `;
 
-    // Criar e baixar arquivo
+    
     const blob = new Blob([voucherContent], { type: 'text/plain;charset=utf-8' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -196,7 +196,7 @@ ${reservation.specialRequests || 'Nenhuma solicitação especial'}
       
       <main className="pt-20 pb-16">
         <div className="container mx-auto px-4">
-          {/* Header */}
+          {}
           <div className="mb-8">
             <Button 
               variant="outline" 
@@ -265,7 +265,7 @@ ${reservation.specialRequests || 'Nenhuma solicitação especial'}
           </div>
 
           <div className="grid lg:grid-cols-3 gap-8">
-            {/* Informações da Hospedagem */}
+            {}
             <div className="lg:col-span-2 space-y-6">
               <Card>
                 <CardHeader>
@@ -303,7 +303,7 @@ ${reservation.specialRequests || 'Nenhuma solicitação especial'}
                 </CardContent>
               </Card>
 
-              {/* Informações da Reserva */}
+              {}
               <Card>
                 <CardHeader>
                   <CardTitle>Informações da Reserva</CardTitle>
@@ -359,7 +359,7 @@ ${reservation.specialRequests || 'Nenhuma solicitação especial'}
                 </CardContent>
               </Card>
               
-              {/* Política de Cancelamento */}
+              {}
               {cancelPolicy && reservation?.status !== 'cancelled' && (
                 <Card className={cancelPolicy.free_cancellation ? "border-green-200 bg-green-50" : "border-orange-200 bg-orange-50"}>
                   <CardContent className="p-4">
@@ -388,7 +388,7 @@ ${reservation.specialRequests || 'Nenhuma solicitação especial'}
                 </Card>
               )}
 
-              {/* Informações do Hóspede */}
+              {}
               <Card>
                 <CardHeader>
                   <CardTitle>Informações do Hóspede</CardTitle>
@@ -429,7 +429,7 @@ ${reservation.specialRequests || 'Nenhuma solicitação especial'}
               </Card>
             </div>
 
-            {/* Resumo Financeiro */}
+            {}
             <div className="space-y-6">
               <Card>
                 <CardHeader>
@@ -468,7 +468,7 @@ ${reservation.specialRequests || 'Nenhuma solicitação especial'}
                 </CardContent>
               </Card>
 
-              {/* Informações de Contato */}
+              {}
               <Card>
                 <CardHeader>
                   <CardTitle>Precisa de Ajuda?</CardTitle>
