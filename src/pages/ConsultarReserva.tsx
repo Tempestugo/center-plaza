@@ -31,7 +31,15 @@ interface ReservationResult {
 
 
 
-const fmt = (d: string) => new Date(d).toLocaleDateString("pt-BR");
+const fmt = (d: string) => {
+  if (!d) return "";
+  const clean = d.split("T")[0];
+  const parts = clean.split("-");
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return d;
+};
 
 const fmtCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);

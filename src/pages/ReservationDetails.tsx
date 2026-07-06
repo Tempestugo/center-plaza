@@ -31,6 +31,16 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+const fmt = (dateStr: string) => {
+  if (!dateStr) return "";
+  const clean = dateStr.split("T")[0];
+  const parts = clean.split("-");
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
 const ReservationDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -153,8 +163,8 @@ Localização: ${reservation.location}
 Hóspede Principal: ${reservation.guestName}
 E-mail: ${reservation.email}
 Telefone: ${reservation.phone}
-Check-in: ${new Date(reservation.checkIn).toLocaleDateString('pt-BR')}
-Check-out: ${new Date(reservation.checkOut).toLocaleDateString('pt-BR')}
+Check-in: ${fmt(reservation.checkIn)}
+Check-out: ${fmt(reservation.checkOut)}
 Número de Hóspedes: ${reservation.guests}
 Noites: ${reservation.nights}
 
@@ -315,7 +325,7 @@ ${reservation.specialRequests || 'Nenhuma solicitação especial'}
                         <Calendar className="h-5 w-5 text-primary" />
                         <div>
                           <p className="text-sm text-muted-foreground">Check-in</p>
-                          <p className="font-medium">{new Date(reservation.checkIn).toLocaleDateString('pt-BR')}</p>
+                          <p className="font-medium">{fmt(reservation.checkIn)}</p>
                         </div>
                       </div>
                       
@@ -323,7 +333,7 @@ ${reservation.specialRequests || 'Nenhuma solicitação especial'}
                         <Calendar className="h-5 w-5 text-primary" />
                         <div>
                           <p className="text-sm text-muted-foreground">Check-out</p>
-                          <p className="font-medium">{new Date(reservation.checkOut).toLocaleDateString('pt-BR')}</p>
+                          <p className="font-medium">{fmt(reservation.checkOut)}</p>
                         </div>
                       </div>
                     </div>

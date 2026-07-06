@@ -5,6 +5,16 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, Loader2 } from "lucide-react";
 import { gtmEvent } from "@/lib/gtm";
 
+const fmt = (dateStr: string) => {
+  if (!dateStr) return "";
+  const clean = dateStr.split("T")[0];
+  const parts = clean.split("-");
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
 export default function ReservaSucesso() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -57,11 +67,11 @@ export default function ReservaSucesso() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Check-in</span>
-                <span>{new Date(reservation.check_in_date).toLocaleDateString('pt-BR')}</span>
+                <span>{fmt(reservation.check_in_date)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Check-out</span>
-                <span>{new Date(reservation.check_out_date).toLocaleDateString('pt-BR')}</span>
+                <span>{fmt(reservation.check_out_date)}</span>
               </div>
               <div className="flex justify-between font-semibold">
                 <span>Total pago</span>

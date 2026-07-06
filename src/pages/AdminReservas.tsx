@@ -30,8 +30,15 @@ const statusConfig = {
   cancelled: { label: "Cancelada",  color: "bg-red-100    text-red-800    border-red-200"    },
 };
 
-const fmt = (dateStr: string) =>
-  format(new Date(dateStr), "dd/MM/yyyy", { locale: ptBR });
+const fmt = (dateStr: string) => {
+  if (!dateStr) return "";
+  const clean = dateStr.split("T")[0];
+  const parts = clean.split("-");
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
 
 const fmtCurrency = (val: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val);
@@ -649,8 +656,8 @@ export default function AdminReservas({ onlyConfirmed = false }: AdminReservasPr
                     <p className="text-xs text-muted-foreground">{req.guest_email}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Reserva #{req.reservation_id} · {req.room_type_name} ·{" "}
-                      {new Date(req.check_in_date).toLocaleDateString('pt-BR')} →{" "}
-                      {new Date(req.check_out_date).toLocaleDateString('pt-BR')}
+                      {fmt(req.check_in_date)} →{" "}
+                      {fmt(req.check_out_date)}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Total pago: <strong>R$ {req.total_amount?.toFixed(2)}</strong>

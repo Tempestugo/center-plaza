@@ -28,6 +28,16 @@ import { toast } from "sonner";
 import accommodation1 from "@/assets/accommodation-1.jpg";
 import accommodation2 from "@/assets/accommodation-2.jpg";
 import accommodation3 from "@/assets/accommodation-3.jpg";
+
+const fmt = (dateStr: string) => {
+  if (!dateStr) return "";
+  const clean = dateStr.split("T")[0];
+  const parts = clean.split("-");
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
 import ChatModal from "@/components/ChatModal";
 
 const UserDashboard = () => {
@@ -153,8 +163,8 @@ Localização: ${reserva.location}
 Hóspede Principal: ${reserva.guestName}
 E-mail: ${reserva.email}
 Telefone: ${reserva.phone}
-Check-in: ${new Date(reserva.checkIn).toLocaleDateString('pt-BR')}
-Check-out: ${new Date(reserva.checkOut).toLocaleDateString('pt-BR')}
+Check-in: ${fmt(reserva.checkIn)}
+Check-out: ${fmt(reserva.checkOut)}
 Número de Hóspedes: ${reserva.guests}
 Noites: ${reserva.nights}
 
@@ -283,11 +293,11 @@ ${reserva.specialRequests || 'Nenhuma solicitação especial'}
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                             <div>
                               <p className="text-muted-foreground">Check-in</p>
-                              <p className="font-medium">{new Date(reserva.checkIn).toLocaleDateString('pt-BR')}</p>
+                              <p className="font-medium">{fmt(reserva.checkIn)}</p>
                             </div>
                             <div>
                               <p className="text-muted-foreground">Check-out</p>
-                              <p className="font-medium">{new Date(reserva.checkOut).toLocaleDateString('pt-BR')}</p>
+                              <p className="font-medium">{fmt(reserva.checkOut)}</p>
                             </div>
                             <div>
                               <p className="text-muted-foreground">Hóspedes</p>
@@ -366,11 +376,11 @@ ${reserva.specialRequests || 'Nenhuma solicitação especial'}
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                             <div>
                               <p className="text-muted-foreground">Check-in</p>
-                              <p className="font-medium">{new Date(reserva.checkIn).toLocaleDateString('pt-BR')}</p>
+                              <p className="font-medium">{fmt(reserva.checkIn)}</p>
                             </div>
                             <div>
                               <p className="text-muted-foreground">Check-out</p>
-                              <p className="font-medium">{new Date(reserva.checkOut).toLocaleDateString('pt-BR')}</p>
+                              <p className="font-medium">{fmt(reserva.checkOut)}</p>
                             </div>
                             <div>
                               <p className="text-muted-foreground">Hóspedes</p>
@@ -412,7 +422,7 @@ ${reserva.specialRequests || 'Nenhuma solicitação especial'}
                           <div>
                             <h3 className="font-semibold">{pagamento.accommodation}</h3>
                             <p className="text-muted-foreground text-sm">
-                              {pagamento.method} • {new Date(pagamento.date).toLocaleDateString('pt-BR')}
+                              {pagamento.method} • {fmt(pagamento.date)}
                             </p>
                             <p className="text-xs text-muted-foreground">ID: {pagamento.reservaId}</p>
                           </div>
