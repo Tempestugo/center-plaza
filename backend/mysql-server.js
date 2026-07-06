@@ -225,6 +225,48 @@ async function initDatabase() {
   }
 }
 
+async function cleanupPendingReservations(db) {
+  try {
+    const [result] = await db.execute(
+      "UPDATE reservations SET status='cancelled' WHERE status='pending' AND created_at < NOW() - INTERVAL 30 MINUTE"
+    );
+    if (result.affectedRows > 0) {
+      console.log(`[Auto-Cleanup] Canceladas ${result.affectedRows} reservas pendentes expiradas.`);
+    }
+  } catch (err) {
+    console.error("[Auto-Cleanup] Erro ao limpar reservas pendentes expiradas:", err);
+  }
+}
+
+// Configura o intervalo para rodar a limpeza a cada 5 minutos
+setInterval(async () => {
+  try {
+    if (_dbPool) {
+      await cleanupPendingReservations(_dbPool);
+    }
+  } catch (e) {
+    // Silencioso se o banco de dados não estiver pronto ou der erro
+  }
+}, 5 * 60 * 1000);
+
+async function sendWebhookNotification(reservation) {
+  const url = process.env.APPS_SCRIPT_WEBHOOK_URL;
+  if (!url) {
+    console.log("[Webhook] APPS_SCRIPT_WEBHOOK_URL não configurada. Notificação pulada.");
+    return;
+  }
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(reservation)
+    });
+    console.log(`[Webhook] Notificação enviada para reserva #${reservation.id}. Status: ${response.status}`);
+  } catch (err) {
+    console.error(`[Webhook] Erro ao enviar notificação da reserva #${reservation.id}:`, err.message);
+  }
+}
+
 
 router.use((req, res, next) => {
   if (dbInitializationError && req.path !== '/health' && req.path !== '/debug') {
@@ -693,6 +735,7 @@ router.get('/reservations', async (req, res) => {
   try {
     const { guest_email, code, guest_name } = req.query;
     const db     = await getDb();
+    await cleanupPendingReservations(db);
     let   query  = reservationJoin;
     const params = [];
     const conds  = [];
@@ -708,6 +751,7 @@ router.get('/reservations', async (req, res) => {
 router.get('/my-reservations', async (req, res) => {
   try {
     const db = await getDb();
+    await cleanupPendingReservations(db);
     const [rows] = await db.query(reservationJoin + ' ORDER BY r.created_at DESC');
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -716,6 +760,7 @@ router.get('/my-reservations', async (req, res) => {
 router.get('/reservations/:id', async (req, res) => {
   try {
     const db = await getDb();
+    await cleanupPendingReservations(db);
     const [[r]]  = await db.query(reservationJoin + ' WHERE r.id = ?', [req.params.id]);
     if (!r) return res.status(404).json({ error: 'Reserva não encontrada' });
     
@@ -877,6 +922,9 @@ router.post('/reservations', async (req, res) => {
       [iKey, JSON.stringify(newRes), 201]);
 
     await connection.commit();
+    if (newRes) {
+      sendWebhookNotification(newRes).catch(() => {});
+    }
     res.status(201).json(newRes);
   } catch (err) { 
     if (connection) await connection.rollback();
@@ -966,6 +1014,7 @@ router.get('/contacts', async (req, res) => {
 router.get('/admin/chat-threads', async (req, res) => {
   try {
     const db = await getDb();
+    await cleanupPendingReservations(db);
     const [rows] = await db.query(`
       SELECT DISTINCT r.id as reservation_id, r.guest_name, r.guest_email, h.name as hotel_name,
         (SELECT content    FROM messages m2 WHERE m2.reservation_id=r.id ORDER BY created_at DESC LIMIT 1) as last_message,
@@ -1065,6 +1114,11 @@ router.post('/create-checkout-session', async (req, res) => {
     );
     const reservationId = ins.insertId;
 
+    const [[newRes]] = await db.query(reservationJoin + ' WHERE r.id = ?', [reservationId]);
+    if (newRes) {
+      sendWebhookNotification(newRes).catch(() => {});
+    }
+
     const baseUrl = (process.env.FRONTEND_URL || 'https://centerplazahotel.com.br').replace(/\/$/, '');
     const session = await stripe.checkout.sessions.create({
       expires_at: Math.floor(Date.now() / 1000) + (30 * 60),
@@ -1104,7 +1158,7 @@ router.post('/create-checkout-session', async (req, res) => {
   }
 });
 
-router.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+router.post('/stripe-webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   let event;

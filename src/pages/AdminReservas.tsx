@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { reservationService, chatService, Reservation, Message } from "@/services/api";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import AdminLayout from "@/components/admin/AdminLayout";
 
 
 
@@ -33,6 +35,30 @@ const fmt = (dateStr: string) =>
 
 const fmtCurrency = (val: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val);
+
+const formatWhatsAppLink = (phone: string) => {
+  const cleanPhone = phone.replace(/\D/g, "");
+  if (!cleanPhone) return "";
+  
+  // No Brasil, o número completo com DDD tem 10 ou 11 dígitos.
+  // Se tiver 10 ou 11 dígitos, não tem o código de país (55). Então adicionamos o 55.
+  if (cleanPhone.length === 10 || cleanPhone.length === 11) {
+    return `https://wa.me/55${cleanPhone}`;
+  }
+  
+  // Se já tiver 12 ou 13 dígitos e começar com 55, assumimos que já possui o DDI.
+  if (cleanPhone.startsWith("55") && (cleanPhone.length === 12 || cleanPhone.length === 13)) {
+    return `https://wa.me/${cleanPhone}`;
+  }
+  
+  // Caso comece com 55 e tenha mais que 11 dígitos (ex: 55 + DDD + número)
+  if (cleanPhone.startsWith("55") && cleanPhone.length > 11) {
+    return `https://wa.me/${cleanPhone}`;
+  }
+  
+  // Fallback seguro
+  return `https://wa.me/55${cleanPhone}`;
+};
 
 function playNotificationSound() {
   try {
@@ -243,7 +269,15 @@ function DetailModal({
             </div>
             {reservation.guest_phone && (
               <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <Phone className="w-3.5 h-3.5" /> {reservation.guest_phone}
+                <Phone className="w-3.5 h-3.5" />
+                <a
+                  href={formatWhatsAppLink(reservation.guest_phone)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-green-600 hover:text-green-700 hover:underline font-medium"
+                >
+                  {reservation.guest_phone}
+                </a>
               </div>
             )}
           </div>
@@ -347,11 +381,19 @@ function DetailModal({
 
 
 
-export default function AdminReservas() {
+interface AdminReservasProps {
+  onlyConfirmed?: boolean;
+}
+
+export default function AdminReservas({ onlyConfirmed = false }: AdminReservasProps) {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(onlyConfirmed ? "confirmed" : "all");
+
+  useEffect(() => {
+    setStatusFilter(onlyConfirmed ? "confirmed" : "all");
+  }, [onlyConfirmed]);
   const navigate = useNavigate();
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [chatReservation, setChatReservation] = useState<Reservation | null>(null);
@@ -517,75 +559,80 @@ export default function AdminReservas() {
 
   
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-          <button onClick={() => navigate("/admin/dashboard")} className="text-muted-foreground hover:text-foreground transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-          </button>
-          <h1 className="text-2xl font-bold">Reservas</h1>
+    <AdminLayout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {onlyConfirmed ? "Reservas Concluídas" : "Reservas"}
+            </h1>
+            <p className="text-muted-foreground text-sm mt-0.5">
+              {onlyConfirmed ? (
+                <span>{counts.confirmed} reserva{counts.confirmed !== 1 ? "s" : ""} confirmada{counts.confirmed !== 1 ? "s" : ""}</span>
+              ) : (
+                <>
+                  {counts.pending > 0 && (
+                    <span className="text-yellow-600 font-medium">{counts.pending} pendente{counts.pending > 1 ? "s" : ""} · </span>
+                  )}
+                  {counts.all} reserva{counts.all !== 1 ? "s" : ""} no total
+                </>
+              )}
+              {!onlyConfirmed && pendingRefunds.length > 0 && (
+                <span className="ml-2 inline-flex items-center gap-1 bg-orange-100 text-orange-700 text-xs font-medium px-2 py-0.5 rounded-full border border-orange-200">
+                  <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
+                  {pendingRefunds.length} solicitação{pendingRefunds.length !== 1 ? 'ões' : ''} de cancelamento
+                </span>
+              )}
+              {totalUnreadMessages > 0 && (
+                <span className="text-blue-600 font-medium">
+                  {' · '}{totalUnreadMessages} mensagem{totalUnreadMessages !== 1 ? "ns" : ""} não lida{totalUnreadMessages !== 1 ? "s" : ""}
+                </span>
+              )}
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={loadReservations}>
+            <RefreshCw className="w-4 h-4 mr-1.5" />
+            Atualizar
+          </Button>
         </div>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            {counts.pending > 0 && (
-              <span className="text-yellow-600 font-medium">{counts.pending} pendente{counts.pending > 1 ? "s" : ""} · </span>
+
+        {}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por hóspede, e-mail, hotel ou ID..."
+              className="pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && (
+              <button
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setSearch("")}
+              >
+                <X className="w-4 h-4" />
+              </button>
             )}
-            {counts.all} reserva{counts.all !== 1 ? "s" : ""} no total
-          {pendingRefunds.length > 0 && (
-            <span className="ml-2 inline-flex items-center gap-1 bg-orange-100 text-orange-700 text-xs font-medium px-2 py-0.5 rounded-full border border-orange-200">
-              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
-              {pendingRefunds.length} solicitação{pendingRefunds.length !== 1 ? 'ões' : ''} de cancelamento
-            </span>
-          )}
-          {totalUnreadMessages > 0 && (
-            <span className="text-blue-600 font-medium">
-              {' · '}{totalUnreadMessages} mensagem{totalUnreadMessages !== 1 ? "ns" : ""} não lida{totalUnreadMessages !== 1 ? "s" : ""}
-            </span>
-          )}
-          </p>
-        </div>
-        <Button variant="outline" size="sm" onClick={loadReservations}>
-          <RefreshCw className="w-4 h-4 mr-1.5" />
-          Atualizar
-        </Button>
-      </div>
-
-      {}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por hóspede, e-mail, hotel ou ID..."
-            className="pl-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          {search && (
-            <button
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              onClick={() => setSearch("")}
-            >
-              <X className="w-4 h-4" />
-            </button>
+          </div>
+          {!onlyConfirmed && (
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+              <SelectTrigger className="w-full sm:w-48">
+                <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos ({counts.all})</SelectItem>
+                <SelectItem value="pending">Pendentes ({counts.pending})</SelectItem>
+                <SelectItem value="confirmed">Confirmadas ({counts.confirmed})</SelectItem>
+                <SelectItem value="cancelled">Canceladas ({counts.cancelled})</SelectItem>
+              </SelectContent>
+            </Select>
           )}
         </div>
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-          <SelectTrigger className="w-full sm:w-48">
-            <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos ({counts.all})</SelectItem>
-            <SelectItem value="pending">Pendentes ({counts.pending})</SelectItem>
-            <SelectItem value="confirmed">Confirmadas ({counts.confirmed})</SelectItem>
-            <SelectItem value="cancelled">Canceladas ({counts.cancelled})</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
-      {}
-      {pendingRefunds.length > 0 && (
+        {}
+        {!onlyConfirmed && pendingRefunds.length > 0 && (
         <Card className="border-orange-200 bg-orange-50 mb-6">
           <CardHeader className="pb-3">
             <CardTitle className="text-base text-orange-800 flex items-center gap-2">
@@ -672,18 +719,6 @@ export default function AdminReservas() {
                     <td className="px-4 py-3 text-muted-foreground">#{r.id}</td>
                     <td className="px-4 py-3">
                       <p className="font-medium">{r.guest_name}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        {r.guest_phone ? (
-                          <a href={"https://wa.me/55" + r.guest_phone.replace(/D/g,"")} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 text-xs font-medium">
-                            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.523 5.847L0 24l6.347-1.496A11.935 11.935 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.794 9.794 0 01-5.001-1.37l-.36-.214-3.713.876.938-3.591-.235-.371A9.795 9.795 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
-                            {r.guest_phone}
-                          </a>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
                       <p className="text-xs text-muted-foreground">{r.guest_email}</p>
                     </td>
                     <td className="px-4 py-3">
@@ -697,6 +732,21 @@ export default function AdminReservas() {
                       <Badge className={`${statusConfig[r.status].color} border text-xs`}>
                         {statusConfig[r.status].label}
                       </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      {r.guest_phone ? (
+                        <a
+                          href={formatWhatsAppLink(r.guest_phone)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 hover:underline font-medium"
+                        >
+                          <Phone className="w-3.5 h-3.5" />
+                          <span>WhatsApp</span>
+                        </a>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
@@ -868,6 +918,7 @@ export default function AdminReservas() {
           onClose={() => setChatReservation(null)}
         />
       )}
-    </div>
+      </div>
+    </AdminLayout>
   );
 }
