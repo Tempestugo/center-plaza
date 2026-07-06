@@ -1114,11 +1114,6 @@ router.post('/create-checkout-session', async (req, res) => {
     );
     const reservationId = ins.insertId;
 
-    const [[newRes]] = await db.query(reservationJoin + ' WHERE r.id = ?', [reservationId]);
-    if (newRes) {
-      sendWebhookNotification(newRes).catch(() => {});
-    }
-
     const baseUrl = (process.env.FRONTEND_URL || 'https://centerplazahotel.com.br').replace(/\/$/, '');
     const session = await stripe.checkout.sessions.create({
       expires_at: Math.floor(Date.now() / 1000) + (30 * 60),
@@ -1150,6 +1145,15 @@ router.post('/create-checkout-session', async (req, res) => {
       'UPDATE reservations SET stripe_payment_intent_id=? WHERE id=?',
       [session.id, reservationId]
     );
+
+    const [[newRes]] = await db.query(reservationJoin + ' WHERE r.id = ?', [reservationId]);
+    if (newRes) {
+      const payload = {
+        ...newRes,
+        checkout_url: session.url
+      };
+      sendWebhookNotification(payload).catch(() => {});
+    }
 
     res.json({ url: session.url, reservationId, sessionId: session.id });
   } catch (err) {
@@ -1187,6 +1191,11 @@ router.post('/stripe-webhook', async (req, res) => {
           [reservationId]
         );
         console.log('✅ Reserva confirmada via checkout:', reservationId);
+
+        const [[newRes]] = await db.query(reservationJoin + ' WHERE r.id = ?', [reservationId]);
+        if (newRes) {
+          sendWebhookNotification(newRes).catch(() => {});
+        }
       }
     }
 
