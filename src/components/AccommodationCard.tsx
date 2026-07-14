@@ -17,6 +17,7 @@ interface AccommodationCardProps {
   amenities: string[];
   featured?: boolean;
 }
+// isso daqui é uma alteração para que o node.js rebuild tude e processe a URL
 
 const AccommodationCard = ({
   id,
@@ -96,15 +97,15 @@ const AccommodationCard = ({
             </div>
           </div>
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="flex-1"
               onClick={() => navigate(`/hospedagem/${id}`)}
             >
               Ver Detalhes
             </Button>
-            <Button 
-              className="flex-1" 
+            <Button
+              className="flex-1"
               variant="hero"
               onClick={() => {
                 gtmEvent('click_reservar', { quarto: name, preco: price });
