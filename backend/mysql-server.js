@@ -1,20 +1,20 @@
 'use strict';
 
-try { require('dotenv').config(); } catch (e) {}
+try { require('dotenv').config(); } catch (e) { }
 
-const express  = require('express');
-const cors     = require('cors');
-const path     = require('path');
-const multer   = require('multer');
-const fs       = require('fs');
-const bcrypt   = require('bcryptjs');
-const mysql    = require('mysql2/promise');
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
+const bcrypt = require('bcryptjs');
+const mysql = require('mysql2/promise');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.use(cors({
-  origin: function(origin, callback) {
+  origin: function (origin, callback) {
     const allowed = [
       process.env.FRONTEND_URL || 'https://centerplazahotel.com.br',
       'https://centerplazahotel.com.br',
@@ -43,7 +43,7 @@ let dbInitializationError = null;
 async function getDb() {
   if (_dbPool) return _dbPool;
 
-  
+
   if (process.env.DB_USER && process.env.DB_NAME) {
     const cleanUser = process.env.DB_USER.replace(/^["']|["']$/g, '').trim();
     const cleanPass = process.env.DB_PASSWORD ? process.env.DB_PASSWORD.replace(/^["']|["']$/g, '') : '';
@@ -74,7 +74,7 @@ async function getDb() {
     throw new Error('Credenciais do banco não configuradas nas Variáveis de Ambiente.');
   }
 
-  
+
   const connection = await _dbPool.getConnection();
   connection.release();
   return _dbPool;
@@ -83,7 +83,7 @@ async function getDb() {
 async function initDatabase() {
   const db = await getDb();
 
-  
+
   await db.query(`
     CREATE TABLE IF NOT EXISTS users (
       id INT PRIMARY KEY AUTO_INCREMENT,
@@ -179,16 +179,16 @@ async function initDatabase() {
     );`);
   await db.query(`CREATE TABLE IF NOT EXISTS settings (\`key\` VARCHAR(255) PRIMARY KEY, value TEXT)`);
 
-  
-  try { await db.query("ALTER TABLE reservations ADD COLUMN stripe_payment_intent_id TEXT"); } catch (e) { if(e.code !== 'ER_DUP_FIELDNAME') throw e; }
-  try { await db.query("ALTER TABLE room_types ADD COLUMN stripe_price_id TEXT"); } catch (e) { if(e.code !== 'ER_DUP_FIELDNAME') throw e; }
-  try { await db.query("ALTER TABLE room_images ADD COLUMN url VARCHAR(255)"); } catch (e) { if(e.code !== 'ER_DUP_FIELDNAME') throw e; }
-  try { await db.query("ALTER TABLE reservations ADD COLUMN payment_status VARCHAR(50) DEFAULT 'pending'"); } catch (e) { if(e.code !== 'ER_DUP_FIELDNAME') throw e; }
-  try { await db.query("ALTER TABLE room_types ADD COLUMN is_active BOOLEAN DEFAULT 1"); } catch (e) { if(e.code !== 'ER_DUP_FIELDNAME') throw e; }
-  try { await db.query("ALTER TABLE room_types ADD COLUMN total_units INT DEFAULT 1"); } catch (e) { if(e.code !== 'ER_DUP_FIELDNAME') throw e; }
-  try { await db.query("ALTER TABLE settings MODIFY COLUMN value LONGTEXT"); } catch (e) {}
 
-  
+  try { await db.query("ALTER TABLE reservations ADD COLUMN stripe_payment_intent_id TEXT"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+  try { await db.query("ALTER TABLE room_types ADD COLUMN stripe_price_id TEXT"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+  try { await db.query("ALTER TABLE room_images ADD COLUMN url VARCHAR(255)"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+  try { await db.query("ALTER TABLE reservations ADD COLUMN payment_status VARCHAR(50) DEFAULT 'pending'"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+  try { await db.query("ALTER TABLE room_types ADD COLUMN is_active BOOLEAN DEFAULT 1"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+  try { await db.query("ALTER TABLE room_types ADD COLUMN total_units INT DEFAULT 1"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+  try { await db.query("ALTER TABLE settings MODIFY COLUMN value LONGTEXT"); } catch (e) { }
+
+
   const [[admin]] = await db.query("SELECT id FROM users WHERE username = 'admin@centerplaza.com'");
   if (!admin) {
     const adminPassword = process.env.ADMIN_PASSWORD || 'CenterPlaza@2026!';
@@ -198,27 +198,27 @@ async function initDatabase() {
     console.log('✅ Admin criado: admin@centerplaza.com / ' + adminPassword);
   }
 
-  
+
   const [[hCount]] = await db.query("SELECT COUNT(*) as c FROM hotels");
   if (hCount.c === 0) {
     await db.execute(
       "INSERT INTO hotels (name, address, city, state, description, amenities) VALUES (?, ?, ?, ?, ?, ?)",
-      ['Center Plaza Hotel','Av. Central, 100','São Paulo','SP',
-       'O melhor hotel da região.',
-       JSON.stringify(['Wi-Fi','Café da manhã','Estacionamento','Piscina'])]
+      ['Center Plaza Hotel', 'Av. Central, 100', 'São Paulo', 'SP',
+        'O melhor hotel da região.',
+        JSON.stringify(['Wi-Fi', 'Café da manhã', 'Estacionamento', 'Piscina'])]
     );
     console.log('✅ Hotel seed criado');
   }
 
-  
+
   const [[rCount]] = await db.query("SELECT COUNT(*) as c FROM room_types");
   if (rCount.c === 0) {
     const [[hotel]] = await db.query("SELECT id FROM hotels LIMIT 1");
     if (hotel) {
       await db.execute(
         "INSERT INTO room_types (hotel_id, name, description, price_per_night, max_occupancy, amenities) VALUES (?, ?, ?, ?, ?, ?)",
-        [hotel.id,'Suíte Luxo','Quarto espaçoso com vista panorâmica.',250.00,2,
-         JSON.stringify(['Ar condicionado','TV 50"','Frigobar','Hidromassagem'])]
+        [hotel.id, 'Suíte Luxo', 'Quarto espaçoso com vista panorâmica.', 250.00, 2,
+        JSON.stringify(['Ar condicionado', 'TV 50"', 'Frigobar', 'Hidromassagem'])]
       );
       console.log('✅ Quarto seed criado');
     }
@@ -250,20 +250,87 @@ setInterval(async () => {
 }, 5 * 60 * 1000);
 
 async function sendWebhookNotification(reservation) {
-  const url = process.env.APPS_SCRIPT_WEBHOOK_URL;
-  if (!url) {
-    console.log("[Webhook] APPS_SCRIPT_WEBHOOK_URL não configurada. Notificação pulada.");
-    return;
+  // =======================================================
+  // 1. DISPARO DIRETO DE WHATSAPP (NODE.JS -> EVOLUTION API)
+  // =======================================================
+  const EVOLUTION_URL = process.env.EVOLUTION_URL;
+  const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY;
+
+  if (EVOLUTION_URL && EVOLUTION_API_KEY) {
+    try {
+      const telefone = reservation.guest_phone;
+      if (telefone) {
+        // Guilhotina e formatação do número
+        let numeroLimpo = String(telefone).replace(/\D/g, '');
+        if (numeroLimpo.startsWith('0')) numeroLimpo = numeroLimpo.substring(1);
+        if (numeroLimpo.length === 10 || numeroLimpo.length === 11) numeroLimpo = "55" + numeroLimpo;
+        if (numeroLimpo.length === 13 && numeroLimpo.startsWith("55")) {
+          numeroLimpo = numeroLimpo.substring(0, 4) + numeroLimpo.substring(5);
+        }
+
+        // Formatar data isolando o fuso horário para evitar bugs
+        const formatarData = (dataSQL) => {
+          if (!dataSQL) return "";
+          return new Date(dataSQL).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+        };
+
+        const checkIn = formatarData(reservation.check_in_date);
+        const checkOut = formatarData(reservation.check_out_date);
+        const valor = parseFloat(reservation.total_amount).toFixed(2);
+
+        let mensagemZap = "";
+
+        if (reservation.status === 'confirmed' && reservation.payment_status === 'paid') {
+          mensagemZap = `Olá, ${reservation.guest_name}! 🎉\n\n` +
+            `Seu pagamento foi confirmado e sua reserva #${reservation.id} está garantida no *Center Plaza Hotel*.\n\n` +
+            `📅 Check-in: ${checkIn}\n` +
+            `📅 Check-out: ${checkOut}\n\n` +
+            `Agradecemos a preferência e te esperamos ansiosos!`;
+        } else {
+          mensagemZap = `Olá, ${reservation.guest_name}!\n\n` +
+            `Recebemos o seu pedido de reserva #${reservation.id} no *Center Plaza Hotel*. Para garantir sua acomodação, você precisa concluir o pagamento.\n\n` +
+            `💰 Valor: R$ ${valor}\n`;
+          if (reservation.checkout_url) {
+            mensagemZap += `\n💳 *Clique no link abaixo para finalizar o pagamento:*\n${reservation.checkout_url}`;
+          }
+        }
+
+        const zapResponse = await fetch(EVOLUTION_URL, {
+          method: "POST",
+          headers: {
+            "apikey": EVOLUTION_API_KEY,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            number: numeroLimpo,
+            text: mensagemZap
+          })
+        });
+
+        console.log(`[WhatsApp] Disparo direto para ${numeroLimpo}. Status da Evolution API: ${zapResponse.status}`);
+      }
+    } catch (err) {
+      console.error(`[WhatsApp] Erro no disparo direto:`, err.message);
+    }
+  } else {
+    console.log(`[WhatsApp] Variáveis EVOLUTION_URL ou EVOLUTION_API_KEY ausentes no servidor. Disparo cancelado.`);
   }
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(reservation)
-    });
-    console.log(`[Webhook] Notificação enviada para reserva #${reservation.id}. Status: ${response.status}`);
-  } catch (err) {
-    console.error(`[Webhook] Erro ao enviar notificação da reserva #${reservation.id}:`, err.message);
+
+  // =======================================================
+  // 2. DISPARO PARA O GOOGLE APPS SCRIPT (Apenas para E-mails)
+  // =======================================================
+  const url = process.env.APPS_SCRIPT_WEBHOOK_URL;
+  if (url) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(reservation)
+      });
+      console.log(`[Webhook E-mail] Chamada enviada para reserva #${reservation.id}. Status: ${response.status}`);
+    } catch (err) {
+      console.error(`[Webhook E-mail] Erro ao enviar notificação:`, err.message);
+    }
   }
 }
 
@@ -281,7 +348,7 @@ const ADMIN_TOKEN = process.env.ADMIN_SECRET_TOKEN;
 if (!ADMIN_TOKEN) { console.error('URGENTE: ADMIN_SECRET_TOKEN nao configurado!'); process.exit(1); }
 
 const authMiddleware = (req, res, next) => {
-  const auth   = req.headers['authorization'];
+  const auth = req.headers['authorization'];
   const secret = process.env.ADMIN_SECRET_TOKEN;
   req.user = (auth === secret)
     ? { role: 'admin', id: 1 }
@@ -308,14 +375,14 @@ router.patch('/auth/change-credentials', requireAuth, async (req, res) => {
     const db = await getDb();
     const [[user]] = await db.query('SELECT * FROM users WHERE role = ?', ['admin']);
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
-    
+
     const isHashed = user.password.startsWith('$2');
-    const valid = isHashed 
+    const valid = isHashed
       ? await bcrypt.compare(current_password, user.password)
       : user.password === current_password;
-    
+
     if (!valid) return res.status(401).json({ error: 'Senha atual incorreta' });
-    
+
     const updates = [];
     const params = [];
     if (new_password) {
@@ -335,15 +402,17 @@ router.patch('/auth/change-credentials', requireAuth, async (req, res) => {
 });
 
 router.get('/auth/me', (req, res) => {
-  res.json({ role: req.user.role,
-    permissions: req.user.role === 'admin' ? ['view_admin','manage_reservations'] : ['view_public'] });
+  res.json({
+    role: req.user.role,
+    permissions: req.user.role === 'admin' ? ['view_admin', 'manage_reservations'] : ['view_public']
+  });
 });
 
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Usuário e senha obrigatórios' });
-    const db   = await getDb();
+    const db = await getDb();
     const [[user]] = await db.query("SELECT * FROM users WHERE username = ?", [username]);
     if (!user) return res.status(401).json({ error: 'Credenciais inválidas' });
 
@@ -380,11 +449,11 @@ router.post('/register', async (req, res) => {
     const hash = await bcrypt.hash(password, 12);
     await db.execute("INSERT INTO users (username, password, role) VALUES (?, ?, 'user')", [username, hash]);
     res.status(201).json({ message: 'Usuário criado com sucesso' });
-  } catch (err) { 
+  } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({ error: 'Usuário já existe' });
     }
-    res.status(400).json({ error: 'Dados inválidos' }); 
+    res.status(400).json({ error: 'Dados inválidos' });
   }
 });
 
@@ -401,14 +470,16 @@ router.get('/health', async (req, res) => {
   } catch (e) {
     dbStatus = 'error';
   }
-  res.json({ status: 'ok', db: dbStatus,
-    message: 'API do Center Plaza funcionando com MySQL' });
+  res.json({
+    status: 'ok', db: dbStatus,
+    message: 'API do Center Plaza funcionando com MySQL'
+  });
 });
 
 router.get('/debug', async (req, res) => {
   const info = { cwd: process.cwd(), node: process.version, timestamp: new Date().toISOString() };
   try {
-    const db     = await getDb();
+    const db = await getDb();
     const dbName = db.pool.config.connectionConfig.database;
     const [tables] = await db.query("SELECT table_name as name FROM information_schema.tables WHERE table_schema = ?", [dbName]);
     const counts = {};
@@ -427,10 +498,10 @@ router.get('/debug', async (req, res) => {
 
 router.get('/room-images/:id', async (req, res) => {
   try {
-    const db  = await getDb();
+    const db = await getDb();
     const [[img]] = await db.query('SELECT image_data, image_type, url FROM room_images WHERE id = ?', [req.params.id]);
     if (!img) return res.status(404).send('Imagem não encontrada');
-    
+
     if (img.url) {
       const filename = img.url.split('/').pop();
       const filepath = path.join(__dirname, '..', 'public', 'uploads', filename);
@@ -438,12 +509,14 @@ router.get('/room-images/:id', async (req, res) => {
         return res.sendFile(filepath);
       }
     }
-    
+
     let data = img.image_data || '';
     if (data.includes('base64,')) data = data.split('base64,')[1];
     const buf = Buffer.from(data, 'base64');
-    res.writeHead(200, { 'Content-Type': img.image_type, 'Content-Length': buf.length,
-      'Cache-Control': 'public, max-age=86400' });
+    res.writeHead(200, {
+      'Content-Type': img.image_type, 'Content-Length': buf.length,
+      'Cache-Control': 'public, max-age=86400'
+    });
     res.end(buf);
   } catch (err) { res.status(500).send('Erro interno'); }
 });
@@ -466,7 +539,7 @@ router.post('/room-images/:roomId', requireAuth, async (req, res) => {
 router.post('/admin/hero-image', requireAuth, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Nenhuma imagem enviada' });
-    
+
     const base64Data = req.file.buffer.toString('base64');
     const mimeType = req.file.mimetype || 'image/jpeg';
     const imageUrl = `data:${mimeType};base64,${base64Data}`;
@@ -493,19 +566,19 @@ async function roomsWithImages(db, rows) {
       'SELECT id FROM room_images WHERE room_type_id = ? ORDER BY display_order', [room.id]);
     return {
       ...room,
-      amenities: room.amenities, 
+      amenities: room.amenities,
       images: imgs.map(i => ({ id: i.id, url: '/api/room-images/' + i.id }))
     };
   }));
 }
-  
+
 
 router.post('/hotels', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
     const { name, address, city, state, zip_code, phone, email, website, description, amenities } = req.body;
     const db = await getDb();
-    const [r]  = await db.execute(
+    const [r] = await db.execute(
       'INSERT INTO hotels (name,address,city,state,zip_code,phone,email,website,description,amenities) VALUES (?,?,?,?,?,?,?,?,?,?)',
       [name, address, city, state, zip_code, phone, email, website, description, JSON.stringify(amenities || [])]
     );
@@ -522,7 +595,7 @@ router.put('/hotels/:id', requireAuth, async (req, res) => {
     await db.execute(
       'UPDATE hotels SET name=?,address=?,city=?,state=?,zip_code=?,phone=?,email=?,website=?,description=?,amenities=? WHERE id=?',
       [name, address, city, state, zip_code, phone, email, website, description,
-       JSON.stringify(amenities || []), req.params.id]
+        JSON.stringify(amenities || []), req.params.id]
     );
     const [[hotel]] = await db.query('SELECT * FROM hotels WHERE id = ?', [req.params.id]);
     if (!hotel) return res.status(404).json({ error: 'Hotel não encontrado' });
@@ -533,11 +606,11 @@ router.put('/hotels/:id', requireAuth, async (req, res) => {
 router.delete('/hotels/:id', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
-    const db    = await getDb();
+    const db = await getDb();
     const [[rooms]] = await db.query('SELECT COUNT(*) as c FROM room_types WHERE hotel_id = ?', [req.params.id]);
     if (rooms.c > 0) return res.status(400).json({ error: 'Exclua os quartos antes de excluir o hotel' });
-    const [[resv]]  = await db.query('SELECT COUNT(*) as c FROM reservations WHERE hotel_id = ?', [req.params.id]);
-    if (resv.c  > 0) return res.status(400).json({ error: 'Cancele as reservas antes de excluir o hotel' });
+    const [[resv]] = await db.query('SELECT COUNT(*) as c FROM reservations WHERE hotel_id = ?', [req.params.id]);
+    if (resv.c > 0) return res.status(400).json({ error: 'Cancele as reservas antes de excluir o hotel' });
     await db.execute('DELETE FROM hotels WHERE id = ?', [req.params.id]);
     res.json({ message: 'Hotel excluído com sucesso' });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -547,7 +620,7 @@ router.delete('/hotels/:id', requireAuth, async (req, res) => {
 
 router.get('/rooms', async (req, res) => {
   try {
-    const db   = await getDb();
+    const db = await getDb();
     const [rows] = await db.query(
       'SELECT rt.*, h.name as hotel_name FROM room_types rt JOIN hotels h ON rt.hotel_id = h.id ORDER BY rt.created_at DESC');
     res.json(await roomsWithImages(db, rows));
@@ -557,7 +630,7 @@ router.get('/rooms', async (req, res) => {
 
 router.get('/rooms/all', requireAuth, async (req, res) => {
   try {
-    const db   = await getDb();
+    const db = await getDb();
     const [rows] = await db.query(
       'SELECT rt.*, h.name as hotel_name FROM room_types rt LEFT JOIN hotels h ON rt.hotel_id = h.id ORDER BY rt.id ASC'
     );
@@ -568,7 +641,7 @@ router.get('/rooms/all', requireAuth, async (req, res) => {
 router.patch('/rooms/:id/availability', async (req, res) => {
   try {
     const { is_active } = req.body;
-    if (![0,1].includes(Number(is_active))) return res.status(400).json({ error: 'is_active deve ser 0 ou 1' });
+    if (![0, 1].includes(Number(is_active))) return res.status(400).json({ error: 'is_active deve ser 0 ou 1' });
     const db = await getDb();
     await db.execute('UPDATE room_types SET is_active=? WHERE id=?', [Number(is_active), req.params.id]);
     const [[room]] = await db.query('SELECT rt.*, h.name as hotel_name FROM room_types rt LEFT JOIN hotels h ON rt.hotel_id = h.id WHERE rt.id=?', [req.params.id]);
@@ -578,7 +651,7 @@ router.patch('/rooms/:id/availability', async (req, res) => {
 
 router.get('/hotels/:hotelId/rooms', async (req, res) => {
   try {
-    const db   = await getDb();
+    const db = await getDb();
     const [rows] = await db.query(
       'SELECT rt.*, h.name as hotel_name FROM room_types rt JOIN hotels h ON rt.hotel_id = h.id WHERE rt.hotel_id = ?',
       [req.params.hotelId]);
@@ -592,19 +665,19 @@ router.get('/rooms/:id/availability', async (req, res) => {
     const db = await getDb();
     const [[room]] = await db.query('SELECT total_units, max_occupancy, is_active FROM room_types WHERE id = ?', [req.params.id]);
     if (!room) return res.status(404).json({ error: 'Quarto não encontrado' });
-    
+
     if (!check_in || !check_out) {
       return res.json({ total_units: room.total_units || 1, available_units: room.total_units || 1 });
     }
-    
+
     const [[booked]] = await db.query(
       "SELECT COUNT(*) as c FROM reservations WHERE room_type_id=? AND (status='confirmed' OR (status='pending' AND created_at > NOW() - INTERVAL 30 MINUTE)) AND check_in_date < ? AND check_out_date > ?",
       [req.params.id, check_out, check_in]
     );
-    
+
     const totalUnits = room.total_units || 1;
     const availableUnits = Math.max(0, totalUnits - booked.c);
-    
+
     res.json({
       total_units: totalUnits,
       booked_units: booked.c,
@@ -624,7 +697,7 @@ router.get('/rooms/:id/blocked-dates', async (req, res) => {
     const blocked = [];
     reservations.forEach(r => {
       const start = new Date(r.check_in_date);
-      const end   = new Date(r.check_out_date);
+      const end = new Date(r.check_out_date);
       for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
         blocked.push(d.toISOString().split('T')[0]);
       }
@@ -635,7 +708,7 @@ router.get('/rooms/:id/blocked-dates', async (req, res) => {
 
 router.get('/rooms/:id', async (req, res) => {
   try {
-    const db   = await getDb();
+    const db = await getDb();
     const [[room]] = await db.query(
       'SELECT rt.*, h.name as hotel_name FROM room_types rt JOIN hotels h ON rt.hotel_id = h.id WHERE rt.id = ?',
       [req.params.id]);
@@ -649,12 +722,12 @@ router.post('/rooms', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
     const { hotel_id, name, description, size_sqm, bed_type, bed_count,
-            max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night, is_active, total_units } = req.body;
+      max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night, is_active, total_units } = req.body;
     const db = await getDb();
-    const [r]  = await db.execute(
+    const [r] = await db.execute(
       'INSERT INTO room_types (hotel_id,name,description,size_sqm,bed_type,bed_count,max_occupancy,amenities,bathroom_type,smoking_allowed,price_per_night,is_active,stripe_price_id,total_units) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
       [hotel_id, name, description, size_sqm, bed_type, bed_count, max_occupancy,
-       JSON.stringify(amenities || []), bathroom_type, smoking_allowed ? 1 : 0, price_per_night, is_active !== undefined ? is_active : 1, req.body.stripe_price_id || null, total_units || 1]
+        JSON.stringify(amenities || []), bathroom_type, smoking_allowed ? 1 : 0, price_per_night, is_active !== undefined ? is_active : 1, req.body.stripe_price_id || null, total_units || 1]
     );
     const [[room]] = await db.query(
       'SELECT rt.*, h.name as hotel_name FROM room_types rt JOIN hotels h ON rt.hotel_id = h.id WHERE rt.id = ?',
@@ -668,12 +741,12 @@ router.put('/rooms/:id', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
     const { hotel_id, name, description, size_sqm, bed_type, bed_count,
-            max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night, is_active, total_units } = req.body;
+      max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night, is_active, total_units } = req.body;
     const db = await getDb();
-    
+
     const [[current]] = await db.query('SELECT * FROM room_types WHERE id = ?', [req.params.id]);
     if (!current) return res.status(404).json({ error: 'Quarto não encontrado' });
-    
+
     await db.execute(
       'UPDATE room_types SET hotel_id=?,name=?,description=?,size_sqm=?,bed_type=?,bed_count=?,max_occupancy=?,amenities=?,bathroom_type=?,smoking_allowed=?,price_per_night=?,is_active=?,stripe_price_id=?,total_units=? WHERE id=?',
       [
@@ -706,7 +779,7 @@ router.put('/rooms/:id', requireAuth, async (req, res) => {
 router.delete('/rooms/:id', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
-    const db   = await getDb();
+    const db = await getDb();
     const [[resv]] = await db.query('SELECT COUNT(*) as c FROM reservations WHERE room_type_id = ?', [req.params.id]);
     if (resv.c > 0) return res.status(400).json({ error: 'Cancele as reservas antes de excluir o quarto' });
     await db.execute('DELETE FROM room_types WHERE id = ?', [req.params.id]);
@@ -734,14 +807,14 @@ router.get('/reservations', async (req, res) => {
   }
   try {
     const { guest_email, code, guest_name } = req.query;
-    const db     = await getDb();
+    const db = await getDb();
     await cleanupPendingReservations(db);
-    let   query  = reservationJoin;
+    let query = reservationJoin;
     const params = [];
-    const conds  = [];
-    if (guest_email)         { conds.push('r.guest_email = ?');              params.push(guest_email); }
-    if (code && guest_name)  { conds.push('r.id = ? AND r.guest_name = ?'); params.push(code, guest_name); }
-    if (conds.length)  query += ' WHERE ' + conds.join(' AND ');
+    const conds = [];
+    if (guest_email) { conds.push('r.guest_email = ?'); params.push(guest_email); }
+    if (code && guest_name) { conds.push('r.id = ? AND r.guest_name = ?'); params.push(code, guest_name); }
+    if (conds.length) query += ' WHERE ' + conds.join(' AND ');
     query += ' ORDER BY r.created_at DESC';
     const [rows] = await db.query(query, params);
     res.json(rows);
@@ -761,9 +834,9 @@ router.get('/reservations/:id', async (req, res) => {
   try {
     const db = await getDb();
     await cleanupPendingReservations(db);
-    const [[r]]  = await db.query(reservationJoin + ' WHERE r.id = ?', [req.params.id]);
+    const [[r]] = await db.query(reservationJoin + ' WHERE r.id = ?', [req.params.id]);
     if (!r) return res.status(404).json({ error: 'Reserva não encontrada' });
-    
+
     const token = req.headers['authorization']?.replace('Bearer ', '');
     const isAdmin = token && token === process.env.ADMIN_SECRET_TOKEN;
     if (!isAdmin) {
@@ -823,21 +896,21 @@ router.post('/reservations/:id/cancel', async (req, res) => {
   try {
     const db = await getDb();
     const [[reservation]] = await db.query('SELECT * FROM reservations WHERE id = ?', [req.params.id]);
-    
+
     if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
     if (reservation.status === 'cancelled') {
       return res.status(400).json({ error: 'Reserva já cancelada' });
     }
-    
+
     const checkIn = new Date(reservation.check_in_date);
     const now = new Date();
     const hoursUntilCheckIn = (checkIn.getTime() - now.getTime()) / (1000 * 60 * 60);
-    
+
     const FREE_CANCEL_HOURS = 24;
     const canCancelFree = hoursUntilCheckIn >= FREE_CANCEL_HOURS;
-    
+
     await db.execute("UPDATE reservations SET status='cancelled' WHERE id=?", [req.params.id]);
-    
+
     res.json({
       ok: true,
       free_cancellation: canCancelFree,
@@ -854,14 +927,14 @@ router.get('/reservations/:id/cancellation-policy', async (req, res) => {
     const db = await getDb();
     const [[reservation]] = await db.query('SELECT id, check_in_date, status FROM reservations WHERE id = ?', [req.params.id]);
     if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
-    
+
     const checkIn = new Date(reservation.check_in_date);
     const now = new Date();
     const hoursUntilCheckIn = (checkIn.getTime() - now.getTime()) / (1000 * 60 * 60);
     const FREE_CANCEL_HOURS = 24;
     const canCancelFree = hoursUntilCheckIn >= FREE_CANCEL_HOURS;
     const deadline = new Date(checkIn.getTime() - FREE_CANCEL_HOURS * 60 * 60 * 1000);
-    
+
     res.json({
       can_cancel: reservation.status !== 'cancelled',
       free_cancellation: canCancelFree,
@@ -878,10 +951,10 @@ router.get('/reservations/:id/cancellation-policy', async (req, res) => {
 
 router.post('/reservations', async (req, res) => {
   const { hotel_id, room_type_id, guest_name, guest_email, guest_phone,
-          guest_document, check_in_date, check_out_date, number_of_guests,
-          special_requests, status = 'pending' } = req.body;
+    guest_document, check_in_date, check_out_date, number_of_guests,
+    special_requests, status = 'pending' } = req.body;
   const iKey = req.headers['idempotency-key'];
-  
+
   let connection;
   try {
     const db = await getDb();
@@ -907,7 +980,7 @@ router.post('/reservations', async (req, res) => {
     if (conflict.c >= totalUnits) { await connection.rollback(); return res.status(409).json({ error: 'Não há unidades disponíveis para as datas selecionadas' }); }
 
     const nights = Math.max(1, Math.ceil((new Date(check_out_date) - new Date(check_in_date)) / 86400000));
-    const total  = room.price_per_night * nights;
+    const total = room.price_per_night * nights;
 
     const [ins] = await connection.execute(
       'INSERT INTO reservations (hotel_id,room_type_id,guest_name,guest_email,guest_phone,guest_document,check_in_date,check_out_date,number_of_guests,total_amount,special_requests,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
@@ -923,12 +996,12 @@ router.post('/reservations', async (req, res) => {
 
     await connection.commit();
     if (newRes) {
-      sendWebhookNotification(newRes).catch(() => {});
+      sendWebhookNotification(newRes).catch(() => { });
     }
     res.status(201).json(newRes);
-  } catch (err) { 
+  } catch (err) {
     if (connection) await connection.rollback();
-    res.status(500).json({ error: err.message }); 
+    res.status(500).json({ error: err.message });
   } finally {
     if (connection) connection.release();
   }
@@ -938,16 +1011,16 @@ router.put('/reservations/:id', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
     const { hotel_id, room_type_id, guest_name, guest_email, guest_phone,
-            guest_document, check_in_date, check_out_date, number_of_guests,
-            total_amount, special_requests, status } = req.body;
-    if (status && !['pending','confirmed','cancelled'].includes(status))
+      guest_document, check_in_date, check_out_date, number_of_guests,
+      total_amount, special_requests, status } = req.body;
+    if (status && !['pending', 'confirmed', 'cancelled'].includes(status))
       return res.status(400).json({ error: 'Status inválido' });
     const db = await getDb();
     await db.execute(
       'UPDATE reservations SET hotel_id=COALESCE(?,hotel_id),room_type_id=COALESCE(?,room_type_id),guest_name=COALESCE(?,guest_name),guest_email=COALESCE(?,guest_email),guest_phone=COALESCE(?,guest_phone),guest_document=COALESCE(?,guest_document),check_in_date=COALESCE(?,check_in_date),check_out_date=COALESCE(?,check_out_date),number_of_guests=COALESCE(?,number_of_guests),total_amount=COALESCE(?,total_amount),special_requests=COALESCE(?,special_requests),status=COALESCE(?,status) WHERE id=?',
       [hotel_id, room_type_id, guest_name, guest_email, guest_phone,
-       guest_document, check_in_date, check_out_date, number_of_guests,
-       total_amount, special_requests, status, req.params.id]
+        guest_document, check_in_date, check_out_date, number_of_guests,
+        total_amount, special_requests, status, req.params.id]
     );
     const [[r]] = await db.query(reservationJoin + ' WHERE r.id = ?', [req.params.id]);
     if (!r) return res.status(404).json({ error: 'Reserva não encontrada' });
@@ -971,7 +1044,7 @@ router.patch('/reservations/:id/status', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
     const { status } = req.body;
-    if (!['pending','confirmed','cancelled'].includes(status))
+    if (!['pending', 'confirmed', 'cancelled'].includes(status))
       return res.status(400).json({ error: 'Status inválido' });
     const db = await getDb();
     await db.execute('UPDATE reservations SET status=? WHERE id=?', [status, req.params.id]);
@@ -1045,7 +1118,7 @@ router.post('/chat/:reservationId', async (req, res) => {
     if (!content || !content.trim()) return res.status(400).json({ error: 'Mensagem vazia' });
     const role = ['admin', 'guest'].includes(sender_role) ? sender_role : 'guest';
     const db = await getDb();
-    const [r]  = await db.execute(
+    const [r] = await db.execute(
       'INSERT INTO messages (reservation_id,sender_role,content) VALUES (?,?,?)',
       [req.params.reservationId, role, content.trim()]
     );
@@ -1070,7 +1143,7 @@ router.patch('/chat/:reservationId/read', async (req, res) => {
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
- 
+
 
 
 let stripe = null;
@@ -1110,7 +1183,7 @@ router.post('/create-checkout-session', async (req, res) => {
     const [ins] = await db.execute(
       'INSERT INTO reservations (hotel_id,room_type_id,guest_name,guest_email,guest_phone,guest_document,check_in_date,check_out_date,number_of_guests,total_amount,special_requests,status,payment_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
       [hotel_id, room_type_id, guest_name, guest_email, guest_phone, guest_document,
-       check_in_date, check_out_date, number_of_guests, totalAmount, special_requests || '', 'pending', 'pending']
+        check_in_date, check_out_date, number_of_guests, totalAmount, special_requests || '', 'pending', 'pending']
     );
     const reservationId = ins.insertId;
 
@@ -1152,7 +1225,7 @@ router.post('/create-checkout-session', async (req, res) => {
         ...newRes,
         checkout_url: session.url
       };
-      sendWebhookNotification(payload).catch(() => {});
+      sendWebhookNotification(payload).catch(() => { });
     }
 
     res.json({ url: session.url, reservationId, sessionId: session.id });
@@ -1194,7 +1267,7 @@ router.post('/stripe-webhook', async (req, res) => {
 
         const [[newRes]] = await db.query(reservationJoin + ' WHERE r.id = ?', [reservationId]);
         if (newRes) {
-          sendWebhookNotification(newRes).catch(() => {});
+          sendWebhookNotification(newRes).catch(() => { });
         }
       }
     }
@@ -1309,7 +1382,7 @@ router.post('/refund-requests/:id/approve', requireAuth, async (req, res) => {
 
     connection = await db.getConnection();
     await connection.beginTransaction();
-    
+
     await connection.execute(
       `UPDATE refund_requests SET status='approved', refund_type=?, refund_amount=?, approved_by='admin', approved_at=CURRENT_TIMESTAMP, stripe_refund_id=?, stripe_refund_status=? WHERE id=?`,
       [finalRefundType, refundAmount, stripeRefundId, stripeRefundStatus, req.params.id]
@@ -1317,11 +1390,11 @@ router.post('/refund-requests/:id/approve', requireAuth, async (req, res) => {
     const newPaymentStatus = finalRefundType === 'none' ? 'paid' : finalRefundType === 'partial' ? 'partially_refunded' : 'refunded';
     await connection.execute("UPDATE reservations SET status='cancelled', payment_status=? WHERE id=?", [newPaymentStatus, request.reservation_id]);
     await connection.commit();
-    
+
     res.json({ ok: true, refund_type: finalRefundType, refund_amount: refundAmount, stripe_refund_id: stripeRefundId, stripe_refund_status: stripeRefundStatus, message: finalRefundType === 'none' ? 'Reserva cancelada sem reembolso.' : `Reembolso de R$ ${refundAmount.toFixed(2)} processado com sucesso.` });
-  } catch (err) { 
+  } catch (err) {
     if (connection) await connection.rollback();
-    res.status(500).json({ error: err.message }); 
+    res.status(500).json({ error: err.message });
   } finally {
     if (connection) connection.release();
   }
