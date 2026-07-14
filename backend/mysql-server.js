@@ -289,11 +289,10 @@ async function sendWebhookNotification(reservation) {
         } else {
           mensagemZap = `Olá, ${reservation.guest_name}!\n\n` +
             `Recebemos o seu pedido de reserva #${reservation.id} no *Center Plaza Hotel*. Para garantir sua acomodação, você precisa concluir o pagamento.\n\n` +
-            `💰 Valor: R$ ${valor}\n`;
-          if (reservation.checkout_url) {
-            mensagemZap += `\n💳 *Clique no link abaixo para finalizar o pagamento:*\n${reservation.checkout_url}`;
-          }
+            `💰 Valor: R$ ${valor}\n\n` +
+            `📧 *O link de pagamento foi enviado para o seu e-mail!* (Verifique também a caixa de spam).`;
         }
+
 
         const zapResponse = await fetch(EVOLUTION_URL, {
           method: "POST",
