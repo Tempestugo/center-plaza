@@ -178,6 +178,28 @@ async function initDatabase() {
       FOREIGN KEY(reservation_id) REFERENCES reservations(id)
     );`);
   await db.query(`CREATE TABLE IF NOT EXISTS settings (\`key\` VARCHAR(255) PRIMARY KEY, value TEXT)`);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS custom_rates (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      room_type_id INT NULL,
+      start_date DATE NOT NULL,
+      end_date DATE NOT NULL,
+      price_per_night DECIMAL(10, 2) NOT NULL,
+      label VARCHAR(255),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(room_type_id) REFERENCES room_types(id) ON DELETE CASCADE
+    );`);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS room_blocks (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      room_type_id INT NULL,
+      start_date DATE NOT NULL,
+      end_date DATE NOT NULL,
+      reason TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(room_type_id) REFERENCES room_types(id) ON DELETE CASCADE
+    );`);
+
 
 
   try { await db.query("ALTER TABLE reservations ADD COLUMN stripe_payment_intent_id TEXT"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
@@ -332,6 +354,129 @@ async function sendWebhookNotification(reservation) {
     }
   }
 }
+
+function formatYMD(val) {
+  if (!val) return '';
+  if (val instanceof Date) {
+    const y = val.getFullYear();
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const d = String(val.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  return String(val).split('T')[0];
+}
+
+function getDatesInRange(startVal, endVal, inclusiveEnd = false) {
+  const startStr = formatYMD(startVal);
+  const endStr = formatYMD(endVal);
+  if (!startStr || !endStr) return [];
+  
+  const result = [];
+  const current = new Date(startStr + 'T00:00:00Z');
+  const target = new Date(endStr + 'T00:00:00Z');
+
+  if (isNaN(current.getTime()) || isNaN(target.getTime())) return [];
+
+  let guard = 0;
+  while ((inclusiveEnd ? current <= target : current < target) && guard < 366) {
+    result.push(current.toISOString().split('T')[0]);
+    current.setUTCDate(current.getUTCDate() + 1);
+    guard++;
+  }
+  return result;
+}
+
+async function calculateStayPrice(db, roomTypeId, checkInStr, checkOutStr, fallbackPrice) {
+  const cIn = formatYMD(checkInStr);
+  const cOut = formatYMD(checkOutStr);
+  const fallback = parseFloat(fallbackPrice) || 0;
+
+  if (!cIn || !cOut || cIn >= cOut) {
+    return {
+      total_amount: fallback,
+      nights: 1,
+      daily_breakdown: []
+    };
+  }
+
+  const dateList = getDatesInRange(cIn, cOut, false);
+  const nights = dateList.length || 1;
+
+  const [rates] = await db.query(
+    "SELECT * FROM custom_rates WHERE (room_type_id = ? OR room_type_id IS NULL) AND start_date <= ? AND end_date >= ? ORDER BY room_type_id DESC, created_at DESC",
+    [roomTypeId, cOut, cIn]
+  );
+
+  let totalAmount = 0;
+  const breakdown = [];
+
+  for (const dateStr of dateList) {
+    const match = rates.find(r => {
+      const start = formatYMD(r.start_date);
+      const end = formatYMD(r.end_date);
+      return dateStr >= start && dateStr <= end;
+    });
+
+    const nightPrice = match ? parseFloat(match.price_per_night) : fallback;
+    totalAmount += nightPrice;
+    breakdown.push({
+      date: dateStr,
+      price: nightPrice,
+      is_custom: !!match,
+      label: match ? match.label : null
+    });
+  }
+
+  return {
+    total_amount: Math.round(totalAmount * 100) / 100,
+    nights,
+    daily_breakdown: breakdown
+  };
+}
+
+async function isDateBlockedOrBooked(db, roomTypeId, checkInStr, checkOutStr) {
+  const cIn = formatYMD(checkInStr);
+  const cOut = formatYMD(checkOutStr);
+
+  if (!cIn || !cOut || cIn >= cOut) {
+    return { blocked: true, reason: 'Período de datas inválido' };
+  }
+
+  const [blocks] = await db.query(
+    "SELECT * FROM room_blocks WHERE (room_type_id = ? OR room_type_id IS NULL) AND start_date <= ? AND end_date >= ?",
+    [roomTypeId, cOut, cIn]
+  );
+
+  const stayDates = getDatesInRange(cIn, cOut, false);
+  for (const b of blocks) {
+    const bStart = formatYMD(b.start_date);
+    const bEnd = formatYMD(b.end_date);
+    const overlap = stayDates.some(d => d >= bStart && d <= bEnd);
+    if (overlap) {
+      return {
+        blocked: true,
+        reason: b.reason || (b.room_type_id ? 'Quarto bloqueado nas datas selecionadas' : 'Datas indisponíveis (Bloqueio geral do hotel)')
+      };
+    }
+  }
+
+  const [[room]] = await db.query('SELECT is_active, total_units FROM room_types WHERE id = ?', [roomTypeId]);
+  if (!room || room.is_active === 0) {
+    return { blocked: true, reason: 'Quarto indisponível ou inativo' };
+  }
+
+  const totalUnits = room.total_units || 1;
+  const [[conflict]] = await db.query(
+    "SELECT COUNT(*) as c FROM reservations WHERE room_type_id=? AND (status='confirmed' OR (status='pending' AND created_at > NOW() - INTERVAL 30 MINUTE)) AND check_in_date < ? AND check_out_date > ?",
+    [roomTypeId, cOut, cIn]
+  );
+  if (conflict.c >= totalUnits) {
+    return { blocked: true, reason: 'Sem unidades disponíveis para as datas selecionadas' };
+  }
+
+  return { blocked: false };
+}
+
 
 
 router.use((req, res, next) => {
@@ -689,21 +834,163 @@ router.get('/rooms/:id/availability', async (req, res) => {
 router.get('/rooms/:id/blocked-dates', async (req, res) => {
   try {
     const db = await getDb();
+    
+    // 1. Occupied by reservations
     const [reservations] = await db.query(
       "SELECT check_in_date, check_out_date FROM reservations WHERE room_type_id=? AND (status='confirmed' OR (status='pending' AND created_at > NOW() - INTERVAL 30 MINUTE)) AND check_out_date >= CURDATE()",
       [req.params.id]
     );
-    const blocked = [];
+
+    // 2. Manual blocks (room-specific or global)
+    const [blocks] = await db.query(
+      "SELECT start_date, end_date FROM room_blocks WHERE (room_type_id=? OR room_type_id IS NULL) AND end_date >= CURDATE()",
+      [req.params.id]
+    );
+
+    const blockedSet = new Set();
+
     reservations.forEach(r => {
-      const start = new Date(r.check_in_date);
-      const end = new Date(r.check_out_date);
-      for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
-        blocked.push(d.toISOString().split('T')[0]);
-      }
+      const dates = getDatesInRange(r.check_in_date, r.check_out_date, false);
+      dates.forEach(d => blockedSet.add(d));
     });
-    res.json({ blocked_dates: blocked });
+
+    blocks.forEach(b => {
+      const dates = getDatesInRange(b.start_date, b.end_date, true);
+      dates.forEach(d => blockedSet.add(d));
+    });
+
+    res.json({ blocked_dates: Array.from(blockedSet) });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+router.get('/rooms/:id/calculate-price', async (req, res) => {
+  try {
+    const { check_in, check_out } = req.query;
+    if (!check_in || !check_out) {
+      return res.status(400).json({ error: 'check_in e check_out são obrigatórios' });
+    }
+    const db = await getDb();
+    const [[room]] = await db.query('SELECT price_per_night FROM room_types WHERE id = ?', [req.params.id]);
+    if (!room) return res.status(404).json({ error: 'Quarto não encontrado' });
+
+    const result = await calculateStayPrice(db, req.params.id, check_in, check_out, room.price_per_night);
+    res.json(result);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// =====================================================================
+// ENDPOINTS PARA GERENCIAMENTO DE TARIFAS E BLOQUEIOS (ADMIN)
+// =====================================================================
+
+router.get('/custom-rates', async (req, res) => {
+  try {
+    const db = await getDb();
+    const [rows] = await db.query(`
+      SELECT cr.*, rt.name as room_name
+      FROM custom_rates cr
+      LEFT JOIN room_types rt ON cr.room_type_id = rt.id
+      ORDER BY cr.start_date DESC
+    `);
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/custom-rates', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
+  try {
+    const { room_type_id, room_type_ids, start_date, end_date, price_per_night, label } = req.body;
+    const sDate = formatYMD(start_date);
+    const eDate = formatYMD(end_date);
+    const parsedPrice = parseFloat(price_per_night);
+
+    if (!sDate || !eDate || isNaN(parsedPrice) || parsedPrice < 0) {
+      return res.status(400).json({ error: 'Data inicial, data final e um preço válido são obrigatórios' });
+    }
+    if (sDate > eDate) {
+      return res.status(400).json({ error: 'Data inicial não pode ser posterior à data final' });
+    }
+
+    const db = await getDb();
+    const targetIds = Array.isArray(room_type_ids) && room_type_ids.length > 0 
+      ? room_type_ids 
+      : [room_type_id];
+
+    const createdIds = [];
+    for (const rId of targetIds) {
+      const parsedRoomId = (rId === 'global' || rId === null || rId === undefined || rId === '') ? null : parseInt(rId);
+      const [ins] = await db.execute(
+        'INSERT INTO custom_rates (room_type_id, start_date, end_date, price_per_night, label) VALUES (?,?,?,?,?)',
+        [parsedRoomId, sDate, eDate, parsedPrice, label || null]
+      );
+      createdIds.push(ins.insertId);
+    }
+    res.status(201).json({ id: createdIds[0], count: createdIds.length, message: `${createdIds.length} tarifa(s) cadastrada(s) com sucesso` });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/custom-rates/:id', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
+  try {
+    const db = await getDb();
+    await db.execute('DELETE FROM custom_rates WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Tarifa removida com sucesso' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/room-blocks', async (req, res) => {
+  try {
+    const db = await getDb();
+    const [rows] = await db.query(`
+      SELECT rb.*, rt.name as room_name
+      FROM room_blocks rb
+      LEFT JOIN room_types rt ON rb.room_type_id = rt.id
+      ORDER BY rb.start_date DESC
+    `);
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/room-blocks', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
+  try {
+    const { room_type_id, room_type_ids, start_date, end_date, reason } = req.body;
+    const sDate = formatYMD(start_date);
+    const eDate = formatYMD(end_date);
+
+    if (!sDate || !eDate) {
+      return res.status(400).json({ error: 'Data inicial e data final são obrigatórias' });
+    }
+    if (sDate > eDate) {
+      return res.status(400).json({ error: 'Data inicial não pode ser posterior à data final' });
+    }
+
+    const db = await getDb();
+    const targetIds = Array.isArray(room_type_ids) && room_type_ids.length > 0 
+      ? room_type_ids 
+      : [room_type_id];
+
+    const createdIds = [];
+    for (const rId of targetIds) {
+      const parsedRoomId = (rId === 'global' || rId === null || rId === undefined || rId === '') ? null : parseInt(rId);
+      const [ins] = await db.execute(
+        'INSERT INTO room_blocks (room_type_id, start_date, end_date, reason) VALUES (?,?,?,?)',
+        [parsedRoomId, sDate, eDate, reason || null]
+      );
+      createdIds.push(ins.insertId);
+    }
+    res.status(201).json({ id: createdIds[0], count: createdIds.length, message: `${createdIds.length} bloqueio(s) cadastrado(s) com sucesso` });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/room-blocks/:id', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
+  try {
+    const db = await getDb();
+    await db.execute('DELETE FROM room_blocks WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Bloqueio removido com sucesso' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 
 router.get('/rooms/:id', async (req, res) => {
   try {
@@ -734,6 +1021,77 @@ router.post('/rooms', requireAuth, async (req, res) => {
     const [result] = await roomsWithImages(db, [room]);
     res.status(201).json(result);
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.patch('/rooms/batch-status', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
+  try {
+    const { ids, is_active } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0 || is_active === undefined) {
+      return res.status(400).json({ error: 'Lista de IDs e novo status são obrigatórios' });
+    }
+    const val = is_active ? 1 : 0;
+    const db = await getDb();
+    const placeholders = ids.map(() => '?').join(',');
+    await db.execute(
+      `UPDATE room_types SET is_active = ? WHERE id IN (${placeholders})`,
+      [val, ...ids]
+    );
+    res.json({ message: `${ids.length} quarto(s) atualizado(s) com sucesso`, updatedCount: ids.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Erro ao atualizar status em massa' });
+  }
+});
+
+router.patch('/rooms/batch-price', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
+  try {
+    const { ids, price_per_night } = req.body;
+    const parsedPrice = parseFloat(price_per_night);
+    if (!Array.isArray(ids) || ids.length === 0 || isNaN(parsedPrice) || parsedPrice < 0) {
+      return res.status(400).json({ error: 'Lista de IDs e valor válido por noite são obrigatórios' });
+    }
+    const db = await getDb();
+    const placeholders = ids.map(() => '?').join(',');
+    await db.execute(
+      `UPDATE room_types SET price_per_night = ? WHERE id IN (${placeholders})`,
+      [parsedPrice, ...ids]
+    );
+    res.json({ message: `Preço atualizado para ${ids.length} quarto(s) com sucesso`, updatedCount: ids.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Erro ao atualizar preços em massa' });
+  }
+});
+
+router.post('/rooms/batch-delete', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Lista de IDs é obrigatória' });
+    }
+    const db = await getDb();
+    let deletedCount = 0;
+    let deactivatedCount = 0;
+
+    for (const id of ids) {
+      const [[resv]] = await db.query('SELECT COUNT(*) as c FROM reservations WHERE room_type_id = ?', [id]);
+      if (resv.c > 0) {
+        await db.execute('UPDATE room_types SET is_active = 0 WHERE id = ?', [id]);
+        deactivatedCount++;
+      } else {
+        await db.execute('DELETE FROM room_types WHERE id = ?', [id]);
+        deletedCount++;
+      }
+    }
+    res.json({
+      message: `Processamento concluído: ${deletedCount} excluído(s), ${deactivatedCount} desativado(s) por possuir reservas.`,
+      deletedCount,
+      deactivatedCount
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Erro ao excluir quartos em massa' });
+  }
 });
 
 router.put('/rooms/:id', requireAuth, async (req, res) => {
@@ -972,14 +1330,14 @@ router.post('/reservations', async (req, res) => {
     const [[room]] = await connection.query('SELECT price_per_night, total_units, max_occupancy FROM room_types WHERE id = ?', [room_type_id]);
     if (!room) { await connection.rollback(); return res.status(404).json({ error: 'Quarto não encontrado' }); }
 
-    const totalUnits = room.total_units || 1;
-    const [[conflict]] = await connection.query(
-      "SELECT COUNT(*) as c FROM reservations WHERE room_type_id=? AND (status='confirmed' OR (status='pending' AND created_at > NOW() - INTERVAL 30 MINUTE)) AND check_in_date < ? AND check_out_date > ? FOR UPDATE",
-      [room_type_id, check_out_date, check_in_date]);
-    if (conflict.c >= totalUnits) { await connection.rollback(); return res.status(409).json({ error: 'Não há unidades disponíveis para as datas selecionadas' }); }
+    const checkResult = await isDateBlockedOrBooked(connection, room_type_id, check_in_date, check_out_date);
+    if (checkResult.blocked) {
+      await connection.rollback();
+      return res.status(409).json({ error: checkResult.reason });
+    }
 
-    const nights = Math.max(1, Math.ceil((new Date(check_out_date) - new Date(check_in_date)) / 86400000));
-    const total = room.price_per_night * nights;
+    const pricing = await calculateStayPrice(connection, room_type_id, check_in_date, check_out_date, room.price_per_night);
+    const total = pricing.total_amount;
 
     const [ins] = await connection.execute(
       'INSERT INTO reservations (hotel_id,room_type_id,guest_name,guest_email,guest_phone,guest_document,check_in_date,check_out_date,number_of_guests,total_amount,special_requests,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
@@ -1169,15 +1527,12 @@ router.post('/create-checkout-session', async (req, res) => {
     const [[room]] = await db.query('SELECT * FROM room_types WHERE id = ?', [room_type_id]);
     if (!room) return res.status(404).json({ error: 'Quarto não encontrado' });
 
-    const totalUnits = room.total_units || 1;
-    const [[conflict]] = await db.query(
-      "SELECT COUNT(*) as c FROM reservations WHERE room_type_id=? AND (status='confirmed' OR (status='pending' AND created_at > NOW() - INTERVAL 30 MINUTE)) AND check_in_date < ? AND check_out_date > ?",
-      [room_type_id, check_out_date, check_in_date]
-    );
-    if (conflict.c >= totalUnits) return res.status(409).json({ error: 'Não há unidades disponíveis para as datas selecionadas' });
+    const checkResult = await isDateBlockedOrBooked(db, room_type_id, check_in_date, check_out_date);
+    if (checkResult.blocked) return res.status(409).json({ error: checkResult.reason });
 
-    const nights = Math.max(1, Math.ceil((new Date(check_out_date) - new Date(check_in_date)) / 86400000));
-    const totalAmount = room.price_per_night * nights;
+    const pricing = await calculateStayPrice(db, room_type_id, check_in_date, check_out_date, room.price_per_night);
+    const totalAmount = pricing.total_amount;
+    const nights = pricing.nights;
 
     const [ins] = await db.execute(
       'INSERT INTO reservations (hotel_id,room_type_id,guest_name,guest_email,guest_phone,guest_document,check_in_date,check_out_date,number_of_guests,total_amount,special_requests,status,payment_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',

@@ -15,6 +15,7 @@ import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
 import { gtmEvent } from "@/lib/gtm";
+import { roomService } from "@/services/api";
 
 interface BookingFlowProps {
   open: boolean;
@@ -59,26 +60,45 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
     specialRequests: "",
   });
   const [blockedDates, setBlockedDates] = useState<string[]>([]);
+  const [dynamicPricing, setDynamicPricing] = useState<{
+    total_amount: number;
+    nights: number;
+    daily_breakdown: { date: string; price: number; is_custom: boolean; label?: string | null }[];
+  } | null>(null);
 
   useEffect(() => {
     if (!accommodation?.id) return;
-    fetch('/api/rooms/' + accommodation.id + '/blocked-dates')
-      .then(r => r.json())
+    roomService.getBlockedDates(accommodation.id)
       .then(data => setBlockedDates(data.blocked_dates || []))
       .catch(() => {});
   }, [String(accommodation?.id)]);
 
+  useEffect(() => {
+    if (checkIn && checkOut && accommodation?.id) {
+      const startStr = format(checkIn, 'yyyy-MM-dd');
+      const endStr = format(checkOut, 'yyyy-MM-dd');
+      roomService.calculatePrice(accommodation.id, startStr, endStr)
+        .then(data => {
+          if (data && typeof data.total_amount === 'number') {
+            setDynamicPricing(data);
+          }
+        })
+        .catch(() => setDynamicPricing(null));
+    } else {
+      setDynamicPricing(null);
+    }
+  }, [checkIn, checkOut, String(accommodation?.id)]);
+
   const isDateBlocked = (date: Date): boolean => {
-    const str = date.toISOString().split('T')[0];
+    const str = format(date, 'yyyy-MM-dd');
     return blockedDates.includes(str);
   };
 
-
-  
-  const nights     = checkIn && checkOut ? differenceInDays(checkOut, checkIn) : 0;
-  const subtotal   = nights * accommodation.price;
+  const nights = checkIn && checkOut ? differenceInDays(checkOut, checkIn) : 0;
+  const subtotal = dynamicPricing ? dynamicPricing.total_amount : nights * accommodation.price;
   const serviceFee = subtotal * 0.1;
-  const total      = subtotal + serviceFee;
+  const total = subtotal + serviceFee;
+
 
   const currentStepIndex = STEP_ORDER.indexOf(currentStep);
 

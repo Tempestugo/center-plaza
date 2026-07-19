@@ -15,7 +15,8 @@ import ImageUpload from "@/components/admin/ImageUpload";
 import AdminLayout from "@/components/admin/AdminLayout";
 import {
   Plus, Search, Edit, Trash2, Bed, Loader2, X,
-  CheckCircle, XCircle, LayoutGrid, List, RefreshCw
+  CheckCircle, XCircle, LayoutGrid, List, RefreshCw,
+  DollarSign, CheckSquare, Square, Layers, Power, PowerOff
 } from "lucide-react";
 
 const BED_TYPE_OCCUPANCY: Record<string, number> = {
@@ -40,6 +41,7 @@ const EMPTY_ROOM = {
   hotel_id: "", name: "", description: "", size_sqm: "",
   bed_type: "", bed_count: 1, max_occupancy: 2, total_units: 1,
   bathroom_type: "", smoking_allowed: false, price_per_night: "", room_number: "",
+  stripe_price_id: "",
   amenities: [] as string[],
 };
 
@@ -65,6 +67,12 @@ export default function AdminHospedagens() {
   const [imageFiles,   setImageFiles]   = useState<File[]>([]);
   const [existingImages, setExistingImages] = useState<{id: number; url: string}[]>([]);
 
+  // Selection & Bulk Operations State
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [batchProcessing, setBatchProcessing] = useState(false);
+  const [bulkPriceModalOpen, setBulkPriceModalOpen] = useState(false);
+  const [bulkPriceInput, setBulkPriceInput] = useState("");
+
   const loadRooms = useCallback(async () => {
     setLoading(true);
     try {
@@ -83,6 +91,78 @@ export default function AdminHospedagens() {
   }, []);
 
   useEffect(() => { loadRooms(); }, [loadRooms]);
+
+  const toggleSelectRoom = (id: number) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = (filteredRooms: RoomType[]) => {
+    const filteredIds = filteredRooms.map(r => r.id);
+    const allSelected = filteredIds.length > 0 && filteredIds.every(id => selectedIds.includes(id));
+    if (allSelected) {
+      setSelectedIds(prev => prev.filter(id => !filteredIds.includes(id)));
+    } else {
+      setSelectedIds(prev => Array.from(new Set([...prev, ...filteredIds])));
+    }
+  };
+
+  const handleBatchStatus = async (is_active: number) => {
+    if (selectedIds.length === 0) return;
+    setBatchProcessing(true);
+    try {
+      const res = await roomService.batchUpdateStatus(selectedIds, is_active);
+      toast.success(res.message || `${selectedIds.length} quarto(s) atualizado(s)!`);
+      setSelectedIds([]);
+      loadRooms();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao atualizar status dos quartos selecionados");
+    } finally {
+      setBatchProcessing(false);
+    }
+  };
+
+  const handleBatchPriceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const price = parseFloat(bulkPriceInput);
+    if (isNaN(price) || price < 0) {
+      toast.error("Informe um preço válido maior ou igual a zero");
+      return;
+    }
+    if (selectedIds.length === 0) return;
+
+    setBatchProcessing(true);
+    try {
+      const res = await roomService.batchUpdatePrice(selectedIds, price);
+      toast.success(res.message || `Preço atualizado para ${selectedIds.length} quarto(s)!`);
+      setBulkPriceModalOpen(false);
+      setBulkPriceInput("");
+      setSelectedIds([]);
+      loadRooms();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao atualizar preços dos quartos selecionados");
+    } finally {
+      setBatchProcessing(false);
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Tem certeza que deseja excluir os ${selectedIds.length} quarto(s) selecionados?\n\nQuartos que possuírem reservas ativas serão desativados automaticamente em vez de excluídos.`)) return;
+
+    setBatchProcessing(true);
+    try {
+      const res = await roomService.batchDelete(selectedIds);
+      toast.success(res.message || "Exclusão em massa concluída!");
+      setSelectedIds([]);
+      loadRooms();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao excluir quartos selecionados");
+    } finally {
+      setBatchProcessing(false);
+    }
+  };
 
   const toggleAvailability = async (room: RoomType) => {
     setTogglingId(room.id);
@@ -185,8 +265,7 @@ export default function AdminHospedagens() {
   };
 
   const handleDeleteRoom = async (r: RoomType) => {
-    if (!confirm(`Excluir "${r.name}"?
-Se houver reservas ativas, o quarto será desativado em vez de excluído.`)) return;
+    if (!confirm(`Excluir "${r.name}"?\nSe houver reservas ativas, o quarto será desativado em vez de excluído.`)) return;
     try {
       await roomService.delete(r.id);
       toast.success("Quarto excluído com sucesso!");
@@ -211,6 +290,7 @@ Se houver reservas ativas, o quarto será desativado em vez de excluído.`)) ret
 
   const activeCount   = rooms.filter(r => (r.is_active === 1 || r.is_active === true)).length;
   const inactiveCount = rooms.length - activeCount;
+  const allFilteredSelected = filtered.length > 0 && filtered.every(r => selectedIds.includes(r.id));
 
   return (
     <AdminLayout
@@ -225,13 +305,12 @@ Se houver reservas ativas, o quarto será desativado em vez de excluído.`)) ret
         </div>
       }
     >
-      <div className="space-y-5">
+      <div className="space-y-5 pb-20">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Hospedagens</h2>
-          <p className="text-muted-foreground text-sm mt-0.5">Gerencie a disponibilidade dos quartos</p>
+          <p className="text-muted-foreground text-sm mt-0.5">Gerencie a disponibilidade e altere quartos individualmente ou em massa</p>
         </div>
 
-        {}
         <div className="grid gap-4 grid-cols-3">
           {[
             { label: "Total de Quartos", value: rooms.length,    icon: Bed,          color: "text-muted-foreground" },
@@ -250,9 +329,17 @@ Se houver reservas ativas, o quarto será desativado em vez de excluído.`)) ret
           ))}
         </div>
 
-        {}
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => toggleSelectAll(filtered)}
+              className="h-9 gap-1.5"
+            >
+              {allFilteredSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4" />}
+              <span>{allFilteredSelected ? "Desmarcar Todos" : "Selecionar Todos"}</span>
+            </Button>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input className="pl-9 w-52 h-9" placeholder="Buscar por nome ou nº..." value={search} onChange={e => setSearch(e.target.value)} />
@@ -274,7 +361,6 @@ Se houver reservas ativas, o quarto será desativado em vez de excluído.`)) ret
           </div>
         </div>
 
-        {}
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
         ) : filtered.length === 0 ? (
@@ -284,81 +370,217 @@ Se houver reservas ativas, o quarto será desativado em vez de excluído.`)) ret
           </div>
         ) : viewMode === "grid" ? (
           <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {filtered.map(room => (
-              <div key={room.id} className={`relative rounded-lg border p-3 transition-all ${room.is_active === 1 ? "bg-white hover:border-primary/50" : "bg-muted/30 opacity-60"}`}>
-                <div className="w-full h-20 rounded-md bg-muted overflow-hidden mb-2">
-                  {room.images?.[0] ? (
-                    <img src={room.images[0].url} alt={room.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center"><Bed className="h-6 w-6 text-muted-foreground/40" /></div>
-                  )}
+            {filtered.map(room => {
+              const isSelected = selectedIds.includes(room.id);
+              return (
+                <div
+                  key={room.id}
+                  className={`relative rounded-lg border p-3 transition-all ${
+                    isSelected ? "ring-2 ring-primary border-primary bg-primary/5" : room.is_active === 1 ? "bg-white hover:border-primary/50" : "bg-muted/30 opacity-70"
+                  }`}
+                >
+                  <div className="absolute top-2 left-2 z-10">
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => toggleSelectRoom(room.id)}
+                      className="bg-white dark:bg-card shadow"
+                    />
+                  </div>
+                  <div className="w-full h-20 rounded-md bg-muted overflow-hidden mb-2 relative">
+                    {room.images?.[0] ? (
+                      <img src={room.images[0].url} alt={room.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center"><Bed className="h-6 w-6 text-muted-foreground/40" /></div>
+                    )}
+                  </div>
+                  <div className="space-y-0.5">
+                    {room.room_number && <p className="text-[10px] font-mono text-muted-foreground">Nº {room.room_number}</p>}
+                    <p className="text-xs font-semibold leading-tight line-clamp-1">{room.name}</p>
+                    <p className="text-xs text-muted-foreground">{fmtCurrency(room.price_per_night)}/noite</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {room.total_units || 1} unidade{(room.total_units || 1) !== 1 ? "s" : ""} · máx {room.max_occupancy ?? (room as any).capacity} hóspede{(room.max_occupancy ?? (room as any).capacity) !== 1 ? "s" : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t">
+                    <span className={`text-[10px] font-medium ${room.is_active === 1 ? "text-green-600" : "text-red-500"}`}>
+                      {room.is_active === 1 ? "Disponível" : "Inativo"}
+                    </span>
+                    {togglingId === room.id
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                      : <Switch checked={room.is_active === 1} onCheckedChange={() => toggleAvailability(room)} className="scale-75" />
+                    }
+                  </div>
+                  <div className="flex gap-1 mt-1">
+                    <Button variant="ghost" size="icon" className="h-6 w-6 flex-1" onClick={() => openEditRoom(room)}><Edit className="h-3 w-3" /></Button>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 flex-1 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDeleteRoom(room)}><Trash2 className="h-3 w-3" /></Button>
+                  </div>
                 </div>
-                <div className="space-y-0.5">
-                  {room.room_number && <p className="text-[10px] font-mono text-muted-foreground">Nº {room.room_number}</p>}
-                  <p className="text-xs font-semibold leading-tight line-clamp-1">{room.name}</p>
-                  <p className="text-xs text-muted-foreground">{fmtCurrency(room.price_per_night)}/noite</p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {room.total_units || 1} unidade{(room.total_units || 1) !== 1 ? "s" : ""} · máx {room.max_occupancy ?? (room as any).capacity} hóspede{(room.max_occupancy ?? (room as any).capacity) !== 1 ? "s" : ""}
-                  </p>
-                </div>
-                <div className="flex items-center justify-between mt-2 pt-2 border-t">
-                  <span className={`text-[10px] font-medium ${room.is_active === 1 ? "text-green-600" : "text-red-500"}`}>
-                    {room.is_active === 1 ? "Disponível" : "Inativo"}
-                  </span>
-                  {togglingId === room.id
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                    : <Switch checked={room.is_active === 1} onCheckedChange={() => toggleAvailability(room)} className="scale-75" />
-                  }
-                </div>
-                <div className="flex gap-1 mt-1">
-                  <Button variant="ghost" size="icon" className="h-6 w-6 flex-1" onClick={() => openEditRoom(room)}><Edit className="h-3 w-3" /></Button>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 flex-1 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDeleteRoom(room)}><Trash2 className="h-3 w-3" /></Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="rounded-lg border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
+                  <th className="px-3 py-2.5 w-10 text-center">
+                    <Checkbox
+                      checked={allFilteredSelected}
+                      onCheckedChange={() => toggleSelectAll(filtered)}
+                    />
+                  </th>
                   {["Nº", "Nome", "Cama", "Hóspedes", "Unidades", "Preço/noite", "Disponível", "Ações"].map(h => (
                     <th key={h} className={`px-4 py-2.5 text-xs font-medium text-muted-foreground ${h === "Disponível" ? "text-center" : h === "Ações" ? "text-right" : "text-left"}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filtered.map(room => (
-                  <tr key={room.id} className={`transition-colors ${room.is_active === 1 ? "hover:bg-muted/20" : "bg-muted/10 opacity-60"}`}>
-                    <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{room.room_number || `#${room.id}`}</td>
-                    <td className="px-4 py-2.5 font-medium">{room.name}</td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground">{room.bed_type || "—"}</td>
-                    <td className="px-4 py-2.5 text-xs">{room.max_occupancy ?? (room as any).capacity}</td>
-                    <td className="px-4 py-2.5 text-xs">{room.total_units || 1}</td>
-                    <td className="px-4 py-2.5 text-xs font-medium">{fmtCurrency(room.price_per_night)}</td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex justify-center">
-                        {togglingId === room.id
-                          ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                          : <Switch checked={room.is_active === 1} onCheckedChange={() => toggleAvailability(room)} />
-                        }
-                      </div>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditRoom(room)}><Edit className="h-3.5 w-3.5" /></Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDeleteRoom(room)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map(room => {
+                  const isSelected = selectedIds.includes(room.id);
+                  return (
+                    <tr key={room.id} className={`transition-colors ${isSelected ? "bg-primary/5" : room.is_active === 1 ? "hover:bg-muted/20" : "bg-muted/10 opacity-70"}`}>
+                      <td className="px-3 py-2.5 text-center">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSelectRoom(room.id)}
+                        />
+                      </td>
+                      <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{room.room_number || `#${room.id}`}</td>
+                      <td className="px-4 py-2.5 font-medium">{room.name}</td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground">{room.bed_type || "—"}</td>
+                      <td className="px-4 py-2.5 text-xs">{room.max_occupancy ?? (room as any).capacity}</td>
+                      <td className="px-4 py-2.5 text-xs">{room.total_units || 1}</td>
+                      <td className="px-4 py-2.5 text-xs font-medium">{fmtCurrency(room.price_per_night)}</td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex justify-center">
+                          {togglingId === room.id
+                            ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            : <Switch checked={room.is_active === 1} onCheckedChange={() => toggleAvailability(room)} />
+                          }
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditRoom(room)}><Edit className="h-3.5 w-3.5" /></Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDeleteRoom(room)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-foreground text-background dark:bg-card dark:text-foreground px-5 py-3 rounded-xl shadow-2xl border flex items-center gap-4 animate-in slide-in-from-bottom duration-200">
+          <div className="flex items-center gap-2 pr-3 border-r border-background/20 dark:border-border">
+            <Layers className="h-5 w-5 text-primary" />
+            <span className="font-semibold text-sm">
+              {selectedIds.length} quarto(s) selecionado(s)
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={batchProcessing}
+              onClick={() => handleBatchStatus(1)}
+              className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white border-0"
+            >
+              <Power className="h-3.5 w-3.5" />
+              Ativar Todos
+            </Button>
+
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={batchProcessing}
+              onClick={() => handleBatchStatus(0)}
+              className="h-8 gap-1.5 bg-amber-600 hover:bg-amber-700 text-white border-0"
+            >
+              <PowerOff className="h-3.5 w-3.5" />
+              Desativar Todos
+            </Button>
+
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={batchProcessing}
+              onClick={() => { setBulkPriceInput(""); setBulkPriceModalOpen(true); }}
+              className="h-8 gap-1.5"
+            >
+              <DollarSign className="h-3.5 w-3.5 text-emerald-500" />
+              Alterar Preço
+            </Button>
+
+            <Button
+              size="sm"
+              variant="destructive"
+              disabled={batchProcessing}
+              onClick={handleBatchDelete}
+              className="h-8 gap-1.5"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Excluir
+            </Button>
+
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setSelectedIds([])}
+              className="h-8 text-xs hover:bg-background/20 dark:hover:bg-accent"
+            >
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <Dialog open={bulkPriceModalOpen} onOpenChange={setBulkPriceModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-emerald-600" />
+              Alterar Preço em Massa
+            </DialogTitle>
+            <DialogDescription>
+              Defina o novo valor da diária que será aplicado aos {selectedIds.length} quarto(s) selecionado(s).
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleBatchPriceSubmit} className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="bulk-price">Novo Valor por Noite (R$)</Label>
+              <Input
+                id="bulk-price"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Ex: 250.00"
+                value={bulkPriceInput}
+                onChange={e => setBulkPriceInput(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setBulkPriceModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={batchProcessing} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                {batchProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Aplicar a Todos ({selectedIds.length})
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={roomModal !== null} onOpenChange={() => setRoomModal(null)}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>

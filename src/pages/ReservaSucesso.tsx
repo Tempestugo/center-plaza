@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Loader2 } from "lucide-react";
+import { CheckCircle, Loader2, Mail } from "lucide-react";
 import { gtmEvent } from "@/lib/gtm";
 
 const fmt = (dateStr: string) => {
@@ -48,15 +48,15 @@ export default function ReservaSucesso() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
       <Card className="max-w-md w-full">
         <CardContent className="p-8 text-center space-y-6">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-            <CheckCircle className="h-8 w-8 text-green-600" />
+          <div className="w-16 h-16 bg-green-100 dark:bg-green-950/50 rounded-full flex items-center justify-center mx-auto">
+            <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-green-600">Reserva Confirmada!</h1>
+            <h1 className="text-2xl font-bold text-green-600 dark:text-green-400">Reserva Confirmada!</h1>
             <p className="text-muted-foreground mt-2">Seu pagamento foi processado com sucesso.</p>
           </div>
           {reservation && (
-            <div className="text-left space-y-2 text-sm border rounded-lg p-4">
+            <div className="text-left space-y-2 text-sm border rounded-lg p-4 bg-card">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Reserva nº</span>
                 <span className="font-mono font-semibold">#{reservation.id}</span>
@@ -73,15 +73,31 @@ export default function ReservaSucesso() {
                 <span className="text-muted-foreground">Check-out</span>
                 <span>{fmt(reservation.check_out_date)}</span>
               </div>
-              <div className="flex justify-between font-semibold">
+              <div className="flex justify-between font-semibold border-t pt-2 mt-2">
                 <span>Total pago</span>
                 <span>R$ {reservation.total_amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
           )}
-          <p className="text-xs text-muted-foreground">
-            Um email de confirmação foi enviado para {reservation?.guest_email}
-          </p>
+
+          <div className="bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-lg p-4 text-left space-y-2">
+            <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-medium text-sm">
+              <Mail className="h-4 w-4 shrink-0" />
+              <span>Confirmação enviada por e-mail</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Enviamos os detalhes da sua reserva para{" "}
+              {reservation?.guest_email ? (
+                <strong className="text-foreground font-semibold">{reservation.guest_email}</strong>
+              ) : (
+                "o seu e-mail"
+              )}.
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-900/40 p-2.5 rounded mt-1">
+              📌 <strong>Importante:</strong> Caso não encontre o e-mail na sua caixa de entrada, verifique a pasta de <strong>spam</strong> ou <strong>lixo eletrônico</strong>.
+            </p>
+          </div>
+
           <Button className="w-full" onClick={() => navigate('/')}>
             Voltar para o início
           </Button>
@@ -89,4 +105,4 @@ export default function ReservaSucesso() {
       </Card>
     </div>
   );
-}
+}

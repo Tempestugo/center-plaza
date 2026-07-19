@@ -18,6 +18,7 @@ const AdminHospedagens = lazy(() => import("./pages/AdminHospedagens"));
 const AdminReservas = lazy(() => import("./pages/AdminReservas"));
 const AdminRelatorios = lazy(() => import("./pages/AdminRelatorios"));
 const AdminSettings = lazy(() => import("./pages/AdminSettings"));
+const AdminDisponibilidade = lazy(() => import("./pages/AdminDisponibilidade"));
 import UserDashboard from "./pages/UserDashboard";
 import ReservationDetails from "./pages/ReservationDetails";
 import UserProfile from "./pages/UserProfile";
@@ -65,6 +66,7 @@ const App = () => (
                 <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
                 <Route path="/admin/hospedagens" element={<AdminRoute><AdminHospedagens /></AdminRoute>} />
                 <Route path="/admin/reservas" element={<AdminRoute><AdminReservas /></AdminRoute>} />
+                <Route path="/admin/disponibilidade" element={<AdminRoute><AdminDisponibilidade /></AdminRoute>} />
                 <Route path="/admin/reservas-concluidas" element={<AdminRoute><AdminReservas onlyConfirmed={true} /></AdminRoute>} />
                 <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
                 <Route path="/admin/relatorios" element={<AdminRoute><AdminRelatorios /></AdminRoute>} />

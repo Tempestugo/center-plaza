@@ -86,6 +86,39 @@ export interface Message {
   created_at: string;
 }
 
+export interface CustomRate {
+  id: number;
+  room_type_id?: number | null;
+  room_name?: string;
+  start_date: string;
+  end_date: string;
+  price_per_night: number;
+  label?: string;
+  created_at?: string;
+}
+
+export interface RoomBlock {
+  id: number;
+  room_type_id?: number | null;
+  room_name?: string;
+  start_date: string;
+  end_date: string;
+  reason?: string;
+  created_at?: string;
+}
+
+export interface PriceCalculation {
+  total_amount: number;
+  nights: number;
+  daily_breakdown: {
+    date: string;
+    price: number;
+    is_custom: boolean;
+    label?: string | null;
+  }[];
+}
+
+
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -121,7 +154,16 @@ async function apiRequest<T>(
     const response = await fetch(url, config);
     
     if (!response.ok) {
-      throw new ApiError(response.status, `HTTP error! status: ${response.status}`);
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (errorData && errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch (e) {
+        // failed to parse json
+      }
+      throw new ApiError(response.status, errorMessage);
     }
     
     const data = await response.json();
@@ -397,7 +439,40 @@ export const roomService = {
       headers: getAuthHeaders(),
     });
   },
+
+  async batchUpdateStatus(ids: number[], is_active: number): Promise<{ message: string; updatedCount: number }> {
+    return apiRequest<{ message: string; updatedCount: number }>('/rooms/batch-status', {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ ids, is_active }),
+    });
+  },
+
+  async batchUpdatePrice(ids: number[], price_per_night: number): Promise<{ message: string; updatedCount: number }> {
+    return apiRequest<{ message: string; updatedCount: number }>('/rooms/batch-price', {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ ids, price_per_night }),
+    });
+  },
+
+  async batchDelete(ids: number[]): Promise<{ message: string; deletedCount: number; deactivatedCount: number }> {
+    return apiRequest<{ message: string; deletedCount: number; deactivatedCount: number }>('/rooms/batch-delete', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ ids }),
+    });
+  },
+
+  async calculatePrice(id: number | string, checkIn: string, checkOut: string): Promise<PriceCalculation> {
+    return apiRequest<PriceCalculation>(`/rooms/${id}/calculate-price?check_in=${encodeURIComponent(checkIn)}&check_out=${encodeURIComponent(checkOut)}`);
+  },
+
+  async getBlockedDates(id: number | string): Promise<{ blocked_dates: string[] }> {
+    return apiRequest<{ blocked_dates: string[] }>(`/rooms/${id}/blocked-dates`);
+  },
 };
+
 
 
 export const reservationService = {
@@ -490,6 +565,44 @@ export const healthService = {
   },
 };
 
+export const customRatesService = {
+  async getAll(): Promise<CustomRate[]> {
+    return apiRequest<CustomRate[]>('/custom-rates');
+  },
+  async create(data: Omit<CustomRate, 'id' | 'created_at' | 'room_name'> & { room_type_ids?: (number | string | null)[] }): Promise<{ id: number; count?: number; message: string }> {
+    return apiRequest<{ id: number; count?: number; message: string }>('/custom-rates', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+  },
+  async delete(id: number): Promise<void> {
+    return apiRequest<void>(`/custom-rates/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+  },
+};
+
+export const roomBlocksService = {
+  async getAll(): Promise<RoomBlock[]> {
+    return apiRequest<RoomBlock[]>('/room-blocks');
+  },
+  async create(data: Omit<RoomBlock, 'id' | 'created_at' | 'room_name'> & { room_type_ids?: (number | string | null)[] }): Promise<{ id: number; count?: number; message: string }> {
+    return apiRequest<{ id: number; count?: number; message: string }>('/room-blocks', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+  },
+  async delete(id: number): Promise<void> {
+    return apiRequest<void>(`/room-blocks/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+  },
+};
+
 
 export default {
   hotel: hotelService,
@@ -497,8 +610,11 @@ export default {
   reservation: reservationService,
   chat: chatService,
   health: healthService,
+  customRates: customRatesService,
+  roomBlocks: roomBlocksService,
   ApiError,
 };
+
 
 
 function fileToBase64(file: File): Promise<string> {

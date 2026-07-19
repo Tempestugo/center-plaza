@@ -6,15 +6,17 @@ import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Settings, LogOut, BarChart3, Home, Calendar, TrendingUp, CheckCircle } from "lucide-react";
+import { Bell, Settings, LogOut, BarChart3, Home, Calendar, TrendingUp, CheckCircle, CalendarDays } from "lucide-react";
 
 const NAV_ITEMS = [
   { label: "Dashboard",   href: "/admin/dashboard",   icon: BarChart3   },
   { label: "Hospedagens", href: "/admin/hospedagens",  icon: Home        },
   { label: "Reservas",    href: "/admin/reservas",     icon: Calendar    },
+  { label: "Disponibilidade", href: "/admin/disponibilidade", icon: CalendarDays },
   { label: "Concluídas",  href: "/admin/reservas-concluidas", icon: CheckCircle },
   { label: "Relatórios",  href: "/admin/relatorios",   icon: TrendingUp  },
 ];
+
 
 interface AdminLayoutProps {
   children: React.ReactNode;
