@@ -317,8 +317,8 @@ async function sendWebhookNotification(reservation) {
             `📧 *O link de pagamento foi enviado para o seu e-mail!* (Verifique também a caixa de spam).`;
         }
 
-        // Montar URL da Evolution API com suporte a instância e substituição segura de espaços
-        let targetUrl = EVOLUTION_URL.trim();
+        // Montar URL da Evolution API limpando barras invertidas de escape da Hostinger (\%20 -> %20)
+        let targetUrl = EVOLUTION_URL.trim().replace(/\\/g, '');
         if (!targetUrl.includes('/sendText') && !targetUrl.includes('/message/sendText')) {
           const inst = encodeURIComponent(EVOLUTION_INSTANCE || 'CENTER PLAZA');
           targetUrl = `${targetUrl.replace(/\/$/, '')}/message/sendText/${inst}`;
