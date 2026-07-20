@@ -33,7 +33,27 @@ export default function ReservaSucesso() {
       .then(r => r.json())
       .then(data => {
         setReservation(data);
-        gtmEvent('reserva_confirmada', { reserva_id: reservationId, valor: data?.total_amount });
+        
+        // Evita disparo duplicado de conversão caso o usuário recarregue a página
+        const trackedKey = `tracked_reserva_${reservationId}`;
+        if (!sessionStorage.getItem(trackedKey)) {
+          const totalVal = Number(data?.total_amount || 0);
+          gtmEvent('purchase', {
+            transaction_id: String(reservationId),
+            value: totalVal,
+            currency: 'BRL',
+            reserva_id: String(reservationId),
+            valor: totalVal
+          });
+          gtmEvent('reserva_confirmada', {
+            transaction_id: String(reservationId),
+            value: totalVal,
+            currency: 'BRL',
+            reserva_id: String(reservationId),
+            valor: totalVal
+          });
+          sessionStorage.setItem(trackedKey, 'true');
+        }
       })
       .finally(() => setLoading(false));
   }, [reservationId]);
