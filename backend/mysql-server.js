@@ -277,17 +277,19 @@ async function sendWebhookNotification(reservation) {
   // =======================================================
   const EVOLUTION_URL = process.env.EVOLUTION_URL;
   const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY;
+  const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE;
 
   if (EVOLUTION_URL && EVOLUTION_API_KEY) {
     try {
-      const telefone = reservation.guest_phone;
+      const telefone = reservation.guest_phone || reservation.phone;
       if (telefone) {
-        // Guilhotina e formatação do número
+        // Limpeza e formatação correta do número de telefone brasileiro
         let numeroLimpo = String(telefone).replace(/\D/g, '');
         if (numeroLimpo.startsWith('0')) numeroLimpo = numeroLimpo.substring(1);
-        if (numeroLimpo.length === 10 || numeroLimpo.length === 11) numeroLimpo = "55" + numeroLimpo;
-        if (numeroLimpo.length === 13 && numeroLimpo.startsWith("55")) {
-          numeroLimpo = numeroLimpo.substring(0, 4) + numeroLimpo.substring(5);
+        
+        // Se o número tiver 10 ou 11 dígitos (DDD + número), adiciona o código do Brasil 55
+        if (numeroLimpo.length === 10 || numeroLimpo.length === 11) {
+          numeroLimpo = "55" + numeroLimpo;
         }
 
         // Formatar data isolando o fuso horário para evitar bugs
@@ -298,7 +300,7 @@ async function sendWebhookNotification(reservation) {
 
         const checkIn = formatarData(reservation.check_in_date);
         const checkOut = formatarData(reservation.check_out_date);
-        const valor = parseFloat(reservation.total_amount).toFixed(2);
+        const valor = parseFloat(reservation.total_amount || 0).toFixed(2);
 
         let mensagemZap = "";
 
@@ -315,20 +317,37 @@ async function sendWebhookNotification(reservation) {
             `📧 *O link de pagamento foi enviado para o seu e-mail!* (Verifique também a caixa de spam).`;
         }
 
+        // Montar URL da Evolution API com suporte a instância
+        let targetUrl = EVOLUTION_URL.trim();
+        if (!targetUrl.includes('/sendText') && !targetUrl.includes('/message/sendText')) {
+          const inst = EVOLUTION_INSTANCE || 'center-plaza';
+          targetUrl = `${targetUrl.replace(/\/$/, '')}/message/sendText/${inst}`;
+        }
 
-        const zapResponse = await fetch(EVOLUTION_URL, {
+        const zapResponse = await fetch(targetUrl, {
           method: "POST",
           headers: {
             "apikey": EVOLUTION_API_KEY,
+            "Authorization": `Bearer ${EVOLUTION_API_KEY}`,
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
             number: numeroLimpo,
-            text: mensagemZap
+            text: mensagemZap,
+            textMessage: {
+              text: mensagemZap
+            }
           })
         });
 
-        console.log(`[WhatsApp] Disparo direto para ${numeroLimpo}. Status da Evolution API: ${zapResponse.status}`);
+        const respText = await zapResponse.text();
+        if (zapResponse.ok) {
+          console.log(`[WhatsApp] ✅ Disparo enviado com sucesso para ${numeroLimpo}. Status: ${zapResponse.status}`);
+        } else {
+          console.error(`[WhatsApp] ❌ Erro Evolution API ao enviar para ${numeroLimpo} (URL: ${targetUrl}). Status: ${zapResponse.status}, Resposta: ${respText}`);
+        }
+      } else {
+        console.log(`[WhatsApp] Telefone não informado para a reserva #${reservation.id}.`);
       }
     } catch (err) {
       console.error(`[WhatsApp] Erro no disparo direto:`, err.message);
