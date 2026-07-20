@@ -317,11 +317,14 @@ async function sendWebhookNotification(reservation) {
             `📧 *O link de pagamento foi enviado para o seu e-mail!* (Verifique também a caixa de spam).`;
         }
 
-        // Montar URL da Evolution API com suporte a instância
+        // Montar URL da Evolution API com suporte a instância e substituição segura de espaços
         let targetUrl = EVOLUTION_URL.trim();
         if (!targetUrl.includes('/sendText') && !targetUrl.includes('/message/sendText')) {
-          const inst = EVOLUTION_INSTANCE || 'center-plaza';
+          const inst = encodeURIComponent(EVOLUTION_INSTANCE || 'CENTER PLAZA');
           targetUrl = `${targetUrl.replace(/\/$/, '')}/message/sendText/${inst}`;
+        } else {
+          // Converte espaços para %20 sem codificar %20 existente para %2520
+          targetUrl = targetUrl.replace(/ /g, '%20');
         }
 
         const zapResponse = await fetch(targetUrl, {
