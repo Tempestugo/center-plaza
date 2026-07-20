@@ -377,6 +377,37 @@ async function sendWebhookNotification(reservation) {
   }
 }
 
+// ROTA DE TESTE DIRETO DE WHATSAPP DO SERVIDOR (HOSTINGER)
+router.get('/admin/test-whatsapp', async (req, res) => {
+  const phone = req.query.phone || '11995186866';
+  const testReservation = {
+    id: 'TESTE-999',
+    guest_name: 'Hóspede Teste',
+    guest_phone: phone,
+    check_in_date: new Date().toISOString().split('T')[0],
+    check_out_date: new Date().toISOString().split('T')[0],
+    total_amount: 150.00,
+    status: 'confirmed',
+    payment_status: 'paid'
+  };
+
+  console.log(`[Test WhatsApp] Rota de teste acionada para o telefone: ${phone}`);
+  try {
+    await sendWebhookNotification(testReservation);
+    res.json({
+      success: true,
+      message: `Teste de envio disparado no servidor Hostinger para ${phone}. Verifique os Logs de execução na Hostinger para confirmação.`,
+      config: {
+        evolution_url_presente: !!process.env.EVOLUTION_URL,
+        evolution_key_presente: !!process.env.EVOLUTION_API_KEY,
+        url_configurada: process.env.EVOLUTION_URL || 'NÃO CONFIGURADA'
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 function formatYMD(val) {
   if (!val) return '';
   if (val instanceof Date) {
