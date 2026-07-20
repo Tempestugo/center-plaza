@@ -9,14 +9,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { roomService } from "@/services/api";
-import type { RoomType } from "@/services/api";
+import { roomService, customRatesService, roomBlocksService, reservationService } from "@/services/api";
+import type { RoomType, CustomRate, RoomBlock, Reservation } from "@/services/api";
 import ImageUpload from "@/components/admin/ImageUpload";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format, addDays, subDays, parseISO, isWeekend } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   Plus, Search, Edit, Trash2, Bed, Loader2, X,
   CheckCircle, XCircle, LayoutGrid, List, RefreshCw,
-  DollarSign, CheckSquare, Square, Layers, Power, PowerOff
+  DollarSign, CheckSquare, Square, Layers, Power, PowerOff,
+  Calendar, Lock, Unlock, Users, ChevronLeft, ChevronRight, CalendarDays, ShieldAlert, Building2, Sparkles
 } from "lucide-react";
 
 const BED_TYPE_OCCUPANCY: Record<string, number> = {
@@ -67,6 +71,25 @@ export default function AdminHospedagens() {
   const [imageFiles,   setImageFiles]   = useState<File[]>([]);
   const [existingImages, setExistingImages] = useState<{id: number; url: string}[]>([]);
 
+  // Availability, Rates, Reservations States
+  const [rates, setRates] = useState<CustomRate[]>([]);
+  const [blocks, setBlocks] = useState<RoomBlock[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+
+  // Mini Calendar Grid Controls for the selected edit room
+  const [gridStartDate, setGridStartDate] = useState<Date>(new Date());
+  const [selectedGridDate, setSelectedGridDate] = useState<Date>(new Date());
+
+  // Form States for daily pricing/block inside edit room modal
+  const [dailyPriceInput, setDailyPriceInput] = useState<string>("");
+  const [dailyPriceLabel, setDailyPriceLabel] = useState<string>("");
+  const [dailyPriceEnd, setDailyPriceEnd] = useState<string>("");
+  const [dailyBlockReason, setDailyBlockReason] = useState<string>("");
+  const [dailyBlockEnd, setDailyBlockEnd] = useState<string>("");
+  
+  const [savingDailyRate, setSavingDailyRate] = useState(false);
+  const [savingDailyBlock, setSavingDailyBlock] = useState(false);
+
   // Selection & Bulk Operations State
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [batchProcessing, setBatchProcessing] = useState(false);
@@ -83,8 +106,18 @@ export default function AdminHospedagens() {
         data = await roomService.getAll();
       }
       setRooms(data.map(r => ({ ...r, is_active: (r.is_active === undefined || r.is_active === 1) ? 1 : 0 })));
+
+      // Load rates, blocks, reservations concurrently
+      const [ratesData, blocksData, reservationsData] = await Promise.all([
+        customRatesService.getAll().catch(() => []),
+        roomBlocksService.getAll().catch(() => []),
+        reservationService.getAll().catch(() => []),
+      ]);
+      setRates(ratesData);
+      setBlocks(blocksData);
+      setReservations(reservationsData);
     } catch {
-      toast.error("Erro ao carregar quartos");
+      toast.error("Erro ao carregar quartos e dados de disponibilidade");
     } finally {
       setLoading(false);
     }
@@ -582,101 +615,555 @@ export default function AdminHospedagens() {
       </Dialog>
 
       <Dialog open={roomModal !== null} onOpenChange={() => setRoomModal(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{roomModal === "create" ? "Novo Quarto" : `Editar: ${selectedRoom?.name}`}</DialogTitle>
             <DialogDescription>{roomModal === "create" ? "Configure o novo quarto." : "Atualize as informações."}</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSaveRoom} className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Número do Quarto</Label>
-                <Input value={roomForm.room_number} onChange={e => setRoomForm(p => ({ ...p, room_number: e.target.value }))} placeholder="Ex: 101, 201A..." />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Nome / Tipo</Label>
-                <Input value={roomForm.name} onChange={e => setRoomForm(p => ({ ...p, name: e.target.value }))} placeholder="Ex: Suíte Luxo" required />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Preço por Noite (R$)</Label>
-                <Input type="number" step="0.01" min="0" value={roomForm.price_per_night} onChange={e => setRoomForm(p => ({ ...p, price_per_night: e.target.value }))} required />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Ocupação Máxima</Label>
-                <Input type="number" min="1" max="20" value={roomForm.max_occupancy} onChange={e => setRoomForm(p => ({ ...p, max_occupancy: Number(e.target.value) }))} required />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Tipo de Cama</Label>
-                <Select value={roomForm.bed_type} onValueChange={handleBedTypeChange}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {["Solteiro", "Casal", "Queen", "King", "Triplo", "Quádruplo", "Beliche", "Twin"].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Número de Camas</Label>
-                <Input type="number" min="1" max="10" value={roomForm.bed_count} onChange={e => setRoomForm(p => ({ ...p, bed_count: Number(e.target.value) }))} />
-              </div>
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label>Unidades Físicas</Label>
-                  <span className="text-[10px] text-muted-foreground">Qtd. em estoque</span>
-                </div>
-                <Input type="number" min="1" max="100" value={roomForm.total_units} onChange={e => setRoomForm(p => ({ ...p, total_units: parseInt(e.target.value) || 1 }))} required />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Área (m²)</Label>
-                <Input type="number" step="0.1" value={roomForm.size_sqm} onChange={e => setRoomForm(p => ({ ...p, size_sqm: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Tipo de Banheiro</Label>
-                <Input value={roomForm.bathroom_type} onChange={e => setRoomForm(p => ({ ...p, bathroom_type: e.target.value }))} placeholder="Ex: Privativo com banheira" />
-              </div>
-              <div className="col-span-2 space-y-1.5">
-                <Label>Descrição</Label>
-                <Textarea rows={3} value={roomForm.description} onChange={e => setRoomForm(p => ({ ...p, description: e.target.value }))} placeholder="Descreva as características..." />
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label>Comodidades</Label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {AMENITIES_OPTIONS.map(opt => (
-                  <div key={opt} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`amenity-${opt}`}
-                      checked={roomForm.amenities.includes(opt)}
-                      onCheckedChange={(checked) => {
-                        setRoomForm(p => ({
-                          ...p,
-                          amenities: checked ? [...p.amenities, opt] : p.amenities.filter(a => a !== opt)
-                        }));
-                      }}
-                    />
-                    <label htmlFor={`amenity-${opt}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">{opt}</label>
+          {roomModal === "edit" ? (
+            <Tabs defaultValue="general" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/65 p-1 rounded-md">
+                <TabsTrigger value="general" className="flex items-center gap-1.5 py-2">
+                  <Edit className="h-4 w-4 text-muted-foreground" />
+                  Informações Básicas & Imagens
+                </TabsTrigger>
+                <TabsTrigger value="calendar" className="flex items-center gap-1.5 py-2">
+                  <CalendarDays className="h-4 w-4 text-primary" />
+                  Agenda & Disponibilidade Diária
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="general">
+                <form onSubmit={handleSaveRoom} className="space-y-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Número do Quarto</Label>
+                      <Input value={roomForm.room_number} onChange={e => setRoomForm(p => ({ ...p, room_number: e.target.value }))} placeholder="Ex: 101, 201A..." />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Nome / Tipo</Label>
+                      <Input value={roomForm.name} onChange={e => setRoomForm(p => ({ ...p, name: e.target.value }))} placeholder="Ex: Suíte Luxo" required />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Preço por Noite (R$)</Label>
+                      <Input type="number" step="0.01" min="0" value={roomForm.price_per_night} onChange={e => setRoomForm(p => ({ ...p, price_per_night: e.target.value }))} required />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Ocupação Máxima</Label>
+                      <Input type="number" min="1" max="20" value={roomForm.max_occupancy} onChange={e => setRoomForm(p => ({ ...p, max_occupancy: Number(e.target.value) }))} required />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Tipo de Cama</Label>
+                      <Select value={roomForm.bed_type} onValueChange={handleBedTypeChange}>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          {["Solteiro", "Casal", "Queen", "King", "Triplo", "Quádruplo", "Beliche", "Twin"].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Número de Camas</Label>
+                      <Input type="number" min="1" max="10" value={roomForm.bed_count} onChange={e => setRoomForm(p => ({ ...p, bed_count: Number(e.target.value) }))} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label>Unidades Físicas</Label>
+                        <span className="text-[10px] text-muted-foreground">Qtd. em estoque</span>
+                      </div>
+                      <Input type="number" min="1" max="100" value={roomForm.total_units} onChange={e => setRoomForm(p => ({ ...p, total_units: parseInt(e.target.value) || 1 }))} required />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Área (m²)</Label>
+                      <Input type="number" step="0.1" value={roomForm.size_sqm} onChange={e => setRoomForm(p => ({ ...p, size_sqm: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Tipo de Banheiro</Label>
+                      <Input value={roomForm.bathroom_type} onChange={e => setRoomForm(p => ({ ...p, bathroom_type: e.target.value }))} placeholder="Ex: Privativo com banheira" />
+                    </div>
+                    <div className="col-span-2 space-y-1.5">
+                      <Label>Descrição</Label>
+                      <Textarea rows={3} value={roomForm.description} onChange={e => setRoomForm(p => ({ ...p, description: e.target.value }))} placeholder="Descreva as características..." />
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label>Imagens do Quarto</Label>
-              <ImageUpload
-                onFilesChange={setImageFiles}
-                existingImages={existingImages}
-                onDeleteExisting={handleDeleteImage}
-                maxFiles={5}
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-1">
-              <Button variant="outline" type="button" onClick={() => setRoomModal(null)}>Cancelar</Button>
-              <Button type="submit" disabled={saving}>
-                {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-                {roomModal === "create" ? "Criar Quarto" : "Salvar Alterações"}
-              </Button>
-            </div>
-          </form>
+                  <div className="space-y-2">
+                    <Label>Comodidades</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {AMENITIES_OPTIONS.map(opt => (
+                        <div key={opt} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`amenity-${opt}`}
+                            checked={roomForm.amenities.includes(opt)}
+                            onCheckedChange={(checked) => {
+                              setRoomForm(p => ({
+                                ...p,
+                                amenities: checked ? [...p.amenities, opt] : p.amenities.filter(a => a !== opt)
+                              }));
+                            }}
+                          />
+                          <label htmlFor={`amenity-${opt}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">{opt}</label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Imagens do Quarto</Label>
+                    <ImageUpload
+                      onFilesChange={setImageFiles}
+                      existingImages={existingImages}
+                      onDeleteExisting={handleDeleteImage}
+                      maxFiles={5}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2 pt-1 border-t mt-4">
+                    <Button variant="outline" type="button" onClick={() => setRoomModal(null)}>Cancelar</Button>
+                    <Button type="submit" disabled={saving}>
+                      {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                      Salvar Alterações
+                    </Button>
+                  </div>
+                </form>
+              </TabsContent>
+
+              <TabsContent value="calendar" className="space-y-4 pt-1">
+                {selectedRoom && (
+                  <div className="space-y-4">
+                    {/* Navigation bar for mini calendar */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 bg-muted/30 p-2.5 rounded-lg border border-border/50">
+                      <div className="text-xs font-semibold text-foreground flex items-center gap-1">
+                        <Calendar className="h-4 w-4 text-primary" />
+                        Próximos 14 Dias - {selectedRoom.name}
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          className="h-7 w-7" 
+                          type="button"
+                          onClick={() => setGridStartDate(p => subDays(p, 7))}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-7 px-2.5 text-[10px]"
+                          type="button"
+                          onClick={() => setGridStartDate(new Date())}
+                        >
+                          Hoje
+                        </Button>
+                        <div className="flex items-center gap-1 border rounded-md px-1.5 py-0.5 bg-background text-[10px] h-7">
+                          <input 
+                            type="date" 
+                            value={format(gridStartDate, "yyyy-MM-dd")}
+                            onChange={(e) => {
+                              const d = parseISO(e.target.value);
+                              if (!isNaN(d.getTime())) setGridStartDate(d);
+                            }}
+                            className="border-0 p-0 focus:outline-none focus:ring-0 bg-transparent w-22 text-[10px] font-semibold"
+                          />
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          className="h-7 w-7" 
+                          type="button"
+                          onClick={() => setGridStartDate(p => addDays(p, 7))}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Horizontal grid of 14 days */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+                      {Array.from({ length: 14 }, (_, i) => addDays(gridStartDate, i)).map((date, idx) => {
+                        const dateStr = format(date, "yyyy-MM-dd");
+                        const isSelected = format(date, "yyyy-MM-dd") === format(selectedGridDate, "yyyy-MM-dd");
+                        const { price, isCustom } = getPriceForDate(selectedRoom, dateStr);
+                        const { blocked } = getBlockForDate(selectedRoom, dateStr);
+                        const booked = getBookedCountForDate(selectedRoom.id, dateStr);
+                        const totalUnits = selectedRoom.total_units || 1;
+                        const available = Math.max(0, totalUnits - booked);
+                        const weekend = isWeekend(date);
+
+                        return (
+                          <div 
+                            key={idx}
+                            onClick={() => handleGridDateSelect(date)}
+                            className={`p-2 rounded-lg border text-center cursor-pointer transition-all duration-150 relative ${
+                              isSelected 
+                                ? "ring-2 ring-primary border-primary bg-primary/5 shadow-sm scale-102" 
+                                : blocked
+                                ? "bg-rose-50/40 border-rose-100 dark:bg-rose-950/10 dark:border-rose-900/30 hover:bg-rose-100/50"
+                                : weekend
+                                ? "bg-amber-50/10 border-border/80 hover:bg-muted/40"
+                                : "bg-card border-border hover:bg-muted/30"
+                            }`}
+                          >
+                            <div className="text-[10px] font-semibold text-muted-foreground uppercase leading-tight">
+                              {format(date, "eee", { locale: ptBR })}
+                            </div>
+                            <div className="text-xs font-bold text-foreground leading-snug">
+                              {format(date, "dd/MM")}
+                            </div>
+
+                            <div className="mt-2 space-y-0.5">
+                              <div className={`text-[11px] font-bold ${
+                                blocked 
+                                  ? "text-rose-500 line-through font-normal text-[10px]" 
+                                  : isCustom 
+                                  ? "text-indigo-600 dark:text-indigo-400" 
+                                  : "text-foreground/80"
+                              }`}>
+                                {blocked ? "Bloq." : `R$ ${Math.round(price)}`}
+                              </div>
+
+                              {!blocked && (
+                                <div className={`text-[9px] font-medium ${
+                                  available === 0 
+                                    ? "text-rose-600 dark:text-rose-400 font-semibold" 
+                                    : "text-muted-foreground/60"
+                                }`}>
+                                  {available === 0 ? "Lotado" : `${available} disp`}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Small dots */}
+                            <div className="flex justify-center gap-1 mt-1.5 h-1">
+                              {blocked ? (
+                                <Lock className="h-2 w-2 text-rose-500" />
+                              ) : isCustom ? (
+                                <span className="h-1 w-1 rounded-full bg-indigo-500" />
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Inline Editor Panel for the selected day */}
+                    <div className="border rounded-lg p-4 bg-muted/10 space-y-4">
+                      <div className="flex items-center justify-between border-b pb-2 flex-wrap gap-2">
+                        <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                          <CheckCircle className="h-4 w-4 text-emerald-500" />
+                          Configurações para o dia: {format(selectedGridDate, "eeee, dd/MM/yyyy", { locale: ptBR })}
+                        </h4>
+
+                        <div className="flex gap-2 text-[10px] text-muted-foreground">
+                          {(() => {
+                            const dateStr = format(selectedGridDate, "yyyy-MM-dd");
+                            const { price, isCustom } = getPriceForDate(selectedRoom, dateStr);
+                            const { blocked, reason } = getBlockForDate(selectedRoom, dateStr);
+                            return (
+                              <>
+                                <span>Preço: <strong className="text-foreground">{fmtCurrency(price)}</strong> {isCustom ? "(Especial)" : "(Base)"}</span>
+                                <span>•</span>
+                                <span>Status: <strong className={blocked ? "text-rose-500" : "text-emerald-500"}>{blocked ? `Bloqueado (${reason})` : "Aberto"}</strong></span>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-1">
+                        {/* Box 1: Definir Preço */}
+                        <form onSubmit={handleDailyPriceSubmit} className="space-y-3">
+                          <h5 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                            <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                            Alterar Tarifa
+                          </h5>
+
+                          <div className="space-y-1">
+                            <Label className="text-[10px]" htmlFor="dp-price">Preço por Noite (R$)</Label>
+                            <Input
+                              id="dp-price"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={dailyPriceInput}
+                              onChange={e => setDailyPriceInput(e.target.value)}
+                              required
+                              className="h-8 text-xs"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <Label className="text-[10px]">De:</Label>
+                              <Input
+                                type="date"
+                                value={format(selectedGridDate, "yyyy-MM-dd")}
+                                disabled
+                                className="h-8 text-xs bg-muted/40"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px]" htmlFor="dp-end">Até (Inclusive):</Label>
+                              <Input
+                                id="dp-end"
+                                type="date"
+                                min={format(selectedGridDate, "yyyy-MM-dd")}
+                                value={dailyPriceEnd}
+                                onChange={e => setDailyPriceEnd(e.target.value)}
+                                required
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <Label className="text-[10px]" htmlFor="dp-label">Identificador (Opcional)</Label>
+                            <Input
+                              id="dp-label"
+                              placeholder="Ex: Feriado, Fim de Semana"
+                              value={dailyPriceLabel}
+                              onChange={e => setDailyPriceLabel(e.target.value)}
+                              className="h-8 text-xs"
+                            />
+                          </div>
+
+                          <Button type="submit" size="sm" disabled={savingDailyRate} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs">
+                            {savingDailyRate ? "Salvando..." : "Aplicar Tarifa"}
+                          </Button>
+                        </form>
+
+                        {/* Box 2: Bloqueio de Vendas */}
+                        <form onSubmit={handleDailyBlockSubmit} className="space-y-3">
+                          <h5 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                            <Lock className="h-3.5 w-3.5 text-rose-600" />
+                            Bloquear Vendas
+                          </h5>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <Label className="text-[10px]">De:</Label>
+                              <Input
+                                type="date"
+                                value={format(selectedGridDate, "yyyy-MM-dd")}
+                                disabled
+                                className="h-8 text-xs bg-muted/40"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px]" htmlFor="db-end">Até (Inclusive):</Label>
+                              <Input
+                                id="db-end"
+                                type="date"
+                                min={format(selectedGridDate, "yyyy-MM-dd")}
+                                value={dailyBlockEnd}
+                                onChange={e => setDailyBlockEnd(e.target.value)}
+                                required
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <Label className="text-[10px]" htmlFor="db-reason">Motivo do Bloqueio (Opcional)</Label>
+                            <Input
+                              id="db-reason"
+                              placeholder="Ex: Manutenção, Feriado fechado"
+                              value={dailyBlockReason}
+                              onChange={e => setDailyBlockReason(e.target.value)}
+                              className="h-8 text-xs"
+                            />
+                          </div>
+
+                          <Button type="submit" size="sm" variant="destructive" disabled={savingDailyBlock} className="w-full h-8 text-xs">
+                            {savingDailyBlock ? "Salvando..." : "Confirmar Bloqueio"}
+                          </Button>
+                        </form>
+                      </div>
+
+                      {/* Regras Ativas list */}
+                      <div className="pt-3 border-t grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        {/* Tarifas Especiais vigentes neste dia */}
+                        <div className="space-y-1.5">
+                          <p className="font-semibold text-muted-foreground text-[10px] uppercase tracking-wider">Tarifas especiais ativas:</p>
+                          {(() => {
+                            const activeRates = rates.filter(r => {
+                              const isTarget = r.room_type_id === selectedRoom.id || r.room_type_id === null;
+                              const dateStr = format(selectedGridDate, "yyyy-MM-dd");
+                              const start = r.start_date.split("T")[0];
+                              const end = r.end_date.split("T")[0];
+                              return isTarget && dateStr >= start && dateStr <= end;
+                            });
+
+                            if (activeRates.length === 0) {
+                              return <p className="text-muted-foreground italic text-[11px]">Nenhuma tarifa especial ativa.</p>;
+                            }
+
+                            return (
+                              <div className="space-y-1 max-h-[100px] overflow-y-auto pr-1">
+                                {activeRates.map(rate => (
+                                  <div key={rate.id} className="flex items-center justify-between p-1.5 rounded bg-muted/65 border text-[11px]">
+                                    <div>
+                                      <strong className="text-emerald-600">{fmtCurrency(rate.price_per_night)}</strong>
+                                      {rate.label && <span className="ml-1 text-[9px] text-muted-foreground bg-background px-1 py-0.5 rounded">{rate.label}</span>}
+                                      <span className="block text-[9px] text-muted-foreground">Válido: {fmtDate(rate.start_date)} a {fmtDate(rate.end_date)} {rate.room_type_id === null && "(GLOBAL)"}</span>
+                                    </div>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      type="button"
+                                      className="h-5 w-5 text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+                                      onClick={() => handleDeleteDailyRateRule(rate.id)}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })()}
+                        </div>
+
+                        {/* Bloqueios vigentes neste dia */}
+                        <div className="space-y-1.5">
+                          <p className="font-semibold text-muted-foreground text-[10px] uppercase tracking-wider">Bloqueios ativos:</p>
+                          {(() => {
+                            const activeBlocks = blocks.filter(b => {
+                              const isTarget = b.room_type_id === selectedRoom.id || b.room_type_id === null;
+                              const dateStr = format(selectedGridDate, "yyyy-MM-dd");
+                              const start = b.start_date.split("T")[0];
+                              const end = b.end_date.split("T")[0];
+                              return isTarget && dateStr >= start && dateStr <= end;
+                            });
+
+                            if (activeBlocks.length === 0) {
+                              return <p className="text-muted-foreground italic text-[11px]">Nenhum bloqueio ativo.</p>;
+                            }
+
+                            return (
+                              <div className="space-y-1 max-h-[100px] overflow-y-auto pr-1">
+                                {activeBlocks.map(block => (
+                                  <div key={block.id} className="flex items-center justify-between p-1.5 rounded bg-rose-50/50 border border-rose-100 text-rose-700 text-[11px] dark:bg-rose-950/10 dark:border-rose-900/30">
+                                    <div>
+                                      <strong>{block.reason || "Sem motivo"}</strong>
+                                      <span className="block text-[9px] text-muted-foreground">Válido: {fmtDate(block.start_date)} a {fmtDate(block.end_date)} {block.room_type_id === null && "(GLOBAL)"}</span>
+                                    </div>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      type="button"
+                                      className="h-5 w-5 text-rose-600 hover:text-rose-800 hover:bg-rose-100"
+                                      onClick={() => handleDeleteDailyBlockRule(block.id)}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="flex justify-end pt-1 border-t mt-4">
+                  <Button variant="outline" type="button" onClick={() => setRoomModal(null)}>Fechar</Button>
+                </div>
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <form onSubmit={handleSaveRoom} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Número do Quarto</Label>
+                  <Input value={roomForm.room_number} onChange={e => setRoomForm(p => ({ ...p, room_number: e.target.value }))} placeholder="Ex: 101, 201A..." />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Nome / Tipo</Label>
+                  <Input value={roomForm.name} onChange={e => setRoomForm(p => ({ ...p, name: e.target.value }))} placeholder="Ex: Suíte Luxo" required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Preço por Noite (R$)</Label>
+                  <Input type="number" step="0.01" min="0" value={roomForm.price_per_night} onChange={e => setRoomForm(p => ({ ...p, price_per_night: e.target.value }))} required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Ocupação Máxima</Label>
+                  <Input type="number" min="1" max="20" value={roomForm.max_occupancy} onChange={e => setRoomForm(p => ({ ...p, max_occupancy: Number(e.target.value) }))} required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Tipo de Cama</Label>
+                  <Select value={roomForm.bed_type} onValueChange={handleBedTypeChange}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      {["Solteiro", "Casal", "Queen", "King", "Triplo", "Quádruplo", "Beliche", "Twin"].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Número de Camas</Label>
+                  <Input type="number" min="1" max="10" value={roomForm.bed_count} onChange={e => setRoomForm(p => ({ ...p, bed_count: Number(e.target.value) }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label>Unidades Físicas</Label>
+                    <span className="text-[10px] text-muted-foreground">Qtd. em estoque</span>
+                  </div>
+                  <Input type="number" min="1" max="100" value={roomForm.total_units} onChange={e => setRoomForm(p => ({ ...p, total_units: parseInt(e.target.value) || 1 }))} required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Área (m²)</Label>
+                  <Input type="number" step="0.1" value={roomForm.size_sqm} onChange={e => setRoomForm(p => ({ ...p, size_sqm: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Tipo de Banheiro</Label>
+                  <Input value={roomForm.bathroom_type} onChange={e => setRoomForm(p => ({ ...p, bathroom_type: e.target.value }))} placeholder="Ex: Privativo com banheira" />
+                </div>
+                <div className="col-span-2 space-y-1.5">
+                  <Label>Descrição</Label>
+                  <Textarea rows={3} value={roomForm.description} onChange={e => setRoomForm(p => ({ ...p, description: e.target.value }))} placeholder="Descreva as características..." />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Comodidades</Label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {AMENITIES_OPTIONS.map(opt => (
+                    <div key={opt} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`amenity-${opt}`}
+                        checked={roomForm.amenities.includes(opt)}
+                        onCheckedChange={(checked) => {
+                          setRoomForm(p => ({
+                            ...p,
+                            amenities: checked ? [...p.amenities, opt] : p.amenities.filter(a => a !== opt)
+                          }));
+                        }}
+                      />
+                      <label htmlFor={`amenity-${opt}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">{opt}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Imagens do Quarto</Label>
+                <ImageUpload
+                  onFilesChange={setImageFiles}
+                  existingImages={existingImages}
+                  onDeleteExisting={handleDeleteImage}
+                  maxFiles={5}
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <Button variant="outline" type="button" onClick={() => setRoomModal(null)}>Cancelar</Button>
+                <Button type="submit" disabled={saving}>
+                  {saving && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                  Criar Quarto
+                </Button>
+              </div>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </AdminLayout>

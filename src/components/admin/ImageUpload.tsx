@@ -159,18 +159,23 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
                       alt="Existing"
                       className="w-full h-full object-cover rounded"
                     />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center gap-2">
+                    <div className="absolute top-2 right-2 z-10">
                       <Button
-                        size="sm"
+                        size="icon"
                         variant="destructive"
-                        onClick={() => onDeleteExisting && onDeleteExisting(img.id)}
-                        className="h-8 w-8 p-0"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          onDeleteExisting && onDeleteExisting(img.id);
+                        }}
+                        className="h-6 w-6 rounded-full shadow-md p-0 flex items-center justify-center bg-rose-600 hover:bg-rose-700"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                     <div className="absolute top-2 left-2 flex flex-col gap-1">
-                      <Badge variant="secondary" className="text-xs">Salva</Badge>
+                      <Badge variant="secondary" className="text-[10px] bg-background/80 backdrop-blur-sm">Salva</Badge>
                     </div>
                   </div>
                 </CardContent>
@@ -187,18 +192,23 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
                       alt={`New ${index}`}
                       className="w-full h-full object-cover rounded"
                     />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center gap-2">
+                    <div className="absolute top-2 right-2 z-10">
                       <Button
-                        size="sm"
+                        size="icon"
                         variant="destructive"
-                        onClick={() => removeNewImage(index)}
-                        className="h-8 w-8 p-0"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          removeNewImage(index);
+                        }}
+                        className="h-6 w-6 rounded-full shadow-md p-0 flex items-center justify-center bg-rose-600 hover:bg-rose-700"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                     <div className="absolute top-2 left-2 flex flex-col gap-1">
-                      <Badge variant="default" className="text-xs">Nova</Badge>
+                      <Badge variant="default" className="text-[10px]">Nova</Badge>
                     </div>
                   </div>
                 </CardContent>
