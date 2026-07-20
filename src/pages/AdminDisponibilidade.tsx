@@ -88,17 +88,17 @@ export default function AdminDisponibilidade() {
     setLoading(true);
     try {
       const [roomsData, ratesData, blocksData, reservationsData] = await Promise.all([
-        roomService.getAll().catch(() => []),
-        customRatesService.getAll().catch(() => []),
-        roomBlocksService.getAll().catch(() => []),
-        reservationService.getAll().catch(() => []),
+        roomService.getAll(),
+        customRatesService.getAll(),
+        roomBlocksService.getAll(),
+        reservationService.getAll(),
       ]);
       setRooms(roomsData);
       setRates(ratesData);
       setBlocks(blocksData);
       setReservations(reservationsData);
-    } catch {
-      toast.error("Erro ao carregar dados de disponibilidade");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao carregar dados de disponibilidade");
     } finally {
       setLoading(false);
     }
