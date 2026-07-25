@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
@@ -60,6 +61,8 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
     specialRequests: "",
   });
   const [blockedDates, setBlockedDates] = useState<string[]>([]);
+  const [cardInOwnName, setCardInOwnName] = useState(true);
+  const [cardHolderName, setCardHolderName] = useState("");
   const [dynamicPricing, setDynamicPricing] = useState<{
     total_amount: number;
     nights: number;
@@ -105,7 +108,7 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
   const canProceed = {
     dates:   !!(checkIn && checkOut && nights > 0),
     guests:  guests > 0 && guests <= accommodation.maxGuests,
-    details: !!(guestDetails.name && guestDetails.email && guestDetails.phone && guestDetails.document),
+    details: !!(guestDetails.name && guestDetails.email && guestDetails.phone && guestDetails.document && (cardInOwnName || cardHolderName.trim())),
   };
 
   
@@ -128,6 +131,7 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
             check_out_date: format(checkOut!, 'yyyy-MM-dd'),
             number_of_guests: guests,
             special_requests: guestDetails.specialRequests,
+            card_holder_name: cardInOwnName ? null : cardHolderName.trim(),
           }),
         });
 
@@ -162,6 +166,8 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
     setCheckOut(undefined);
     setGuests(2);
     setGuestDetails({ name: user?.name ?? "", email: user?.email ?? "", phone: "", document: "", specialRequests: "" });
+    setCardInOwnName(true);
+    setCardHolderName("");
   };
 
   const handleClose = () => { resetBooking(); onOpenChange(false); };
@@ -320,6 +326,32 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
                 <div>
                   <Label htmlFor="requests">Solicitações especiais (opcional)</Label>
                   <Textarea id="requests" value={guestDetails.specialRequests} onChange={e => setGuestDetails(p => ({ ...p, specialRequests: e.target.value }))} placeholder="Alguma solicitação especial?" rows={3} />
+                </div>
+
+                {/* Titular do cartão */}
+                <div className="rounded-lg border p-4 space-y-3 mt-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="cardInOwnName"
+                      checked={cardInOwnName}
+                      onCheckedChange={(checked) => setCardInOwnName(checked === true)}
+                    />
+                    <Label htmlFor="cardInOwnName" className="text-sm font-medium cursor-pointer">
+                      O cartão de pagamento está no meu nome
+                    </Label>
+                  </div>
+                  {!cardInOwnName && (
+                    <div className="pl-6 pt-1">
+                      <Label htmlFor="cardHolderName" className="text-sm">Nome do titular do cartão *</Label>
+                      <Input
+                        id="cardHolderName"
+                        value={cardHolderName}
+                        onChange={e => setCardHolderName(e.target.value)}
+                        placeholder="Nome completo do titular do cartão"
+                        className="mt-1"
+                      />
+                    </div>
+                  )}
                 </div>
                 
                 {}

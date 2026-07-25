@@ -69,6 +69,7 @@ export interface Reservation {
   total_amount: number;
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   payment_status?: 'pending' | 'paid' | 'failed' | 'refunded';
+  card_holder_name?: string;
   special_requests?: string;
   created_at?: string;
   updated_at?: string;

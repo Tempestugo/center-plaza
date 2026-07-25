@@ -5,7 +5,7 @@ import { ptBR } from "date-fns/locale";
 import {
   Search, Filter, Eye, CheckCircle, XCircle, MessageSquare, RotateCcw,
   ChevronDown, RefreshCw, Loader2, Send, X, Phone, Mail, AlertCircle,
-  Calendar, Users, DollarSign, Hotel 
+  Calendar, Users, DollarSign, Hotel, CreditCard 
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -335,6 +335,15 @@ function DetailModal({
             <div className="rounded-lg bg-muted p-3">
               <p className="text-xs font-semibold text-muted-foreground mb-1">Pedidos especiais</p>
               <p className="text-sm">{reservation.special_requests}</p>
+            </div>
+          )}
+
+          {reservation.card_holder_name && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-1">
+              <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide flex items-center gap-1.5">
+                <CreditCard className="w-3.5 h-3.5" /> Titular do Cartão (terceiro)
+              </p>
+              <p className="text-sm font-medium text-amber-900">{reservation.card_holder_name}</p>
             </div>
           )}
 
@@ -727,6 +736,11 @@ export default function AdminReservas({ onlyConfirmed = false }: AdminReservasPr
                     <td className="px-4 py-3">
                       <p className="font-medium">{r.guest_name}</p>
                       <p className="text-xs text-muted-foreground">{r.guest_email}</p>
+                      {r.card_holder_name && (
+                        <p className="text-xs text-amber-600 flex items-center gap-1 mt-0.5">
+                          <CreditCard className="w-3 h-3" /> Titular: {r.card_holder_name}
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-medium">{r.hotel_name}</p>
@@ -840,6 +854,11 @@ export default function AdminReservas({ onlyConfirmed = false }: AdminReservasPr
                   <div>
                     <p className="font-semibold">{r.guest_name}</p>
                     <p className="text-xs text-muted-foreground">#{r.id} · {r.hotel_name}</p>
+                    {r.card_holder_name && (
+                      <p className="text-xs text-amber-600 flex items-center gap-1 mt-0.5">
+                        <CreditCard className="w-3 h-3" /> Titular: {r.card_holder_name}
+                      </p>
+                    )}
                   </div>
                   <Badge className={`${statusConfig[r.status].color} border text-xs`}>
                     {statusConfig[r.status].label}

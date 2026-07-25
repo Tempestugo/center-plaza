@@ -129,6 +129,7 @@ async function initDatabase() {
       id INT PRIMARY KEY AUTO_INCREMENT,
       hotel_id INT, room_type_id INT,
       guest_name TEXT, guest_email TEXT, guest_phone TEXT, guest_document TEXT,
+      card_holder_name TEXT,
       check_in_date DATE, check_out_date DATE, number_of_guests INT,
       total_amount DECIMAL(10, 2), special_requests TEXT,
       status VARCHAR(50) DEFAULT 'pending',
@@ -209,6 +210,7 @@ async function initDatabase() {
   try { await db.query("ALTER TABLE room_types ADD COLUMN is_active BOOLEAN DEFAULT 1"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
   try { await db.query("ALTER TABLE room_types ADD COLUMN total_units INT DEFAULT 1"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
   try { await db.query("ALTER TABLE settings MODIFY COLUMN value LONGTEXT"); } catch (e) { }
+  try { await db.query("ALTER TABLE reservations ADD COLUMN card_holder_name TEXT"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
 
 
   const [[admin]] = await db.query("SELECT id FROM users WHERE username = 'admin@centerplaza.com'");
@@ -1572,7 +1574,8 @@ router.post('/create-checkout-session', async (req, res) => {
 
     const {
       hotel_id, room_type_id, guest_name, guest_email, guest_phone,
-      guest_document, check_in_date, check_out_date, number_of_guests, special_requests
+      guest_document, check_in_date, check_out_date, number_of_guests, special_requests,
+      card_holder_name
     } = req.body;
 
     const db = await getDb();
@@ -1588,9 +1591,9 @@ router.post('/create-checkout-session', async (req, res) => {
     const nights = pricing.nights;
 
     const [ins] = await db.execute(
-      'INSERT INTO reservations (hotel_id,room_type_id,guest_name,guest_email,guest_phone,guest_document,check_in_date,check_out_date,number_of_guests,total_amount,special_requests,status,payment_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      'INSERT INTO reservations (hotel_id,room_type_id,guest_name,guest_email,guest_phone,guest_document,card_holder_name,check_in_date,check_out_date,number_of_guests,total_amount,special_requests,status,payment_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
       [hotel_id, room_type_id, guest_name, guest_email, guest_phone, guest_document,
-        check_in_date, check_out_date, number_of_guests, totalAmount, special_requests || '', 'pending', 'pending']
+        card_holder_name || null, check_in_date, check_out_date, number_of_guests, totalAmount, special_requests || '', 'pending', 'pending']
     );
     const reservationId = ins.insertId;
 
