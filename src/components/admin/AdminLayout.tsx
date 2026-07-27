@@ -4,6 +4,7 @@
 
 import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Bell, Settings, LogOut, BarChart3, Home, Calendar, TrendingUp, CheckCircle, CalendarDays } from "lucide-react";
@@ -26,13 +27,14 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children, headerRight }: AdminLayoutProps) {
   const navigate  = useNavigate();
   const { pathname } = useLocation();
+  const { logout, isAdmin } = useAuth();
 
   useEffect(() => {
-    if (!localStorage.getItem("admin_token")) navigate("/admin");
-  }, [navigate]);
+    if (!localStorage.getItem("admin_token") && !isAdmin) navigate("/admin");
+  }, [navigate, isAdmin]);
 
   const handleLogout = () => {
-    localStorage.removeItem("admin_token");
+    logout();
     navigate("/admin");
   };
 

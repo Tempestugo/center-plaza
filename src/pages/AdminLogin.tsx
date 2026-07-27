@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? null;
+const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:3001/api');
 
 const AdminLogin = () => {
   const [email,        setEmail]        = useState("");
@@ -38,23 +38,20 @@ const AdminLogin = () => {
     try {
       let token: string | null = null;
 
-      console.log('API_BASE_URL:', API_BASE_URL);
-      if (API_BASE_URL) {
-        try {
-          console.log('Tentando login em:', `${API_BASE_URL}/login`);
-          const res = await fetch(`${API_BASE_URL}/login`, {
-            method:  "POST",
-            headers: { "Content-Type": "application/json" },
-            body:    JSON.stringify({ username: email, password }),
-          });
+      try {
+        console.log('Tentando login em:', `${API_BASE_URL}/login`);
+        const res = await fetch(`${API_BASE_URL}/login`, {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ username: email, password }),
+        });
 
-          if (res.ok) {
-            const data = await res.json();
-            token = data.token ?? "api-token";
-          }
-        } catch (err: any) {
-          console.error('ERRO NO LOGIN:', err.message, err);
+        if (res.ok) {
+          const data = await res.json();
+          token = data.token ?? "api-token";
         }
+      } catch (err: any) {
+        console.error('ERRO NO LOGIN:', err.message, err);
       }
 
       if (token) {

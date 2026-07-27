@@ -72,6 +72,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: email,
           avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`
         };
+        
+        if (email === 'admin@centerplaza.com') {
+          (mockUser as any).role = 'admin';
+          localStorage.setItem('admin_token', 'mock-admin-token');
+        }
+
         setUser(mockUser);
         localStorage.setItem('user', JSON.stringify(mockUser));
         setLoading(false);
