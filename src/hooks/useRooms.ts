@@ -14,6 +14,7 @@ export interface AccommodationData {
   amenities: string[];
   description: string;
   featured?: boolean;
+  isActive?: boolean;
 }
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&q=80';
@@ -32,7 +33,6 @@ function mapRoomToAccommodation(
     }
   }
 
-  
   const images: string[] = [];
   if (room.images && Array.isArray(room.images) && room.images.length > 0) {
     room.images.forEach((img: any) => {
@@ -55,6 +55,7 @@ function mapRoomToAccommodation(
     amenities:   amenities.length > 0 ? amenities : ['Wi-Fi', 'Estacionamento'],
     description: room.description || '',
     featured:    index < 3,
+    isActive:    room.is_active !== 0 && (room as any).is_active !== false,
   };
 }
 
@@ -70,10 +71,7 @@ export function useRooms() {
       setLoading(true);
       setError(null);
       const roomTypes = await roomService.getAll();
-      const activeRooms = roomTypes.filter(
-        (r: any) => r.is_active === undefined || r.is_active === 1 || r.is_active === true
-      );
-      setRooms(activeRooms.map((room, index) => mapRoomToAccommodation(room as any, index)));
+      setRooms(roomTypes.map((room, index) => mapRoomToAccommodation(room as any, index)));
     } catch (err) {
       console.error('Erro ao buscar quartos:', err);
       setError('Erro ao carregar as acomodacoes');

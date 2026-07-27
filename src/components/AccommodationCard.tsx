@@ -16,8 +16,8 @@ interface AccommodationCardProps {
   maxGuests: number;
   amenities: string[];
   featured?: boolean;
+  isActive?: boolean;
 }
-// isso daqui é uma alteração para que o node.js rebuild tude e processe a URL
 
 const AccommodationCard = ({
   id,
@@ -30,24 +30,29 @@ const AccommodationCard = ({
   maxGuests,
   amenities,
   featured = false,
+  isActive = true,
 }: AccommodationCardProps) => {
   const navigate = useNavigate();
 
   return (
-    <Card className="card-elegant group overflow-hidden h-full flex flex-col">
+    <Card className={`card-elegant group overflow-hidden h-full flex flex-col ${!isActive ? 'opacity-90 bg-muted/20' : ''}`}>
       <div className="relative">
         <div className="image-overlay h-64">
           <img
             src={image}
             alt={name}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${!isActive ? 'grayscale-[30%]' : ''}`}
           />
         </div>
-        {featured && (
+        {!isActive ? (
+          <Badge className="absolute top-4 left-4 bg-rose-600 text-white font-semibold shadow-md">
+            🔴 Reservas Esgotadas
+          </Badge>
+        ) : featured ? (
           <Badge className="absolute top-4 left-4 bg-accent-warm text-accent-foreground">
             ⭐ Destaque
           </Badge>
-        )}
+        ) : null}
         <div className="absolute top-4 right-4 bg-background/90 backdrop-blur-sm rounded-lg px-2 py-1 flex items-center gap-1">
           <Star className="w-4 h-4 fill-accent-warm text-accent-warm" />
           <span className="text-sm font-medium">{rating}</span>
@@ -90,7 +95,7 @@ const AccommodationCard = ({
         <div className="mt-6 pt-4 border-t border-border">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <span className="text-2xl font-bold text-primary">
+              <span className={`text-2xl font-bold ${!isActive ? 'text-muted-foreground' : 'text-primary'}`}>
                 R$ {price.toLocaleString()}
               </span>
               <span className="text-sm text-muted-foreground ml-1">/noite</span>
@@ -104,16 +109,25 @@ const AccommodationCard = ({
             >
               Ver Detalhes
             </Button>
-            <Button
-              className="flex-1"
-              variant="hero"
-              onClick={() => {
-                gtmEvent('click_reservar', { quarto: name, preco: price });
-                navigate(`/hospedagem/${id}`);
-              }}
-            >
-              Reservar
-            </Button>
+            {isActive ? (
+              <Button
+                className="flex-1"
+                variant="hero"
+                onClick={() => {
+                  gtmEvent('click_reservar', { quarto: name, preco: price });
+                  navigate(`/hospedagem/${id}`);
+                }}
+              >
+                Reservar
+              </Button>
+            ) : (
+              <Button
+                className="flex-1 bg-rose-100 text-rose-700 hover:bg-rose-100 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 cursor-not-allowed"
+                disabled
+              >
+                Esgotado
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>

@@ -205,6 +205,8 @@ if (room.amenities) {
 
   const totalPrice = accommodation.price * nights;
 
+  const isRoomActive = room.is_active !== 0 && (room as any).is_active !== false;
+
   return (
     <div className="min-h-screen">
       <Header />
@@ -216,6 +218,16 @@ if (room.amenities) {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar às hospedagens
           </Button>
+
+          {!isRoomActive && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 dark:bg-rose-950/30 p-4 flex items-center justify-between text-rose-800 dark:text-rose-200 mb-6">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🚫</span>
+                <span className="font-semibold text-sm">Esta acomodação está temporariamente com as reservas esgotadas/indisponíveis.</span>
+              </div>
+              <Badge className="bg-rose-600 text-white">Reservas Esgotadas</Badge>
+            </div>
+          )}
         </div>
 
         {}
@@ -472,14 +484,24 @@ if (room.amenities) {
                       </div>
                     </div>
 
-                    <Button 
-                      className="w-full" 
-                      size="lg"
-                      onClick={handleBookNow}
-                    >
-                      <CreditCard className="mr-2 h-4 w-4" />
-                      Reservar Agora
-                    </Button>
+                    {isRoomActive ? (
+                      <Button 
+                        className="w-full" 
+                        size="lg"
+                        onClick={handleBookNow}
+                      >
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        Reservar Agora
+                      </Button>
+                    ) : (
+                      <Button 
+                        className="w-full bg-rose-100 text-rose-700 hover:bg-rose-100 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 cursor-not-allowed" 
+                        size="lg"
+                        disabled
+                      >
+                        Reservas Esgotadas
+                      </Button>
+                    )}
 
                     <p className="text-xs text-muted-foreground text-center">
                       Você não será cobrado ainda
