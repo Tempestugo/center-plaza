@@ -1,13 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Lock, User, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-
-
-
+import { useAuth } from "@/contexts/AuthContext";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? null;
 
@@ -18,6 +16,14 @@ const AdminLogin = () => {
   const [isLoading,    setIsLoading]    = useState(false);
   const { toast }  = useToast();
   const navigate   = useNavigate();
+  const { isAuthenticated, isAdmin, setUser } = useAuth();
+
+  useEffect(() => {
+    const adminToken = localStorage.getItem("admin_token");
+    if ((isAuthenticated && isAdmin) || adminToken) {
+      navigate("/admin/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, isAdmin, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +38,6 @@ const AdminLogin = () => {
     try {
       let token: string | null = null;
 
-      
       console.log('API_BASE_URL:', API_BASE_URL);
       if (API_BASE_URL) {
         try {
@@ -49,36 +54,28 @@ const AdminLogin = () => {
           }
         } catch (err: any) {
           console.error('ERRO NO LOGIN:', err.message, err);
-          
-        }
-      }
-
-      
-      if (!token) {
-        if (false) { 
-          await new Promise(r => setTimeout(r, 600)); 
-          token = null; 
         }
       }
 
       if (token) {
+        const adminUser = { id: "admin", name: "Administrador", email: "admin@centerplaza.com", role: "admin" };
         localStorage.setItem("admin_token", token);
-        
-        localStorage.setItem("user", JSON.stringify({ id: "admin", name: "Administrador", email: "admin@centerplaza.com", role: "admin" }));
-        localStorage.setItem("admin_token", token);
+        localStorage.setItem("user", JSON.stringify(adminUser));
+        setUser(adminUser);
         toast({ title: "Login realizado com sucesso!" });
-        navigate("/admin/dashboard");
+        navigate("/admin/dashboard", { replace: true });
       } else {
         toast({
-          description: "Verifique seu e-mail e senha.",
-          variant:     "destructive",
+          title: "Credenciais inválidas",
+          description: "E-mail ou senha incorretos. Verifique seus dados e tente novamente.",
+          variant: "destructive",
         });
       }
     } catch {
       toast({
-        title:       "Erro ao fazer login",
+        title: "Erro ao fazer login",
         description: "Tente novamente em instantes.",
-        variant:     "destructive",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);

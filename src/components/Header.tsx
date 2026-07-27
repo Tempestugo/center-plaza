@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Menu, X, User, LogOut, MessageCircle } from "lucide-react";
+import { Menu, X, User, LogOut, MessageCircle, ShieldCheck } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
@@ -12,7 +12,7 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const location = useLocation();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, isAdmin, logout } = useAuth();
 
   const navItems = [
     { name: "Início", href: "/" },
@@ -25,7 +25,6 @@ const Header = () => {
     <header className="fixed top-0 w-full bg-background/95 backdrop-blur-md border-b border-border z-50 transition-all duration-300">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          {}
           <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
             <img 
               src={logoImage} 
@@ -34,7 +33,6 @@ const Header = () => {
             />
           </Link>
 
-          {}
           <nav className="hidden md:flex items-center space-x-8">
             {navItems.map((item) => (
               <Link
@@ -73,6 +71,17 @@ const Header = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {isAdmin && (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin/dashboard" className="font-semibold text-primary flex items-center">
+                          <ShieldCheck className="h-4 w-4 mr-2 text-primary" />
+                          Painel Admin (Gerência)
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
                   <DropdownMenuItem asChild>
                     <Link to="/minha-conta">Minha Conta</Link>
                   </DropdownMenuItem>
@@ -91,12 +100,8 @@ const Header = () => {
                 Entrar
               </Button>
             )}
-            
-            <Button variant="outline" asChild>
-            </Button>
           </nav>
 
-          {}
           <Button
             variant="ghost"
             size="icon"
@@ -107,7 +112,6 @@ const Header = () => {
           </Button>
         </div>
 
-        {}
         {isMenuOpen && (
           <nav className="md:hidden mt-4 pb-4 space-y-2 animate-fade-in">
             {navItems.map((item) => (
@@ -135,6 +139,16 @@ const Header = () => {
 
             {isAuthenticated ? (
               <>
+                {isAdmin && (
+                  <Link
+                    to="/admin/dashboard"
+                    className="block py-2 text-sm font-semibold text-primary flex items-center"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <ShieldCheck className="h-4 w-4 mr-2 text-primary" />
+                    Painel Admin (Gerência)
+                  </Link>
+                )}
                 <Link
                   to="/minha-conta"
                   className="block py-2 text-sm font-medium transition-colors hover:text-primary text-muted-foreground"
@@ -167,8 +181,6 @@ const Header = () => {
                 Entrar
               </Button>
             )}
-            
-
           </nav>
         )}
       </div>

@@ -211,6 +211,151 @@ export default function AdminHospedagens() {
     }
   };
 
+  const fmtDate = (dStr: string) => {
+    if (!dStr) return "";
+    const parts = dStr.split("T")[0].split("-");
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return dStr;
+  };
+
+  const getPriceForDate = (room: RoomType | null, dateStr: string) => {
+    if (!room) return { price: 0, isCustom: false, rate: null };
+    const sortedRates = [...rates].sort((a, b) => {
+      const aRoom = a.room_type_id !== null ? 1 : 0;
+      const bRoom = b.room_type_id !== null ? 1 : 0;
+      if (aRoom !== bRoom) return bRoom - aRoom;
+      return (b.id || 0) - (a.id || 0);
+    });
+
+    const match = sortedRates.find(r => {
+      const isTarget = r.room_type_id === room.id || r.room_type_id === null;
+      const start = r.start_date.split("T")[0];
+      const end = r.end_date.split("T")[0];
+      return isTarget && dateStr >= start && dateStr <= end;
+    });
+
+    return match 
+      ? { price: Number(match.price_per_night), isCustom: true, rate: match } 
+      : { price: Number(room.price_per_night || 0), isCustom: false, rate: null };
+  };
+
+  const getBlockForDate = (room: RoomType | null, dateStr: string) => {
+    if (!room) return { blocked: false, reason: "", block: null };
+    if (room.is_active === 0) {
+      return { blocked: true, reason: "Acomodação inativa no painel principal", block: null };
+    }
+    const match = blocks.find(b => {
+      const isTarget = b.room_type_id === room.id || b.room_type_id === null;
+      const start = b.start_date.split("T")[0];
+      const end = b.end_date.split("T")[0];
+      return isTarget && dateStr >= start && dateStr <= end;
+    });
+
+    return match 
+      ? { blocked: true, reason: match.reason || (match.room_type_id ? "Quarto bloqueado" : "Bloqueio geral"), block: match } 
+      : { blocked: false, reason: "", block: null };
+  };
+
+  const getBookedCountForDate = (roomId: number, dateStr: string) => {
+    return reservations.filter(r => {
+      if (r.room_type_id !== roomId) return false;
+      if (r.status === 'cancelled') return false;
+      const start = r.check_in_date.split("T")[0];
+      const end = r.check_out_date.split("T")[0];
+      return dateStr >= start && dateStr < end;
+    }).length;
+  };
+
+  const handleGridDateSelect = (date: Date) => {
+    setSelectedGridDate(date);
+    const dateStr = format(date, "yyyy-MM-dd");
+    if (selectedRoom) {
+      const { price, rate } = getPriceForDate(selectedRoom, dateStr);
+      setDailyPriceInput(price.toString());
+      setDailyPriceLabel(rate?.label || "");
+    }
+    setDailyPriceEnd(dateStr);
+    setDailyBlockEnd(dateStr);
+  };
+
+  const handleDailyPriceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRoom || !dailyPriceInput || !dailyPriceEnd) return;
+    const price = parseFloat(dailyPriceInput);
+    if (isNaN(price) || price < 0) {
+      toast.error("Preço inválido");
+      return;
+    }
+    const startDate = format(selectedGridDate, "yyyy-MM-dd");
+    if (startDate > dailyPriceEnd) {
+      toast.error("Data inicial não pode ser maior que a data final");
+      return;
+    }
+
+    setSavingDailyRate(true);
+    try {
+      await customRatesService.create({
+        room_type_ids: [selectedRoom.id],
+        start_date: startDate,
+        end_date: dailyPriceEnd,
+        price_per_night: price,
+        label: dailyPriceLabel || undefined
+      });
+      toast.success("Tarifa aplicada para a data selecionada!");
+      loadRooms();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao salvar tarifa");
+    } finally {
+      setSavingDailyRate(false);
+    }
+  };
+
+  const handleDailyBlockSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRoom || !dailyBlockEnd) return;
+    const startDate = format(selectedGridDate, "yyyy-MM-dd");
+    if (startDate > dailyBlockEnd) {
+      toast.error("Data inicial não pode ser maior que a data final");
+      return;
+    }
+
+    setSavingDailyBlock(true);
+    try {
+      await roomBlocksService.create({
+        room_type_ids: [selectedRoom.id],
+        start_date: startDate,
+        end_date: dailyBlockEnd,
+        reason: dailyBlockReason || undefined
+      });
+      toast.success("Bloqueio aplicado para a data selecionada!");
+      loadRooms();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao salvar bloqueio");
+    } finally {
+      setSavingDailyBlock(false);
+    }
+  };
+
+  const handleDeleteDailyRateRule = async (rateId: number) => {
+    try {
+      await customRatesService.delete(rateId);
+      toast.success("Tarifa removida!");
+      loadRooms();
+    } catch {
+      toast.error("Erro ao remover tarifa");
+    }
+  };
+
+  const handleDeleteDailyBlockRule = async (blockId: number) => {
+    try {
+      await roomBlocksService.delete(blockId);
+      toast.success("Bloqueio removido!");
+      loadRooms();
+    } catch {
+      toast.error("Erro ao remover bloqueio");
+    }
+  };
+
   const openCreateRoom = () => {
     setRoomForm(EMPTY_ROOM);
     setImageFiles([]);
@@ -235,6 +380,14 @@ export default function AdminHospedagens() {
       room_number: r.room_number ?? "",
       amenities: am,
     });
+
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    setDailyPriceInput(String(r.price_per_night ?? ""));
+    setDailyPriceLabel("");
+    setDailyPriceEnd(todayStr);
+    setDailyBlockReason("");
+    setDailyBlockEnd(todayStr);
+    setSelectedGridDate(new Date());
 
     setExistingImages(r.images || []);
     setImageFiles([]);

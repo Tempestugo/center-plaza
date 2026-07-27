@@ -26,6 +26,7 @@ interface AuthContextType {
   register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
+  setUser: (user: User | null) => void;
   loading: boolean;
 }
 
@@ -48,23 +49,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    
     const savedUser = localStorage.getItem('user');
+    const adminToken = localStorage.getItem('admin_token');
     if (savedUser) {
-      try { setUser(JSON.parse(savedUser)); } catch {}
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch {}
+    } else if (adminToken) {
+      setUser({ id: 'admin', name: 'Administrador', email: 'admin@centerplaza.com', role: 'admin' } as any);
     }
-    
-    
     setLoading(false);
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setLoading(true);
     try {
-      
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      
       if (email && password.length >= 6) {
         const mockUser: User = {
           id: '1',
@@ -72,13 +72,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: email,
           avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`
         };
-        
         setUser(mockUser);
         localStorage.setItem('user', JSON.stringify(mockUser));
         setLoading(false);
         return true;
       }
-      
       setLoading(false);
       return false;
     } catch (error) {
@@ -90,10 +88,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (name: string, email: string, password: string): Promise<boolean> => {
     setLoading(true);
     try {
-      
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      
       if (name && email && password.length >= 6) {
         const mockUser: User = {
           id: Date.now().toString(),
@@ -101,13 +96,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: email,
           avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`
         };
-        
         setUser(mockUser);
         localStorage.setItem('user', JSON.stringify(mockUser));
         setLoading(false);
         return true;
       }
-      
       setLoading(false);
       return false;
     } catch (error) {
@@ -127,19 +120,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const updatedUser = { ...user, ...userData };
       setUser(updatedUser);
       localStorage.setItem('user', JSON.stringify(updatedUser));
-      
       localStorage.setItem('centerplaza_user', JSON.stringify(updatedUser));
     }
   };
 
+  const hasAdminToken = !!localStorage.getItem('admin_token');
+  const isAdmin = !!(user && (user as any).role === 'admin') || hasAdminToken;
+
   const value: AuthContextType = {
-    user,
-    isAuthenticated: !!user,
-    isAdmin: !!(user && (user as any).role === 'admin'),
+    user: user || (hasAdminToken ? ({ id: 'admin', name: 'Administrador', email: 'admin@centerplaza.com', role: 'admin' } as any) : null),
+    isAuthenticated: !!user || hasAdminToken,
+    isAdmin,
     login,
     register,
     logout,
     updateUser,
+    setUser,
     loading
   };
 
