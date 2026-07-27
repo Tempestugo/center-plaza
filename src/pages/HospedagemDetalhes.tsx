@@ -535,7 +535,8 @@ if (room.amenities) {
           price: accommodation.price,
           maxGuests: accommodation.maxGuests,
           image: accommodation.images[0] || FALLBACK_IMAGES[0],
-          amenities: accommodation.amenities
+          amenities: accommodation.amenities,
+          isActive: isRoomActive
         }}
       />
     </div>

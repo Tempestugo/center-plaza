@@ -30,6 +30,7 @@ interface BookingFlowProps {
     maxGuests: number;
     image: string;
     amenities: string[];
+    isActive?: boolean;
   };
 }
 
@@ -179,7 +180,17 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
           <DialogTitle className="text-2xl font-bold">Finalizar Reserva</DialogTitle>
         </DialogHeader>
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        {accommodation.isActive === false ? (
+          <div className="py-12 text-center space-y-4">
+            <div className="text-rose-500 text-5xl mb-4">🚫</div>
+            <h3 className="text-xl font-bold">Acomodação Indisponível</h3>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              Esta acomodação encontra-se com as reservas temporariamente esgotadas ou inativas.
+            </p>
+            <Button onClick={handleClose} className="mt-4">Voltar</Button>
+          </div>
+        ) : (
+          <div className="grid lg:grid-cols-3 gap-6">
           {}
           <div className="lg:col-span-1">
             <Card>
@@ -385,6 +396,7 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
             }
           </div>
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );

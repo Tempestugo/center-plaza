@@ -109,9 +109,9 @@ const ReservationDetails = () => {
             <div className="text-center py-16">
               <h1 className="text-2xl font-bold mb-4">Reserva não encontrada</h1>
               <p className="text-muted-foreground mb-6">A reserva solicitada não foi encontrada ou você não tem permissão para visualizá-la.</p>
-              <Button onClick={() => navigate("/user/dashboard")}>
+              <Button onClick={() => navigate("/minha-conta")}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Voltar ao Dashboard
+                Voltar
               </Button>
             </div>
           </div>
@@ -210,7 +210,7 @@ ${reservation.specialRequests || 'Nenhuma solicitação especial'}
           <div className="mb-8">
             <Button 
               variant="outline" 
-              onClick={() => navigate("/user/dashboard")}
+              onClick={() => navigate("/minha-conta")}
               className="mb-4"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
