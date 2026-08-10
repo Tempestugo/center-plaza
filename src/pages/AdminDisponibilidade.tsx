@@ -87,12 +87,27 @@ export default function AdminDisponibilidade() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [roomsData, ratesData, blocksData, reservationsData] = await Promise.all([
-        roomService.getAll(),
+      // Usar API admin para garantir que todos os quartos (incluindo inativos) apareçam
+      let roomsData: RoomType[];
+      try {
+        roomsData = await roomService.getAllAdmin();
+      } catch {
+        roomsData = await roomService.getAll();
+      }
+
+      const [ratesData, blocksData] = await Promise.all([
         customRatesService.getAll(),
         roomBlocksService.getAll(),
-        reservationService.getAll(),
       ]);
+
+      // Reservas requerem auth — tratar falha silenciosa
+      let reservationsData: Reservation[] = [];
+      try {
+        reservationsData = await reservationService.getAll();
+      } catch (err: any) {
+        console.warn("Não foi possível carregar reservas (possível problema de autenticação):", err?.message);
+      }
+
       setRooms(roomsData);
       setRates(ratesData);
       setBlocks(blocksData);
@@ -115,6 +130,7 @@ export default function AdminDisponibilidade() {
 
   // Helper functions for cell calculations
   const getPriceForDate = (room: RoomType, dateStr: string) => {
+    const roomId = Number(room.id);
     const sortedRates = [...rates].sort((a, b) => {
       const aRoom = a.room_type_id !== null ? 1 : 0;
       const bRoom = b.room_type_id !== null ? 1 : 0;
@@ -123,7 +139,8 @@ export default function AdminDisponibilidade() {
     });
 
     const match = sortedRates.find(r => {
-      const isTarget = r.room_type_id === room.id || r.room_type_id === null;
+      const rateRoomId = r.room_type_id != null ? Number(r.room_type_id) : null;
+      const isTarget = rateRoomId === roomId || rateRoomId === null;
       const start = r.start_date.split("T")[0];
       const end = r.end_date.split("T")[0];
       return isTarget && dateStr >= start && dateStr <= end;
@@ -138,8 +155,10 @@ export default function AdminDisponibilidade() {
     if (room.is_active === 0) {
       return { blocked: true, reason: "Acomodação inativa no painel principal", block: null };
     }
+    const roomId = Number(room.id);
     const match = blocks.find(b => {
-      const isTarget = b.room_type_id === room.id || b.room_type_id === null;
+      const blockRoomId = b.room_type_id != null ? Number(b.room_type_id) : null;
+      const isTarget = blockRoomId === roomId || blockRoomId === null;
       const start = b.start_date.split("T")[0];
       const end = b.end_date.split("T")[0];
       return isTarget && dateStr >= start && dateStr <= end;
@@ -151,8 +170,9 @@ export default function AdminDisponibilidade() {
   };
 
   const getBookedCountForDate = (roomId: number, dateStr: string) => {
+    const normalizedRoomId = Number(roomId);
     return reservations.filter(r => {
-      if (r.room_type_id !== roomId) return false;
+      if (Number(r.room_type_id) !== normalizedRoomId) return false;
       if (r.status === 'cancelled') return false;
       const start = r.check_in_date.split("T")[0];
       const end = r.check_out_date.split("T")[0];
@@ -773,7 +793,8 @@ export default function AdminDisponibilidade() {
                 <div className="space-y-2">
                   <p className="font-semibold text-muted-foreground text-[10px] uppercase tracking-wider">Tarifas Cadastradas:</p>
                   {rates.filter(r => {
-                    const isTarget = r.room_type_id === selectedCell.room.id || r.room_type_id === null;
+                    const rateRoomId = r.room_type_id != null ? Number(r.room_type_id) : null;
+                    const isTarget = rateRoomId === Number(selectedCell.room.id) || rateRoomId === null;
                     const dateStr = format(selectedCell.date, "yyyy-MM-dd");
                     const start = r.start_date.split("T")[0];
                     const end = r.end_date.split("T")[0];
@@ -783,7 +804,8 @@ export default function AdminDisponibilidade() {
                   ) : (
                     <div className="space-y-1 max-h-[100px] overflow-y-auto pr-1">
                       {rates.filter(r => {
-                        const isTarget = r.room_type_id === selectedCell.room.id || r.room_type_id === null;
+                        const rateRoomId = r.room_type_id != null ? Number(r.room_type_id) : null;
+                        const isTarget = rateRoomId === Number(selectedCell.room.id) || rateRoomId === null;
                         const dateStr = format(selectedCell.date, "yyyy-MM-dd");
                         const start = r.start_date.split("T")[0];
                         const end = r.end_date.split("T")[0];
@@ -813,7 +835,8 @@ export default function AdminDisponibilidade() {
                 <div className="space-y-2 pt-1">
                   <p className="font-semibold text-muted-foreground text-[10px] uppercase tracking-wider">Bloqueios de Vendas:</p>
                   {blocks.filter(b => {
-                    const isTarget = b.room_type_id === selectedCell.room.id || b.room_type_id === null;
+                    const blockRoomId = b.room_type_id != null ? Number(b.room_type_id) : null;
+                    const isTarget = blockRoomId === Number(selectedCell.room.id) || blockRoomId === null;
                     const dateStr = format(selectedCell.date, "yyyy-MM-dd");
                     const start = b.start_date.split("T")[0];
                     const end = b.end_date.split("T")[0];
@@ -823,7 +846,8 @@ export default function AdminDisponibilidade() {
                   ) : (
                     <div className="space-y-1 max-h-[100px] overflow-y-auto pr-1">
                       {blocks.filter(b => {
-                        const isTarget = b.room_type_id === selectedCell.room.id || b.room_type_id === null;
+                        const blockRoomId = b.room_type_id != null ? Number(b.room_type_id) : null;
+                        const isTarget = blockRoomId === Number(selectedCell.room.id) || blockRoomId === null;
                         const dateStr = format(selectedCell.date, "yyyy-MM-dd");
                         const start = b.start_date.split("T")[0];
                         const end = b.end_date.split("T")[0];

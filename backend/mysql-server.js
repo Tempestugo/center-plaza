@@ -946,7 +946,13 @@ router.get('/custom-rates', async (req, res) => {
       LEFT JOIN room_types rt ON cr.room_type_id = rt.id
       ORDER BY cr.start_date DESC
     `);
-    res.json(rows);
+    // Normalizar room_type_id para number ou null (evita incompatibilidade de tipos no frontend)
+    const normalized = rows.map(r => ({
+      ...r,
+      room_type_id: r.room_type_id != null ? Number(r.room_type_id) : null,
+      price_per_night: Number(r.price_per_night)
+    }));
+    res.json(normalized);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -1001,7 +1007,12 @@ router.get('/room-blocks', async (req, res) => {
       LEFT JOIN room_types rt ON rb.room_type_id = rt.id
       ORDER BY rb.start_date DESC
     `);
-    res.json(rows);
+    // Normalizar room_type_id para number ou null (evita incompatibilidade de tipos no frontend)
+    const normalized = rows.map(r => ({
+      ...r,
+      room_type_id: r.room_type_id != null ? Number(r.room_type_id) : null
+    }));
+    res.json(normalized);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -1229,7 +1240,12 @@ router.get('/reservations', async (req, res) => {
     if (conds.length) query += ' WHERE ' + conds.join(' AND ');
     query += ' ORDER BY r.created_at DESC';
     const [rows] = await db.query(query, params);
-    res.json(rows);
+    // Normalizar room_type_id para number (evita incompatibilidade de tipos no frontend)
+    const normalized = rows.map(r => ({
+      ...r,
+      room_type_id: r.room_type_id != null ? Number(r.room_type_id) : r.room_type_id
+    }));
+    res.json(normalized);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

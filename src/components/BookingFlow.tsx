@@ -98,16 +98,29 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
     return blockedDates.includes(str);
   };
 
+  // Verificar se há datas bloqueadas no intervalo entre check-in e check-out
+  const hasBlockedDatesInRange = (start: Date, end: Date): boolean => {
+    const current = new Date(start);
+    while (current < end) {
+      const str = format(current, 'yyyy-MM-dd');
+      if (blockedDates.includes(str)) return true;
+      current.setDate(current.getDate() + 1);
+    }
+    return false;
+  };
+
   const nights = checkIn && checkOut ? differenceInDays(checkOut, checkIn) : 0;
   const subtotal = dynamicPricing ? dynamicPricing.total_amount : nights * accommodation.price;
   const serviceFee = subtotal * 0.1;
   const total = subtotal + serviceFee;
 
+  // Verificar se o intervalo selecionado contém datas bloqueadas
+  const rangeHasBlockedDates = !!(checkIn && checkOut && hasBlockedDatesInRange(checkIn, checkOut));
 
   const currentStepIndex = STEP_ORDER.indexOf(currentStep);
 
   const canProceed = {
-    dates:   !!(checkIn && checkOut && nights > 0),
+    dates:   !!(checkIn && checkOut && nights > 0 && !rangeHasBlockedDates),
     guests:  guests > 0 && guests <= accommodation.maxGuests,
     details: !!(guestDetails.name && guestDetails.email && guestDetails.phone && guestDetails.document && (cardInOwnName || cardHolderName.trim())),
   };
@@ -289,6 +302,14 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
                     </Popover>
                   </div>
                 </div>
+
+                {/* Aviso de datas bloqueadas no intervalo */}
+                {rangeHasBlockedDates && (
+                  <div className="mt-3 p-3 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800 rounded-lg text-sm text-rose-700 dark:text-rose-300">
+                    <p className="font-semibold">⚠️ Período indisponível</p>
+                    <p className="text-xs mt-1">Existem datas bloqueadas entre o check-in e o check-out selecionados. Por favor, escolha outro período.</p>
+                  </div>
+                )}
               </div>
             )}
 
