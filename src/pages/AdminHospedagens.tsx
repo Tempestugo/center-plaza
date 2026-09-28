@@ -51,7 +51,8 @@ const EMPTY_ROOM = {
 
 const AMENITIES_OPTIONS = [
   "Ar condicionado", "TV", "Wi-Fi", "Frigobar", "Hidromassagem",
-  "Varanda", "Cofre", "Secador de Cabelo", "Banheira", "Vista para o Mar"
+  "Varanda", "Cofre", "Secador de Cabelo", "Banheira", "Vista para o Mar",
+  "Café da manhã"
 ];
 
 const fmtCurrency = (v: number) =>
@@ -439,14 +440,18 @@ export default function AdminHospedagens() {
 
   const handleDeleteImage = async (imageId: number) => {
     if (!confirm("Excluir imagem?")) return;
+
+    // Remoção otimista: remove da UI antes da chamada à API
+    const previous = existingImages;
+    setExistingImages(prev => prev.filter(i => i.id !== imageId));
+
     try {
       await roomService.deleteImage(imageId);
-      setExistingImages(prev => prev.filter(i => i.id !== imageId));
       toast.success("Imagem removida");
-      
-      loadRooms();
     } catch (err) {
-      toast.error("Erro ao excluir imagem");
+      // Falhou: restaura a imagem na lista
+      setExistingImages(previous);
+      toast.error("Erro ao excluir imagem. Tente novamente.");
     }
   };
 

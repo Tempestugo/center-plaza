@@ -34,7 +34,7 @@ export const mockRoomTypes: RoomType[] = [
     description: "Quarto espaçoso com vista para a cidade, cama king size e banheira.",
     capacity: 3,
     price_per_night: 250.00,
-    amenities: ["Wi-Fi", "Ar-condicionado", "TV", "Frigobar", "Banheira", "Vista da cidade"],
+    amenities: ["Wi-Fi", "Ar-condicionado", "TV", "Frigobar", "Banheira", "Café da manhã"],
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z"
   },
@@ -45,7 +45,7 @@ export const mockRoomTypes: RoomType[] = [
     description: "Suíte luxuosa com sala de estar separada, varanda e serviço de quarto 24h.",
     capacity: 4,
     price_per_night: 400.00,
-    amenities: ["Wi-Fi", "Ar-condicionado", "TV", "Frigobar", "Varanda", "Sala de estar", "Serviço de quarto 24h"],
+    amenities: ["Wi-Fi", "Ar-condicionado", "TV", "Frigobar", "Varanda", "Café da manhã"],
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z"
   }

@@ -1,79 +1,110 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, MapPin, Star } from "lucide-react";
+import { ArrowRight, MapPin, Coffee, Clock, Phone } from "lucide-react";
 import { Link } from "react-router-dom";
 import bgHeroImage from "@/assets/bg-hero-hootel.jpg";
 
 const HeroSection = () => {
   const [heroImage, setHeroImage] = useState<string | null>(null);
+  const [promoText, setPromoText] = useState<string>("");
+
+  const getDefaultPromoText = () => {
+    const now = new Date();
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    return `Válido até ${lastDay}/${month}`;
+  };
 
   useEffect(() => {
     fetch('/api/settings/hero_image')
       .then(r => r.json())
       .then(d => { if (d.value) setHeroImage(d.value); })
       .catch(() => {});
+
+    fetch('/api/settings/promo_text')
+      .then(r => r.json())
+      .then(d => setPromoText(d.value || getDefaultPromoText()))
+      .catch(() => setPromoText(getDefaultPromoText()));
   }, []);
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {}
+    <section className="relative min-h-[100dvh] flex items-end overflow-hidden" style={{ background: '#1a1015' }}>
+      {/* Background Image */}
       <div className="absolute inset-0">
         <img
           src={heroImage || bgHeroImage}
-          alt="Acomodação de excelência no centro de São Paulo"
+          alt="Center Plaza Hotel — Lobby"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-gray-800/50 to-transparent" />
+        {/* Dark wine-toned gradient from left */}
+        <div className="absolute inset-0" style={{
+          background: 'linear-gradient(105deg, rgba(45,10,25,0.93) 0%, rgba(45,10,25,0.87) 35%, rgba(45,10,25,0.55) 60%, rgba(45,10,25,0.25) 100%)'
+        }} />
       </div>
 
-      {}
-      <div className="relative z-10 container mx-auto px-4 text-center text-primary-foreground">
-        <div className="max-w-4xl mx-auto animate-fade-in-up">
-          {}
-          <div className="inline-flex items-center gap-2 bg-background/20 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
-            <MapPin className="w-4 h-4" />
-            <span className="text-sm font-medium">Conforto e praticidade no centro</span>
+      {/* Content — left-aligned */}
+      <div className="relative z-10 container mx-auto px-4 sm:px-8 py-16 pb-20 md:py-24">
+        <div className="max-w-xl animate-fade-in-up">
+
+          {/* Top badge — location (wine palette) */}
+          <div className="inline-flex items-center gap-2 rounded-full px-4 py-2 mb-6" style={{
+            background: 'rgba(120,20,50,0.5)',
+            border: '1px solid rgba(180,60,90,0.3)',
+            backdropFilter: 'blur(8px)'
+          }}>
+            <MapPin className="w-3.5 h-3.5" style={{ color: '#d4a574' }} />
+            <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,235,220,0.9)' }}>
+              Bela Vista • Centro de São Paulo
+            </span>
           </div>
 
-          {}
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
+          {/* Heading */}
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-2 leading-[1.05] tracking-tight">
             Center Plaza
-            <span className="block bg-gradient-to-r from-accent-warm to-accent bg-clip-text text-transparent">
-              Hotel
-            </span>
+          </h1>
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.05] tracking-tight" style={{ color: '#d4a574' }}>
+            Hotel
           </h1>
 
-          {}
-          <p className="text-xl md:text-2xl mb-8 text-primary-foreground/90 max-w-2xl mx-auto leading-relaxed">
-            Sua melhor opção de hospedagem no coração de São Paulo.
-            Aqui, cada momento de descanso se torna uma experiência de conforto.
-          </p>
-
-          {}
-          <div className="flex flex-wrap justify-center gap-8 mb-10">
-            <div className="text-center">
-              <div className="text-3xl font-bold mb-1">500+</div>
-              <div className="text-sm text-primary-foreground/80">Hóspedes Satisfeitos</div>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <span className="text-3xl font-bold">4.9</span>
-                <Star className="w-6 h-6 fill-current text-accent-warm" />
+          {/* Key Value Props */}
+          <div className="flex flex-col gap-3 mb-8">
+            {/* Promoção + Café da Manhã (Combinado) */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ 
+                background: 'rgba(212,165,116,0.12)', 
+                border: '1px solid rgba(212,165,116,0.25)' 
+              }}>
+                <Coffee className="w-5 h-5" style={{ color: '#d4a574' }} />
               </div>
-              <div className="text-sm text-primary-foreground/80">Avaliação Média</div>
+              <div>
+                <p className="text-white font-semibold text-base">Café da Manhã Incluso</p>
+                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                  Promoção por tempo limitado! {promoText}
+                </p>
+              </div>
             </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold mb-1">15+</div>
-              <div className="text-sm text-primary-foreground/80">Acomodações Únicas</div>
+
+            {/* Localização */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ 
+                background: 'rgba(212,165,116,0.12)', 
+                border: '1px solid rgba(212,165,116,0.25)' 
+              }}>
+                <MapPin className="w-5 h-5" style={{ color: '#d4a574' }} />
+              </div>
+              <div>
+                <p className="text-white font-semibold text-base">R. Maestro Cardim, 418</p>
+                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>Bela Vista — A 350m do Metrô São Joaquim</p>
+              </div>
             </div>
           </div>
 
-          {}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3">
             <Button 
-              variant="hero" 
+              variant="hero"
               size="xl" 
-              className="group"
+              className="group text-base px-8 py-6 shadow-xl font-semibold"
               asChild
             >
               <Link to="/hospedagens">
@@ -83,23 +114,23 @@ const HeroSection = () => {
             </Button>
             
             <Button 
-              variant="elegant" 
               size="xl"
-              className="bg-background/20 backdrop-blur-sm border-primary-foreground/30 text-primary-foreground hover:bg-background/30"
+              className="text-base px-8 py-6 transition-all bg-white/10 hover:bg-white/20 text-white border border-white/25"
               asChild
             >
-              <Link to="/consultar-reserva">
-                Consultar Reserva
-              </Link>
+              <a href="https://wa.me/551132893757" target="_blank" rel="noopener noreferrer">
+                <Phone className="mr-2 w-4 h-4" />
+                WhatsApp
+              </a>
             </Button>
           </div>
         </div>
       </div>
 
-      {}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
-        <div className="w-6 h-10 border-2 border-primary-foreground/50 rounded-full flex justify-center">
-          <div className="w-1 h-3 bg-primary-foreground/50 rounded-full mt-2 animate-pulse" />
+      {/* Scroll Indicator */}
+      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 animate-bounce hidden md:flex">
+        <div className="w-5 h-8 border-2 border-white/20 rounded-full flex justify-center">
+          <div className="w-0.5 h-2 bg-white/30 rounded-full mt-1.5 animate-pulse" />
         </div>
       </div>
     </section>

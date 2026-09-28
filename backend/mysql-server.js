@@ -757,6 +757,16 @@ router.get('/settings/:key', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.put('/settings/:key', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
+  try {
+    const db = await getDb();
+    const { value } = req.body;
+    await db.execute("REPLACE INTO settings (`key`, value) VALUES (?, ?)", [req.params.key, value || '']);
+    res.json({ key: req.params.key, value: value || '' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 
 
 async function roomsWithImages(db, rows) {

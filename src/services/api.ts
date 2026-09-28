@@ -1,17 +1,14 @@
 
 
-
 const getApiBaseUrl = () => {
-  
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  
   if (import.meta.env.PROD) {
     return '/api';
   }
-  
-  return 'http://localhost:3001/api';
+  // Em desenvolvimento local sem backend, retorna null para usar os mocks
+  return null;
 };
 
 const API_BASE_URL = getApiBaseUrl();
