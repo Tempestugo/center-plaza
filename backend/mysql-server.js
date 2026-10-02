@@ -735,6 +735,17 @@ router.post('/room-images/:roomId', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.delete('/room-images/:id', requireAuth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
+    const db = await getDb();
+    const [[img]] = await db.query('SELECT id FROM room_images WHERE id = ?', [req.params.id]);
+    if (!img) return res.status(404).json({ error: 'Imagem não encontrada' });
+    await db.execute('DELETE FROM room_images WHERE id = ?', [req.params.id]);
+    res.json({ success: true, deleted: req.params.id });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.post('/admin/hero-image', requireAuth, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Nenhuma imagem enviada' });
