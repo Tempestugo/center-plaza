@@ -1624,9 +1624,7 @@ router.post('/create-checkout-session', async (req, res) => {
     if (checkResult.blocked) return res.status(409).json({ error: checkResult.reason });
 
     const pricing = await calculateStayPrice(db, room_type_id, check_in_date, check_out_date, room.price_per_night);
-    const subtotalAmount = pricing.total_amount;
-    const serviceFee = subtotalAmount * 0.1;
-    const totalAmount = Math.round((subtotalAmount + serviceFee) * 100) / 100; // subtotal + 10% arredondado
+    const totalAmount = pricing.total_amount;
     const nights = pricing.nights;
 
     const [ins] = await db.execute(

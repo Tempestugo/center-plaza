@@ -111,8 +111,7 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
 
   const nights = checkIn && checkOut ? differenceInDays(checkOut, checkIn) : 0;
   const subtotal = dynamicPricing ? dynamicPricing.total_amount : nights * accommodation.price;
-  const serviceFee = subtotal * 0.1;
-  const total = subtotal + serviceFee;
+  const total = subtotal;
 
   // Verificar se o intervalo selecionado contém datas bloqueadas
   const rangeHasBlockedDates = !!(checkIn && checkOut && hasBlockedDatesInRange(checkIn, checkOut));
@@ -234,7 +233,10 @@ export function BookingFlow({ open, onOpenChange, accommodation }: BookingFlowPr
                         <span>R$ {accommodation.price} x {nights} noite{nights > 1 ? "s" : ""}</span>
                         <span>R$ {subtotal.toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between"><span>Taxa de serviço</span><span>R$ {serviceFee.toFixed(2)}</span></div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Taxa de serviço</span>
+                        <span className="text-emerald-600 font-medium">Inclusa</span>
+                      </div>
                       <Separator />
                       <div className="flex justify-between font-semibold">
                         <span>Total</span><span>R$ {total.toFixed(2)}</span>

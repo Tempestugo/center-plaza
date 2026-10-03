@@ -474,13 +474,13 @@ if (room.amenities) {
                         <span>R$ {accommodation.price} x {nights} noites</span>
                         <span>R$ {totalPrice}</span>
                       </div>
-                      <div className="flex justify-between mb-2">
+                      <div className="flex justify-between mb-2 text-muted-foreground">
                         <span>Taxa de serviço</span>
-                        <span>R$ 50</span>
+                        <span className="text-emerald-600 font-medium">Inclusa</span>
                       </div>
                       <div className="flex justify-between font-semibold text-lg border-t pt-2">
                         <span>Total</span>
-                        <span>R$ {totalPrice + 50}</span>
+                        <span>R$ {totalPrice}</span>
                       </div>
                     </div>
 
