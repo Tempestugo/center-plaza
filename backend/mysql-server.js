@@ -1295,6 +1295,31 @@ router.get('/reservations/:id', async (req, res) => {
       if (!validSession && (!guestEmail || r.guest_email.toLowerCase() !== String(guestEmail).toLowerCase())) {
         return res.status(403).json({ error: 'Acesso negado' });
       }
+
+      // Redundância inteligente: se o cliente voltou com session_id do Stripe e a reserva ainda não estava confirmada
+      if (validSession && r.status !== 'confirmed') {
+        let isPaid = false;
+        if (stripe) {
+          try {
+            const stripeSession = await stripe.checkout.sessions.retrieve(sessionId);
+            if (stripeSession.payment_status === 'paid') {
+              isPaid = true;
+            }
+          } catch (e) {
+            console.warn('Erro ao consultar sessão no Stripe:', e.message);
+          }
+        }
+        // Se confirmado pelo Stripe ou como fallback de retorno válido
+        if (isPaid || !stripe) {
+          await db.execute(
+            "UPDATE reservations SET status='confirmed', payment_status='paid' WHERE id=?",
+            [r.id]
+          );
+          r.status = 'confirmed';
+          r.payment_status = 'paid';
+          console.log('✅ Reserva confirmada via fallback de retorno com sucesso:', r.id);
+        }
+      }
     }
     res.json(r);
   } catch (err) { res.status(500).json({ error: err.message }); }
