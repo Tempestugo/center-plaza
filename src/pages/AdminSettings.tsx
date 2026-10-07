@@ -25,6 +25,10 @@ export default function AdminSettings() {
   const [promoText, setPromoText] = useState("");
   const [savingPromo, setSavingPromo] = useState(false);
 
+  // GA4 Measurement Protocol Secret state
+  const [ga4ApiSecret, setGa4ApiSecret] = useState("");
+  const [savingGa4, setSavingGa4] = useState(false);
+
   const getDefaultPromoText = () => {
     const now = new Date();
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -44,7 +48,13 @@ export default function AdminSettings() {
       .then(r => r.json())
       .then(d => { if (d.value) setHeroPreview(d.value); })
       .catch(() => {});
+    // Load GA4 API Secret
+    fetch("/api/settings/ga4_api_secret")
+      .then(r => r.json())
+      .then(d => setGa4ApiSecret(d.value || ""))
+      .catch(() => {});
   }, []);
+
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,10 +149,33 @@ export default function AdminSettings() {
     }
   };
 
+  const handleSaveGa4 = async () => {
+    setSavingGa4(true);
+    try {
+      const token = localStorage.getItem("admin_token");
+      const res = await fetch("/api/settings/ga4_api_secret", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ value: ga4ApiSecret }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success("Segredo do GA4 Measurement Protocol salvo com sucesso!");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao salvar segredo do GA4");
+    } finally {
+      setSavingGa4(false);
+    }
+  };
+
   const handleResetPromo = () => {
     setPromoText("");
     toast.info("Texto resetado. O banner usará o cálculo automático (último dia do mês). Clique em 'Salvar' para confirmar.");
   };
+
 
   return (
     <AdminLayout>
@@ -189,7 +222,41 @@ export default function AdminSettings() {
           </CardContent>
         </Card>
 
+        {/* GA4 MEASUREMENT PROTOCOL SECTION */}
+        <Card className="mb-8 border-blue-200 dark:border-blue-900/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="text-lg">📊</span>
+              Google Analytics 4 & Google Ads (Server-Side)
+            </CardTitle>
+            <CardDescription className="text-xs leading-relaxed">
+              Dispara o evento <strong>purchase</strong> diretamente do servidor no momento da confirmação do pagamento no Stripe. ID da Métrica: <strong>G-N11Z92FBJF</strong>.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label className="flex items-center gap-2 mb-2 text-xs">
+                API Secret do Measurement Protocol
+              </Label>
+              <Input
+                type="password"
+                value={ga4ApiSecret}
+                onChange={e => setGa4ApiSecret(e.target.value)}
+                placeholder="Cole aqui o API Secret gerado no GA4"
+                className="text-sm font-mono"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1.5 leading-normal">
+                Gerado no GA4 em: <em>Administrador → Fluxos de dados → centerplazahotel.com.br → Secrets do Measurement Protocol → Criar</em>.
+              </p>
+            </div>
+            <Button onClick={handleSaveGa4} disabled={savingGa4 || !ga4ApiSecret} className="w-full bg-blue-600 hover:bg-blue-700 text-white" size="sm">
+              {savingGa4 ? "Salvando..." : "Salvar Chave GA4"}
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* HERO IMAGE SECTION */}
+
         <Card className="mb-8">
           <CardHeader>
             <CardTitle className="text-base">Imagem de Capa Principal</CardTitle>

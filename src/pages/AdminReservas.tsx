@@ -794,16 +794,28 @@ export default function AdminReservas({ onlyConfirmed = false }: AdminReservasPr
                           </>
                         )}
                         {r.status === "cancelled" && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
-                            title="Reverter para Pendente"
-                            onClick={() => handleStatusChange(r.id, "pending")}
-                          >
-                            <RotateCcw className="w-4 h-4" />
-                          </Button>
+                          <>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                              title="Confirmar Reserva (Pago no Stripe / Disparar GA4)"
+                              onClick={() => handleStatusChange(r.id, "confirmed")}
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                              title="Reverter para Pendente"
+                              onClick={() => handleStatusChange(r.id, "pending")}
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </Button>
+                          </>
                         )}
+
                         {r.status === "confirmed" && (
                           <Button
                             size="icon"

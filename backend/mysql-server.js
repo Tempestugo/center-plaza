@@ -362,22 +362,70 @@ async function sendWebhookNotification(reservation) {
   }
 
   // =======================================================
-  // 2. DISPARO PARA O GOOGLE APPS SCRIPT (Apenas para E-mails)
+  // 3. DISPARO PARA O GOOGLE ANALYTICS 4 (MEASUREMENT PROTOCOL)
   // =======================================================
-  const url = process.env.APPS_SCRIPT_WEBHOOK_URL;
-  if (url) {
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(reservation)
-      });
-      console.log(`[Webhook E-mail] Chamada enviada para reserva #${reservation.id}. Status: ${response.status}`);
-    } catch (err) {
-      console.error(`[Webhook E-mail] Erro ao enviar notificação:`, err.message);
+  await sendGA4PurchaseEvent(reservation);
+}
+
+// Envia evento de compra (purchase) server-side para o Google Analytics 4 (Measurement Protocol)
+async function sendGA4PurchaseEvent(reservation) {
+  try {
+    const GA4_MEASUREMENT_ID = process.env.GA4_MEASUREMENT_ID || 'G-N11Z92FBJF';
+    let apiSecret = process.env.GA4_API_SECRET;
+
+    if (!apiSecret) {
+      try {
+        const db = await getDb();
+        const [[row]] = await db.query("SELECT value FROM settings WHERE `key` = 'ga4_api_secret'");
+        if (row && row.value) apiSecret = row.value.trim();
+      } catch (dbErr) {
+        // Silencioso se settings não estiver pronto
+      }
     }
+
+    if (!apiSecret) {
+      console.warn('[GA4 Server-Side] ⚠️ GA4_API_SECRET não configurado (nem no .env nem em settings). purchase não enviado.');
+      return;
+    }
+
+    const reservationId = String(reservation.id || '');
+    const totalAmount = Number(reservation.total_amount || 0);
+    const clientId = reservation.stripe_payment_intent_id || `reserva_${reservationId}_${Date.now()}`;
+
+    const payload = {
+      client_id: String(clientId),
+      events: [
+        {
+          name: 'purchase',
+          params: {
+            transaction_id: reservationId,
+            value: totalAmount,
+            currency: 'BRL',
+            items: [
+              {
+                item_id: reservationId,
+                item_name: `Reserva Hotel Center Plaza #${reservationId}`,
+                price: totalAmount,
+                quantity: 1
+              }
+            ]
+          }
+        }
+      ]
+    };
+
+    const res = await fetch(`https://www.google-analytics.com/mp/collect?measurement_id=${GA4_MEASUREMENT_ID}&api_secret=${apiSecret}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    console.log(`[GA4 Server-Side] ✅ Compra da reserva #${reservationId} (R$ ${totalAmount}) enviada para o GA4! Status: ${res.status}`);
+  } catch (err) {
+    console.error('[GA4 Server-Side] ❌ Erro ao enviar purchase para o Google:', err.message);
   }
 }
+
 
 // ROTA DE TESTE DIRETO DE WHATSAPP DO SERVIDOR (HOSTINGER)
 router.get('/admin/test-whatsapp', async (req, res) => {
@@ -1521,12 +1569,19 @@ router.patch('/reservations/:id/status', requireAuth, async (req, res) => {
     if (!['pending', 'confirmed', 'cancelled'].includes(status))
       return res.status(400).json({ error: 'Status inválido' });
     const db = await getDb();
-    await db.execute('UPDATE reservations SET status=? WHERE id=?', [status, req.params.id]);
+    const paymentStatusUpdate = status === 'confirmed' ? ", payment_status='paid'" : "";
+    await db.execute(`UPDATE reservations SET status=? ${paymentStatusUpdate} WHERE id=?`, [status, req.params.id]);
     const [[r]] = await db.query(reservationJoin + ' WHERE r.id = ?', [req.params.id]);
     if (!r) return res.status(404).json({ error: 'Reserva não encontrada' });
+
+    if (status === 'confirmed') {
+      sendGA4PurchaseEvent(r).catch(() => {});
+    }
+
     res.json(r);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
 
 router.delete('/reservations/:id', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
