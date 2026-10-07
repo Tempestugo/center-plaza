@@ -496,10 +496,10 @@ export default function AdminReservas({ onlyConfirmed = false }: AdminReservasPr
   const handleStatusChange = async (id: number, status: "confirmed" | "cancelled" | "pending") => {
     await reservationService.updateStatus(id, status);
     setReservations((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status } : r))
+      prev.map((r) => (r.id === id ? { ...r, status, payment_status: status === 'confirmed' ? 'paid' : r.payment_status } : r))
     );
     const messages = {
-      confirmed: "Reserva confirmada!",
+      confirmed: "Reserva confirmada! (Evento de compra enviado ao Google)",
       cancelled: "Reserva cancelada",
       pending: "Reserva revertida para pendente",
     };
@@ -508,6 +508,24 @@ export default function AdminReservas({ onlyConfirmed = false }: AdminReservasPr
       variant: status === "cancelled" ? "destructive" : "default",
     });
   };
+
+  const handleResendGa4 = async (id: number) => {
+    try {
+      const res = await fetch(`/api/reservations/${id}/resend-ga4`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('admin_token') || ''}`,
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast({ title: `Conversão enviada para o Google Ads / GA4! (Reserva #${id})` });
+    } catch (err: any) {
+      toast({ title: err.message || "Erro ao reenviar para GA4", variant: "destructive" });
+    }
+  };
+
 
   
   const handleApproveRefund = async (requestId: number, refundType: 'full' | 'partial' | 'none') => {
@@ -818,16 +836,28 @@ export default function AdminReservas({ onlyConfirmed = false }: AdminReservasPr
 
 
                         {r.status === "confirmed" && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
-                            title="Cancelar"
-                            onClick={() => handleStatusChange(r.id, "cancelled")}
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </Button>
+                          <>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              title="Reenviar Conversão (purchase) para o Google Ads / GA4"
+                              onClick={() => handleResendGa4(r.id)}
+                            >
+                              <DollarSign className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                              title="Cancelar"
+                              onClick={() => handleStatusChange(r.id, "cancelled")}
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </Button>
+                          </>
                         )}
+
                         <Button
                           size="icon"
                           variant="ghost"

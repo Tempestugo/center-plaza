@@ -211,11 +211,6 @@ async function initDatabase() {
   try { await db.query("ALTER TABLE room_types ADD COLUMN total_units INT DEFAULT 1"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
   try { await db.query("ALTER TABLE settings MODIFY COLUMN value LONGTEXT"); } catch (e) { }
   try { await db.query("ALTER TABLE reservations ADD COLUMN card_holder_name TEXT"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
-  try {
-    await db.execute("INSERT IGNORE INTO settings (`key`, value) VALUES ('ga4_api_secret', '1tbQCTadTweMXUQmExqwpg')");
-    // Se já existia com valor vazio, atualiza
-    await db.execute("UPDATE settings SET value = '1tbQCTadTweMXUQmExqwpg' WHERE `key` = 'ga4_api_secret' AND (value IS NULL OR value = '')");
-  } catch (e) { }
 
 
 
@@ -1587,6 +1582,18 @@ router.patch('/reservations/:id/status', requireAuth, async (req, res) => {
     res.json(r);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+router.post('/reservations/:id/resend-ga4', requireAuth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
+  try {
+    const db = await getDb();
+    const [[r]] = await db.query(reservationJoin + ' WHERE r.id = ?', [req.params.id]);
+    if (!r) return res.status(404).json({ error: 'Reserva não encontrada' });
+    await sendGA4PurchaseEvent(r);
+    res.json({ success: true, message: `Evento purchase disparado para GA4 para a reserva #${r.id}` });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 
 
 router.delete('/reservations/:id', requireAuth, async (req, res) => {
