@@ -211,6 +211,12 @@ async function initDatabase() {
   try { await db.query("ALTER TABLE room_types ADD COLUMN total_units INT DEFAULT 1"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
   try { await db.query("ALTER TABLE settings MODIFY COLUMN value LONGTEXT"); } catch (e) { }
   try { await db.query("ALTER TABLE reservations ADD COLUMN card_holder_name TEXT"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+  try {
+    await db.execute("INSERT IGNORE INTO settings (`key`, value) VALUES ('ga4_api_secret', '1tbQCTadTweMXUQmExqwpg')");
+    // Se já existia com valor vazio, atualiza
+    await db.execute("UPDATE settings SET value = '1tbQCTadTweMXUQmExqwpg' WHERE `key` = 'ga4_api_secret' AND (value IS NULL OR value = '')");
+  } catch (e) { }
+
 
 
   const [[admin]] = await db.query("SELECT id FROM users WHERE username = 'admin@centerplaza.com'");

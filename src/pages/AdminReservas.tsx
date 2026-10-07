@@ -802,7 +802,7 @@ export default function AdminReservas({ onlyConfirmed = false }: AdminReservasPr
                               title="Confirmar Reserva (Pago no Stripe / Disparar GA4)"
                               onClick={() => handleStatusChange(r.id, "confirmed")}
                             >
-                              <CheckCircle2 className="w-4 h-4" />
+                              <CheckCircle className="w-4 h-4" />
                             </Button>
                             <Button
                               size="icon"
@@ -815,6 +815,7 @@ export default function AdminReservas({ onlyConfirmed = false }: AdminReservasPr
                             </Button>
                           </>
                         )}
+
 
                         {r.status === "confirmed" && (
                           <Button
@@ -915,10 +916,16 @@ export default function AdminReservas({ onlyConfirmed = false }: AdminReservasPr
                     </>
                   )}
                   {r.status === "cancelled" && (
-                    <Button size="sm" variant="outline" className="flex-1 h-8 text-yellow-600 border-yellow-200 hover:bg-yellow-50" onClick={() => handleStatusChange(r.id, "pending")}>
-                      <RotateCcw className="w-3.5 h-3.5 mr-1" /> Reverter
-                    </Button>
+                    <>
+                      <Button size="sm" className="flex-1 h-8 bg-green-600 hover:bg-green-700 text-white" onClick={() => handleStatusChange(r.id, "confirmed")}>
+                        <CheckCircle className="w-3.5 h-3.5 mr-1" /> Confirmar
+                      </Button>
+                      <Button size="sm" variant="outline" className="flex-1 h-8 text-yellow-600 border-yellow-200 hover:bg-yellow-50" onClick={() => handleStatusChange(r.id, "pending")}>
+                        <RotateCcw className="w-3.5 h-3.5 mr-1" /> Reverter
+                      </Button>
+                    </>
                   )}
+
                   {r.status === "confirmed" && (
                     <Button size="sm" variant="destructive" className="flex-1 h-8" onClick={() => handleStatusChange(r.id, "cancelled")}>
                       <XCircle className="w-3.5 h-3.5 mr-1" /> Cancelar
