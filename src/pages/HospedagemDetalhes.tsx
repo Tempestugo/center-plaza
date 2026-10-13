@@ -317,11 +317,11 @@ if (room.amenities) {
                     </div>
                   </div>
                   
-                  <div className="text-right">
-                    <div className="text-3xl font-bold text-primary">
+                  <div className="text-right shrink-0 pl-4">
+                    <div className="text-2xl sm:text-3xl font-extrabold text-primary whitespace-nowrap">
                       R$ {accommodation.price}
                     </div>
-                    <div className="text-muted-foreground">por noite</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">por noite</div>
                   </div>
                 </div>
 
@@ -419,15 +419,15 @@ if (room.amenities) {
                       <div className="text-xs text-muted-foreground font-medium">por noite</div>
                     </div>
 
-                    {}
-                    <div>
+                    <div className="w-full">
                       <label className="text-sm font-medium mb-2 block">Data de check-in</label>
-                      <div className="relative">
-                        <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                      <div className="relative w-full">
+                        <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 pointer-events-none" />
                         <Input
                           type="date"
-                          className="pl-10"
-                          defaultValue="2024-12-15"
+                          className="pl-10 w-full max-w-full text-xs sm:text-sm font-medium"
+                          defaultValue={new Date().toISOString().split('T')[0]}
+                          min={new Date().toISOString().split('T')[0]}
                         />
                       </div>
                     </div>

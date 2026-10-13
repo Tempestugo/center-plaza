@@ -63,7 +63,7 @@ const FeaturedAccommodations = () => {
             Acomodações em Destaque
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Conforto, qualidade e o melhor custo-benefício. Confira o que faz diferença
+            Conforto, qualidade e o melhor custo-benefício. Para sua melhor experiência em São Paulo
           </p>
         </div>
 
