@@ -63,8 +63,7 @@ const FeaturedAccommodations = () => {
             Acomodações em Destaque
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Descubra nossas acomodações, perfeitamente localizadas
-            para quem busca praticidade e conforto no centro de São Paulo.
+            Conforto, qualidade e o melhor custo-benefício. Confira o que faz diferença
           </p>
         </div>
 
