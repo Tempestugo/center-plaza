@@ -208,6 +208,7 @@ async function initDatabase() {
   try { await db.query("ALTER TABLE room_images ADD COLUMN url VARCHAR(255)"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
   try { await db.query("ALTER TABLE reservations ADD COLUMN payment_status VARCHAR(50) DEFAULT 'pending'"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
   try { await db.query("ALTER TABLE room_types ADD COLUMN is_active BOOLEAN DEFAULT 1"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+  try { await db.query("ALTER TABLE room_types ADD COLUMN is_visible BOOLEAN DEFAULT 1"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
   try { await db.query("ALTER TABLE room_types ADD COLUMN total_units INT DEFAULT 1"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
   try { await db.query("ALTER TABLE settings MODIFY COLUMN value LONGTEXT"); } catch (e) { }
   try { await db.query("ALTER TABLE reservations ADD COLUMN card_holder_name TEXT"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
@@ -891,7 +892,7 @@ router.get('/rooms', async (req, res) => {
   try {
     const db = await getDb();
     const [rows] = await db.query(
-      'SELECT rt.*, h.name as hotel_name FROM room_types rt JOIN hotels h ON rt.hotel_id = h.id ORDER BY rt.created_at DESC');
+      'SELECT rt.*, h.name as hotel_name FROM room_types rt JOIN hotels h ON rt.hotel_id = h.id WHERE rt.is_visible IS NULL OR rt.is_visible = 1 ORDER BY rt.created_at DESC');
     res.json(await roomsWithImages(db, rows));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -1241,7 +1242,7 @@ router.put('/rooms/:id', requireAuth, async (req, res) => {
     if (!current) return res.status(404).json({ error: 'Quarto não encontrado' });
 
     await db.execute(
-      'UPDATE room_types SET hotel_id=?,name=?,description=?,size_sqm=?,bed_type=?,bed_count=?,max_occupancy=?,amenities=?,bathroom_type=?,smoking_allowed=?,price_per_night=?,is_active=?,stripe_price_id=?,total_units=? WHERE id=?',
+      'UPDATE room_types SET hotel_id=?,name=?,description=?,size_sqm=?,bed_type=?,bed_count=?,max_occupancy=?,amenities=?,bathroom_type=?,smoking_allowed=?,price_per_night=?,is_active=?,is_visible=?,stripe_price_id=?,total_units=? WHERE id=?',
       [
         hotel_id ?? current.hotel_id,
         name ?? current.name,
@@ -1255,6 +1256,7 @@ router.put('/rooms/:id', requireAuth, async (req, res) => {
         smoking_allowed !== undefined ? (smoking_allowed ? 1 : 0) : current.smoking_allowed,
         price_per_night ?? current.price_per_night,
         is_active !== undefined ? (is_active ? 1 : 0) : current.is_active,
+        req.body.is_visible !== undefined ? (req.body.is_visible ? 1 : 0) : (current.is_visible ?? 1),
         req.body.stripe_price_id !== undefined ? req.body.stripe_price_id : current.stripe_price_id,
         total_units ?? current.total_units ?? 1,
         req.params.id

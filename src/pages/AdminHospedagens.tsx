@@ -20,7 +20,8 @@ import {
   Plus, Search, Edit, Trash2, Bed, Loader2, X,
   CheckCircle, XCircle, LayoutGrid, List, RefreshCw,
   DollarSign, CheckSquare, Square, Layers, Power, PowerOff,
-  Calendar, Lock, Unlock, Users, ChevronLeft, ChevronRight, CalendarDays, ShieldAlert, Building2, Sparkles
+  Calendar, Lock, Unlock, Users, ChevronLeft, ChevronRight, CalendarDays, ShieldAlert, Building2, Sparkles,
+  Eye, EyeOff
 } from "lucide-react";
 
 const BED_TYPE_OCCUPANCY: Record<string, number> = {
@@ -204,9 +205,24 @@ export default function AdminHospedagens() {
     try {
       await roomService.updateAvailability(room.id, newVal);
       setRooms(prev => prev.map(r => r.id === room.id ? { ...r, is_active: newVal } : r));
-      toast.success(newVal === 1 ? `"${room.name}" ativado` : `"${room.name}" desativado`);
+      toast.success(newVal === 1 ? `"${room.name}" disponível para reserva` : `"${room.name}" marcado como esgotado`);
     } catch (err: any) {
       toast.error(err.message || "Erro ao alterar disponibilidade");
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  const toggleVisibility = async (room: RoomType) => {
+    setTogglingId(room.id);
+    const isCurrentlyVisible = room.is_visible !== 0 && room.is_visible !== false;
+    const newVal = isCurrentlyVisible ? 0 : 1;
+    try {
+      await roomService.updateVisibility(room.id, newVal);
+      setRooms(prev => prev.map(r => r.id === room.id ? { ...r, is_visible: newVal } : r));
+      toast.success(newVal === 1 ? `"${room.name}" visível no site` : `"${room.name}" ocultado do site`);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao alterar visibilidade");
     } finally {
       setTogglingId(null);
     }
@@ -592,16 +608,34 @@ export default function AdminHospedagens() {
                       {room.total_units || 1} unidade{(room.total_units || 1) !== 1 ? "s" : ""} · máx {room.max_occupancy ?? (room as any).capacity} hóspede{(room.max_occupancy ?? (room as any).capacity) !== 1 ? "s" : ""}
                     </p>
                   </div>
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t">
-                    <span className={`text-[10px] font-medium ${room.is_active === 1 ? "text-green-600" : "text-red-500"}`}>
-                      {room.is_active === 1 ? "Disponível" : "Inativo"}
-                    </span>
-                    {togglingId === room.id
-                      ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                      : <Switch checked={room.is_active === 1} onCheckedChange={() => toggleAvailability(room)} className="scale-75" />
-                    }
+                  <div className="space-y-1.5 mt-2 pt-2 border-t text-[11px]">
+                    {/* Disponibilidade para reserva (Ativo vs Esgotado) */}
+                    <div className="flex items-center justify-between">
+                      <span className={`font-medium ${room.is_active === 1 ? "text-green-600" : "text-amber-600 font-semibold"}`}>
+                        {room.is_active === 1 ? "Disponível" : "Esgotado"}
+                      </span>
+                      {togglingId === room.id
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                        : <Switch checked={room.is_active === 1} onCheckedChange={() => toggleAvailability(room)} className="scale-75" title={room.is_active === 1 ? "Marcar como Esgotado" : "Marcar como Disponível"} />
+                      }
+                    </div>
+
+                    {/* Visibilidade no site (Visível vs Oculto) */}
+                    <div className="flex items-center justify-between">
+                      <span className={`font-medium flex items-center gap-1 ${room.is_visible !== 0 && room.is_visible !== false ? "text-blue-600" : "text-stone-400"}`}>
+                        {room.is_visible !== 0 && room.is_visible !== false ? (
+                          <><Eye className="w-3 h-3" /> No catálogo</>
+                        ) : (
+                          <><EyeOff className="w-3 h-3 text-red-500" /> <span className="text-red-500 font-bold">Oculto</span></>
+                        )}
+                      </span>
+                      {togglingId === room.id
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                        : <Switch checked={room.is_visible !== 0 && room.is_visible !== false} onCheckedChange={() => toggleVisibility(room)} className="scale-75" title={room.is_visible !== 0 && room.is_visible !== false ? "Ocultar do catálogo" : "Exibir no catálogo"} />
+                      }
+                    </div>
                   </div>
-                  <div className="flex gap-1 mt-1">
+                  <div className="flex gap-1 mt-2">
                     <Button variant="ghost" size="icon" className="h-6 w-6 flex-1" onClick={() => openEditRoom(room)}><Edit className="h-3 w-3" /></Button>
                     <Button variant="ghost" size="icon" className="h-6 w-6 flex-1 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDeleteRoom(room)}><Trash2 className="h-3 w-3" /></Button>
                   </div>
@@ -620,8 +654,8 @@ export default function AdminHospedagens() {
                       onCheckedChange={() => toggleSelectAll(filtered)}
                     />
                   </th>
-                  {["Nº", "Nome", "Cama", "Hóspedes", "Unidades", "Preço/noite", "Disponível", "Ações"].map(h => (
-                    <th key={h} className={`px-4 py-2.5 text-xs font-medium text-muted-foreground ${h === "Disponível" ? "text-center" : h === "Ações" ? "text-right" : "text-left"}`}>{h}</th>
+                  {["Nº", "Nome", "Cama", "Hóspedes", "Unidades", "Preço/noite", "Disponível", "No Site", "Ações"].map(h => (
+                    <th key={h} className={`px-4 py-2.5 text-xs font-medium text-muted-foreground ${["Disponível", "No Site"].includes(h) ? "text-center" : h === "Ações" ? "text-right" : "text-left"}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -646,7 +680,15 @@ export default function AdminHospedagens() {
                         <div className="flex justify-center">
                           {togglingId === room.id
                             ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                            : <Switch checked={room.is_active === 1} onCheckedChange={() => toggleAvailability(room)} />
+                            : <Switch checked={room.is_active === 1} onCheckedChange={() => toggleAvailability(room)} title={room.is_active === 1 ? "Marcar como Esgotado" : "Marcar como Disponível"} />
+                          }
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex justify-center">
+                          {togglingId === room.id
+                            ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            : <Switch checked={room.is_visible !== 0 && room.is_visible !== false} onCheckedChange={() => toggleVisibility(room)} title={room.is_visible !== 0 && room.is_visible !== false ? "Ocultar do catálogo" : "Exibir no catálogo"} />
                           }
                         </div>
                       </td>

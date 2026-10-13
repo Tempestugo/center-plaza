@@ -405,18 +405,18 @@ if (room.amenities) {
                 <CardContent className="p-6">
                   <div className="space-y-4">
                     <div className="text-center">
-                      <div className="flex items-center justify-center gap-2 mb-1">
-                        <span className="text-sm text-muted-foreground line-through">
+                      <div className="flex items-center justify-center gap-2 mb-1.5">
+                        <span className="text-base text-muted-foreground line-through font-medium">
                           R$ {Math.round(accommodation.price / 0.75).toLocaleString()}
                         </span>
-                        <span className="text-[11px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-bold px-2 py-0.5 rounded">
+                        <span className="text-xs bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 font-bold px-2 py-0.5 rounded-md">
                           -25% OFF
                         </span>
                       </div>
-                      <div className="text-3xl font-bold text-primary mb-0.5">
+                      <div className="text-3xl sm:text-4xl font-extrabold text-primary mb-0.5">
                         R$ {accommodation.price}
                       </div>
-                      <div className="text-xs text-muted-foreground">por noite</div>
+                      <div className="text-xs text-muted-foreground font-medium">por noite</div>
                     </div>
 
                     {}

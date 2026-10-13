@@ -43,11 +43,11 @@ const Hospedagens = () => {
         {}
         <section className="bg-gradient-to-r from-primary to-primary-light py-20">
           <div className="container mx-auto px-4 text-center text-primary-foreground">
-            <h1 className="text-5xl md:text-6xl font-bold mb-6">
-              Nossas Hospedagens
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 tracking-tight">
+              Escolha Sua Acomodação
             </h1>
             <p className="text-xl max-w-2xl mx-auto">
-              Encontre a acomodação perfeita para sua experiência na serra
+              Encontre o quarto ideal para sua experiência
             </p>
           </div>
         </section>

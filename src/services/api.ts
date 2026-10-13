@@ -49,6 +49,7 @@ export interface RoomType {
   amenities?: string[] | string;
   images?: { id: number; url: string }[];
   is_active?: number | boolean;
+  is_visible?: number | boolean;
   room_number?: string;
 }
 
@@ -362,6 +363,19 @@ export const roomService = {
     if (!response.ok) {
       const err = await response.json();
       throw new Error(err.error || 'Erro ao atualizar disponibilidade');
+    }
+    return response.json();
+  },
+
+  async updateVisibility(id: number, is_visible: number): Promise<RoomType> {
+    const response = await fetch(`${API_BASE_URL}/rooms/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ is_visible }),
+    });
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || 'Erro ao atualizar visibilidade');
     }
     return response.json();
   },

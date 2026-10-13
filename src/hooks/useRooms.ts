@@ -71,7 +71,8 @@ export function useRooms() {
       setLoading(true);
       setError(null);
       const roomTypes = await roomService.getAll();
-      setRooms(roomTypes.map((room, index) => mapRoomToAccommodation(room as any, index)));
+      const visibleRooms = roomTypes.filter((r: any) => r.is_visible !== 0 && r.is_visible !== false);
+      setRooms(visibleRooms.map((room, index) => mapRoomToAccommodation(room as any, index)));
     } catch (err) {
       console.error('Erro ao buscar quartos:', err);
       setError('Erro ao carregar as acomodacoes');
