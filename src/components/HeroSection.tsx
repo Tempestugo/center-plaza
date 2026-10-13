@@ -60,23 +60,6 @@ const HeroSection = () => {
       <div className="relative z-10 container mx-auto px-4 sm:px-8 py-6 pb-12 md:py-24">
         <div className="max-w-xl animate-fade-in-up">
 
-          {/* Top badge — location (wine palette) */}
-          <button
-            type="button"
-            onClick={scrollToLocation}
-            className="inline-flex items-center gap-2 rounded-full px-4 py-2 mb-4 hover:scale-[1.02] active:scale-95 transition-transform cursor-pointer"
-            style={{
-              background: 'rgba(120,20,50,0.5)',
-              border: '1px solid rgba(180,60,90,0.3)',
-              backdropFilter: 'blur(8px)'
-            }}
-          >
-            <MapPin className="w-3.5 h-3.5" style={{ color: '#d4a574' }} />
-            <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,235,220,0.9)' }}>
-              Bela Vista • Centro de São Paulo ↓
-            </span>
-          </button>
-
           {/* Heading */}
           <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-1 leading-[1.05] tracking-tight">
             Center Plaza
@@ -137,22 +120,11 @@ const HeroSection = () => {
             <Button 
               variant="hero"
               size="xl" 
-              className="group text-base px-8 py-5 shadow-xl font-semibold cursor-pointer"
+              className="w-full sm:w-auto group text-base px-8 py-5 shadow-xl font-semibold cursor-pointer"
               onClick={scrollToAccommodations}
             >
               Ver Acomodações & Preços
               <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Button>
-            
-            <Button 
-              size="xl"
-              className="text-base px-8 py-5 transition-all bg-white/10 hover:bg-white/20 text-white border border-white/25"
-              asChild
-            >
-              <a href="https://wa.me/551132893757" target="_blank" rel="noopener noreferrer">
-                <Phone className="mr-2 w-4 h-4" />
-                WhatsApp
-              </a>
             </Button>
           </div>
         </div>
