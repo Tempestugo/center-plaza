@@ -1,9 +1,9 @@
 import { MapPin, Train, Utensils, Building2, ShieldCheck } from "lucide-react";
 
 const landmarks = [
-  { icon: Train, label: "Metrô São Joaquim", distance: "350m" },
-  { icon: Utensils, label: "Roteiro Gastronômico do Bexiga", distance: "5 min" },
   { icon: Building2, label: "Av. Paulista", distance: "1,2 km" },
+  { icon: Utensils, label: "Roteiro Gastronômico do Bexiga", distance: "5 min" },
+  { icon: Train, label: "Metrô São Joaquim", distance: "350m" },
   { icon: ShieldCheck, label: "Hospital Beneficência Portuguesa", distance: "400m" },
 ];
 
