@@ -137,10 +137,21 @@ const AccommodationCard = ({
         <div className="mt-6 pt-4 border-t border-border">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <span className={`text-2xl font-bold ${!isActive ? "text-muted-foreground" : "text-primary"}`}>
-                R$ {price.toLocaleString()}
-              </span>
-              <span className="text-sm text-muted-foreground ml-1">/noite</span>
+              {/* Preço de âncora cortado (25% off meramente visual) */}
+              <div className="flex items-center gap-1.5 leading-none mb-1">
+                <span className="text-xs text-muted-foreground line-through">
+                  R$ {Math.round(price / 0.75).toLocaleString()}
+                </span>
+                <span className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-bold px-1.5 py-0.5 rounded">
+                  -25% OFF
+                </span>
+              </div>
+              <div className="flex items-baseline">
+                <span className={`text-2xl font-bold ${!isActive ? "text-muted-foreground" : "text-primary"}`}>
+                  R$ {price.toLocaleString()}
+                </span>
+                <span className="text-sm text-muted-foreground ml-1">/noite</span>
+              </div>
             </div>
           </div>
           <div className="flex gap-2">
