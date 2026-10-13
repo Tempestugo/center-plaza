@@ -47,15 +47,20 @@ const AccommodationCard = ({
     a => !CAFE_KEYWORDS.some(kw => a.toLowerCase().includes(kw))
   );
 
+  const goToDetails = () => {
+    navigate(`/hospedagem/${id}`);
+  };
+
   return (
     <Card
-      className={`card-elegant group overflow-hidden h-full flex flex-col
+      onClick={goToDetails}
+      className={`card-elegant group overflow-hidden h-full flex flex-col cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1
         ${!isActive ? "opacity-90 bg-muted/20" : ""}
         ${includesCafe && isActive ? "ring-2 ring-amber-400/60 shadow-lg shadow-amber-100" : ""}
       `}
     >
       <div className="relative">
-        <div className="image-overlay h-64">
+        <div className="image-overlay h-64 overflow-hidden">
           <img
             src={image}
             alt={name}
@@ -157,18 +162,22 @@ const AccommodationCard = ({
           <div className="flex gap-2">
             <Button
               variant="outline"
-              className="flex-1"
-              onClick={() => navigate(`/hospedagem/${id}`)}
+              className="flex-1 cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                goToDetails();
+              }}
             >
               Ver Detalhes
             </Button>
             {isActive ? (
               <Button
-                className="flex-1"
+                className="flex-1 cursor-pointer"
                 variant="hero"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   gtmEvent("click_reservar", { quarto: name, preco: price });
-                  navigate(`/hospedagem/${id}`);
+                  goToDetails();
                 }}
               >
                 Reservar
@@ -177,6 +186,7 @@ const AccommodationCard = ({
               <Button
                 className="flex-1 bg-rose-100 text-rose-700 hover:bg-rose-100 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 cursor-not-allowed"
                 disabled
+                onClick={(e) => e.stopPropagation()}
               >
                 Esgotado
               </Button>
