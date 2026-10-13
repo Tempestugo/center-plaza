@@ -157,20 +157,6 @@ const HeroSection = () => {
           </div>
         </div>
       </div>
-
-      {/* Scroll Indicator */}
-      <button 
-        type="button" 
-        onClick={scrollToAccommodations}
-        className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-1 cursor-pointer group"
-      >
-        <span className="text-[11px] text-white/50 tracking-wider uppercase font-medium group-hover:text-white/80 transition-colors">
-          Rolar para quartos
-        </span>
-        <div className="w-5 h-7 border-2 border-white/30 group-hover:border-white/60 rounded-full flex justify-center transition-colors">
-          <div className="w-0.5 h-2 bg-white/50 rounded-full mt-1 animate-bounce" />
-        </div>
-      </button>
     </section>
   );
 };
