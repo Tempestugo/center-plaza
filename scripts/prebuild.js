@@ -4,6 +4,58 @@ fs.writeFileSync('index.html', `<!doctype html>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Center Plaza Hotel — Conforto no Centro de São Paulo</title>
+    <meta name="description" content="Center Plaza Hotel na Bela Vista, centro de São Paulo. A 350m do Metrô São Joaquim. Quartos confortáveis com café da manhã incluso, Wi-Fi e melhor tarifa garantida." />
+    <meta name="keywords" content="hotel centro sp, hotel bela vista sp, hotel perto metro sao joaquim, center plaza hotel, hospedagem sao paulo centro" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <link rel="canonical" href="https://centerplazahotel.com.br/" />
+
+    <!-- Open Graph / Redes Sociais & ChatGPT Preview -->
+    <meta property="og:type" content="hotel" />
+    <meta property="og:title" content="Center Plaza Hotel — Conforto no Centro de São Paulo" />
+    <meta property="og:description" content="Quartos confortáveis com café da manhã incluso a 350m do Metrô São Joaquim, Bela Vista - SP. Reserve direto pelo melhor preço." />
+    <meta property="og:url" content="https://centerplazahotel.com.br/" />
+    <meta property="og:site_name" content="Center Plaza Hotel" />
+    <meta property="og:locale" content="pt_BR" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Center Plaza Hotel — Centro de São Paulo" />
+    <meta name="twitter:description" content="Quartos confortáveis na Bela Vista com café da manhã incluso a 350m do Metrô São Joaquim." />
+
+    <!-- Schema.org JSON-LD (Permite que o ChatGPT e Google compreendam tudo sobre o hotel estruturadamente) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Hotel",
+      "name": "Center Plaza Hotel",
+      "url": "https://centerplazahotel.com.br",
+      "telephone": "+55-11-3289-3757",
+      "description": "Hotel localizado na Bela Vista, centro de São Paulo, a 350m do Metrô São Joaquim. Oferece quartos individuais, duplos e suítes com café da manhã incluso e Wi-Fi.",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Rua Maestro Cardim, 418",
+        "addressLocality": "São Paulo",
+        "addressRegion": "SP",
+        "postalCode": "01323-000",
+        "addressCountry": "BR"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": -23.5627,
+        "longitude": -46.6416
+      },
+      "amenityFeature": [
+        { "@type": "LocationFeatureSpecification", "name": "Café da Manhã Incluso", "value": true },
+        { "@type": "LocationFeatureSpecification", "name": "Wi-Fi Gratuito", "value": true },
+        { "@type": "LocationFeatureSpecification", "name": "Ar Condicionado", "value": true },
+        { "@type": "LocationFeatureSpecification", "name": "Próximo ao Metrô São Joaquim", "value": true }
+      ],
+      "checkinTime": "14:00",
+      "checkoutTime": "12:00"
+    }
+    </script>
+
     <!-- Google Tag Manager -->
     <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
     new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
@@ -11,7 +63,6 @@ fs.writeFileSync('index.html', `<!doctype html>
     'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
     })(window,document,'script','dataLayer','GTM-P6F82QCQ');</script>
     <!-- End Google Tag Manager -->
-    <title>Center Plaza Hotel</title>
   </head>
   <body>
     <!-- Google Tag Manager (noscript) -->
@@ -22,4 +73,4 @@ fs.writeFileSync('index.html', `<!doctype html>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>`);
-console.log('OK: index.html com GTM gerado');
+console.log('OK: index.html com GTM, SEO e Schema.org gerado');
