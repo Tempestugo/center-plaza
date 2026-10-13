@@ -9,8 +9,9 @@ const landmarks = [
 
 const LocationSection = () => {
   return (
-    <section className="py-16 bg-stone-50 dark:bg-stone-950/30">
+    <section id="localizacao" className="py-16 bg-stone-50 dark:bg-stone-950/30 scroll-mt-6">
       <div className="container mx-auto px-4">
+
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 text-amber-600 mb-3">
             <MapPin className="w-5 h-5" />

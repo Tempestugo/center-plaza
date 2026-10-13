@@ -27,8 +27,22 @@ const HeroSection = () => {
       .catch(() => setPromoText(getDefaultPromoText()));
   }, []);
 
-  return (
-    <section className="relative min-h-[100dvh] flex items-end overflow-hidden" style={{ background: '#1a1015' }}>
+    const scrollToAccommodations = () => {
+      const element = document.getElementById("acomodacoes");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth" });
+      }
+    };
+
+    const scrollToLocation = () => {
+      const element = document.getElementById("localizacao");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth" });
+      }
+    };
+
+    return (
+    <section className="relative min-h-[92dvh] md:min-h-[100dvh] flex items-end overflow-hidden" style={{ background: '#1a1015' }}>
       {/* Background Image */}
       <div className="absolute inset-0">
         <img
@@ -43,60 +57,79 @@ const HeroSection = () => {
       </div>
 
       {/* Content — left-aligned */}
-      <div className="relative z-10 container mx-auto px-4 sm:px-8 py-16 pb-20 md:py-24">
+      <div className="relative z-10 container mx-auto px-4 sm:px-8 py-12 pb-16 md:py-24">
         <div className="max-w-xl animate-fade-in-up">
 
           {/* Top badge — location (wine palette) */}
-          <div className="inline-flex items-center gap-2 rounded-full px-4 py-2 mb-6" style={{
-            background: 'rgba(120,20,50,0.5)',
-            border: '1px solid rgba(180,60,90,0.3)',
-            backdropFilter: 'blur(8px)'
-          }}>
+          <button
+            type="button"
+            onClick={scrollToLocation}
+            className="inline-flex items-center gap-2 rounded-full px-4 py-2 mb-4 hover:scale-[1.02] active:scale-95 transition-transform cursor-pointer"
+            style={{
+              background: 'rgba(120,20,50,0.5)',
+              border: '1px solid rgba(180,60,90,0.3)',
+              backdropFilter: 'blur(8px)'
+            }}
+          >
             <MapPin className="w-3.5 h-3.5" style={{ color: '#d4a574' }} />
             <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,235,220,0.9)' }}>
-              Bela Vista • Centro de São Paulo
+              Bela Vista • Centro de São Paulo ↓
             </span>
-          </div>
+          </button>
 
           {/* Heading */}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-2 leading-[1.05] tracking-tight">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-1 leading-[1.05] tracking-tight">
             Center Plaza
           </h1>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.05] tracking-tight" style={{ color: '#d4a574' }}>
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-5 leading-[1.05] tracking-tight" style={{ color: '#d4a574' }}>
             Hotel
           </h1>
 
-          {/* Key Value Props */}
-          <div className="flex flex-col gap-3 mb-8">
-            {/* Promoção + Café da Manhã (Combinado) */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ 
-                background: 'rgba(212,165,116,0.12)', 
-                border: '1px solid rgba(212,165,116,0.25)' 
+          {/* Key Value Props — Agora interativos sem sair do site */}
+          <div className="flex flex-col gap-2.5 mb-6">
+            {/* Promoção + Café da Manhã (Clicável: rola direto para os quartos) */}
+            <button
+              type="button"
+              onClick={scrollToAccommodations}
+              className="flex items-center gap-3 p-2.5 -mx-2.5 rounded-xl hover:bg-white/5 active:bg-white/10 transition-all text-left group cursor-pointer"
+            >
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform" style={{ 
+                background: 'rgba(212,165,116,0.15)', 
+                border: '1px solid rgba(212,165,116,0.35)' 
               }}>
                 <Coffee className="w-5 h-5" style={{ color: '#d4a574' }} />
               </div>
-              <div>
-                <p className="text-white font-semibold text-base">Café da Manhã Incluso</p>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-white font-semibold text-base group-hover:text-amber-200 transition-colors">Café da Manhã Incluso</p>
+                  <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-full font-medium">Ver quartos ↓</span>
+                </div>
                 <p className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
                   Promoção por tempo limitado! {promoText}
                 </p>
               </div>
-            </div>
+            </button>
 
-            {/* Localização */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ 
-                background: 'rgba(212,165,116,0.12)', 
-                border: '1px solid rgba(212,165,116,0.25)' 
+            {/* Localização (Clicável: rola suavemente para o mapa e pontos turísticos dentro da própria página) */}
+            <button
+              type="button"
+              onClick={scrollToLocation}
+              className="flex items-center gap-3 p-2.5 -mx-2.5 rounded-xl hover:bg-white/5 active:bg-white/10 transition-all text-left group cursor-pointer"
+            >
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform" style={{ 
+                background: 'rgba(212,165,116,0.15)', 
+                border: '1px solid rgba(212,165,116,0.35)' 
               }}>
                 <MapPin className="w-5 h-5" style={{ color: '#d4a574' }} />
               </div>
-              <div>
-                <p className="text-white font-semibold text-base">R. Maestro Cardim, 418</p>
-                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>Bela Vista — A 350m do Metrô São Joaquim</p>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-white font-semibold text-base group-hover:text-amber-200 transition-colors">R. Maestro Cardim, 418</p>
+                  <span className="text-[10px] bg-white/10 text-stone-300 border border-white/20 px-1.5 py-0.5 rounded-full font-medium">Ver mapa ↓</span>
+                </div>
+                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>Bela Vista — A 350m do Metrô São Joaquim</p>
               </div>
-            </div>
+            </button>
           </div>
 
           {/* CTA Buttons */}
@@ -104,18 +137,16 @@ const HeroSection = () => {
             <Button 
               variant="hero"
               size="xl" 
-              className="group text-base px-8 py-6 shadow-xl font-semibold"
-              asChild
+              className="group text-base px-8 py-5 shadow-xl font-semibold cursor-pointer"
+              onClick={scrollToAccommodations}
             >
-              <Link to="/hospedagens">
-                Ver Suítes
-                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Link>
+              Ver Acomodações & Preços
+              <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Button>
             
             <Button 
               size="xl"
-              className="text-base px-8 py-6 transition-all bg-white/10 hover:bg-white/20 text-white border border-white/25"
+              className="text-base px-8 py-5 transition-all bg-white/10 hover:bg-white/20 text-white border border-white/25"
               asChild
             >
               <a href="https://wa.me/551132893757" target="_blank" rel="noopener noreferrer">
@@ -128,13 +159,21 @@ const HeroSection = () => {
       </div>
 
       {/* Scroll Indicator */}
-      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 animate-bounce hidden md:flex">
-        <div className="w-5 h-8 border-2 border-white/20 rounded-full flex justify-center">
-          <div className="w-0.5 h-2 bg-white/30 rounded-full mt-1.5 animate-pulse" />
+      <button 
+        type="button" 
+        onClick={scrollToAccommodations}
+        className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-1 cursor-pointer group"
+      >
+        <span className="text-[11px] text-white/50 tracking-wider uppercase font-medium group-hover:text-white/80 transition-colors">
+          Rolar para quartos
+        </span>
+        <div className="w-5 h-7 border-2 border-white/30 group-hover:border-white/60 rounded-full flex justify-center transition-colors">
+          <div className="w-0.5 h-2 bg-white/50 rounded-full mt-1 animate-bounce" />
         </div>
-      </div>
+      </button>
     </section>
   );
 };
+
 
 export default HeroSection;
