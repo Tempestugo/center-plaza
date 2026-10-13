@@ -42,7 +42,7 @@ const HeroSection = () => {
     };
 
     return (
-    <section className="relative min-h-[92dvh] md:min-h-[100dvh] flex items-end overflow-hidden" style={{ background: '#1a1015' }}>
+    <section className="relative min-h-[85dvh] md:min-h-[100dvh] flex items-center md:items-end overflow-hidden pt-16 md:pt-0" style={{ background: '#1a1015' }}>
       {/* Background Image */}
       <div className="absolute inset-0">
         <img
@@ -57,7 +57,7 @@ const HeroSection = () => {
       </div>
 
       {/* Content — left-aligned */}
-      <div className="relative z-10 container mx-auto px-4 sm:px-8 py-12 pb-16 md:py-24">
+      <div className="relative z-10 container mx-auto px-4 sm:px-8 py-6 pb-12 md:py-24">
         <div className="max-w-xl animate-fade-in-up">
 
           {/* Top badge — location (wine palette) */}
