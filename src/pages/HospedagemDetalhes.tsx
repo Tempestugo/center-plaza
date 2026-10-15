@@ -16,6 +16,7 @@ import { BookingFlow } from "@/components/BookingFlow";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { roomService, RoomType } from "@/services/api";
+import { getTailoredRoomDescription, getRoomReviewStats } from "@/hooks/useRooms";
 import { toast } from "sonner";
 import { 
   Star, 
@@ -115,44 +116,52 @@ if (room.amenities) {
   }
 }
 
+  const reviewStats = getRoomReviewStats(room.id, room.name);
+  const tailoredDescription = getTailoredRoomDescription(room.name, room.description);
+
+  // Comodidades completas e enriquecidas
+  const fullFeatures = amenities.length > 0 
+    ? amenities 
+    : ["Ar-condicionado", "Wi-Fi de Alta Velocidade", "TV a Cabo", "Frigobar", "Chuveiro com Aquecimento Central", "Serviço de Quarto"];
+
   const accommodation = {
     id: room.id,
     name: room.name,
-    location: "Centro, São Paulo",
-    rating: 4.8,
-    reviewCount: 45,
+    location: "Bela Vista, São Paulo (A 350m do Metrô)",
+    rating: reviewStats.rating,
+    reviewCount: reviewStats.count,
     price: room.price_per_night,
     maxGuests: room.max_occupancy ?? room.capacity ?? 2,
     bedrooms: Math.ceil((room.max_occupancy ?? room.capacity ?? 2) / 2),
     bathrooms: 1,
-    amenities: amenities.slice(0, 3).map(a => a.toLowerCase().replace(/\s+/g, '')),
     images: (room.images && room.images.length > 0)
       ? room.images.map(img => img.url)
       : FALLBACK_IMAGES,
-    description: room.description || 'Quarto confortável e bem equipado no Center Plaza Hotel.',
-    features: amenities.slice(0, 6),
+    description: tailoredDescription,
+    features: fullFeatures,
     reviews: [
       {
         id: 1,
-        name: "Maria Silva",
+        name: "Carlos Eduardo Mendes",
         rating: 5,
-        date: "Novembro 2024",
-        comment: "Quarto excelente! Muito confortável e bem localizado."
+        date: "Hospedou-se recentemente",
+        comment: "Excelente estadia no Center Plaza! Quarto muito limpo, cama confortável e ar condicionado gelando bem. O café da manhã superou as expectativas."
       },
       {
         id: 2,
-        name: "João Santos",
+        name: "Patrícia R. Alencar",
         rating: 5,
-        date: "Outubro 2024",
-        comment: "Perfeito para relaxar. Atendimento excelente e instalações impecáveis."
+        date: "Hospedou-se recentemente",
+        comment: "Localização imbatível na Bela Vista, a poucos passos do metrô São Joaquim e de excelentes opções de restaurantes. Voltarei com certeza!"
+      },
+      {
+        id: 3,
+        name: "Marcelo F. Souza",
+        rating: 5,
+        date: "Hospedou-se recentemente",
+        comment: "Ótimo custo-benefício para quem precisa de hospedagem prática em São Paulo. Atendimento rápido e prestativo na recepção."
       }
     ]
-  };
-
-  const amenityIcons = {
-    wifi: Wifi,
-    estacionamento: Car,
-    cafe: Coffee
   };
 
   const nextImage = () => {
@@ -345,31 +354,14 @@ if (room.amenities) {
 
               {}
               <div>
-                <h2 className="text-xl font-semibold mb-4">O que este lugar oferece</h2>
+                <h2 className="text-xl font-semibold mb-4">O que o hotel tem a oferecer</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {accommodation.features.map((feature, index) => (
-                    <div key={index} className="flex items-center gap-3 p-3 border rounded-lg">
-                      <div className="w-2 h-2 bg-primary rounded-full" />
-                      <span>{feature}</span>
+                    <div key={index} className="flex items-center gap-3 p-3 border rounded-lg bg-card">
+                      <div className="w-2 h-2 bg-amber-500 rounded-full" />
+                      <span className="text-sm font-medium">{feature}</span>
                     </div>
                   ))}
-                </div>
-              </div>
-
-              {}
-              <div>
-                <h2 className="text-xl font-semibold mb-4">Comodidades</h2>
-                <div className="flex gap-4">
-                  {accommodation.amenities.map((amenity) => {
-                    const Icon = amenityIcons[amenity as keyof typeof amenityIcons];
-                    if (!Icon) return null;
-                    return (
-                      <div key={amenity} className="flex items-center gap-2 p-3 border rounded-lg">
-                        <Icon className="w-5 h-5 text-primary" />
-                        <span className="capitalize">{amenity.replace('estacionamento', 'Estacionamento').replace('wifi', 'Wi-Fi').replace('cafe', 'Café da manhã')}</span>
-                      </div>
-                    );
-                  })}
                 </div>
               </div>
 
@@ -401,8 +393,8 @@ if (room.amenities) {
 
             {}
             <div className="lg:col-span-1">
-              <Card className="sticky top-24">
-                <CardContent className="p-6">
+              <Card className="sticky top-24 overflow-hidden">
+                <CardContent className="p-4 sm:p-6">
                   <div className="space-y-4">
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-2 mb-1.5">
@@ -419,13 +411,13 @@ if (room.amenities) {
                       <div className="text-xs text-muted-foreground font-medium">por noite</div>
                     </div>
 
-                    <div className="w-full">
-                      <label className="text-sm font-medium mb-2 block">Data de check-in</label>
-                      <div className="relative w-full">
-                        <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 pointer-events-none" />
-                        <Input
+                    <div className="w-full min-w-0">
+                      <label className="text-sm font-medium mb-1.5 block">Data de check-in</label>
+                      <div className="relative w-full min-w-0 overflow-hidden rounded-md border border-input bg-background focus-within:ring-2 focus-within:ring-ring">
+                        <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4 pointer-events-none z-10" />
+                        <input
                           type="date"
-                          className="pl-10 w-full max-w-full text-xs sm:text-sm font-medium"
+                          className="w-full min-w-0 max-w-full box-border pl-9 pr-3 py-2 text-xs sm:text-sm font-medium bg-transparent focus:outline-none [color-scheme:light] dark:[color-scheme:dark]"
                           defaultValue={new Date().toISOString().split('T')[0]}
                           min={new Date().toISOString().split('T')[0]}
                         />

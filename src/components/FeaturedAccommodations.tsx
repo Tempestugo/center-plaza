@@ -1,6 +1,6 @@
 import AccommodationCard from "./AccommodationCard";
 import { Button } from "./ui/button";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowDown, Loader2, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useFeaturedRooms } from "@/hooks/useRooms";
 
@@ -55,41 +55,41 @@ const FeaturedAccommodations = () => {
   }
 
   return (
-    <section id="acomodacoes" className="py-16 md:py-20 bg-secondary/30 scroll-mt-6">
+    <section id="acomodacoes" className="py-16 md:py-24 bg-stone-100/70 dark:bg-stone-900/40 scroll-mt-6 border-y border-stone-200/60 dark:border-stone-800">
       <div className="container mx-auto px-4">
 
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">
+        <div className="text-center mb-14">
+          <h2 className="text-3xl md:text-5xl font-bold mb-4 tracking-tight">
             Acomodações em Destaque
           </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Conforto, qualidade e o melhor custo-benefício. Para sua melhor experiência em São Paulo
+          <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto font-light">
+            Conforto, qualidade e o melhor custo-benefício para a sua melhor experiência em São Paulo.
           </p>
         </div>
 
         {accommodations.length > 0 ? (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-14">
               {accommodations.map((accommodation, index) => (
                 <div
                   key={accommodation.id}
                   className="animate-fade-in-up"
-                  style={{ animationDelay: `${index * 0.2}s` }}
+                  style={{ animationDelay: `${index * 0.15}s` }}
                 >
                   <AccommodationCard {...accommodation} />
                 </div>
               ))}
             </div>
 
+            {/* Botão na cor de vinho padrão do hotel */}
             <div className="text-center">
               <Button
-                size="lg"
-                variant="outline"
-                className="group"
+                size="xl"
+                className="group px-10 py-6 text-base font-bold shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer bg-gradient-to-r from-primary to-primary-light hover:brightness-110 text-primary-foreground shadow-primary/25 border border-primary/20"
                 onClick={() => navigate("/hospedagens")}
               >
                 Ver Todas as Hospedagens
-                <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
+                <ArrowDown className="ml-2 w-5 h-5 transition-transform group-hover:translate-y-1" />
               </Button>
             </div>
           </>

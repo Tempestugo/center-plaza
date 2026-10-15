@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { roomService, customRatesService, roomBlocksService, reservationService } from "@/services/api";
 import type { RoomType, CustomRate, RoomBlock, Reservation } from "@/services/api";
+import { getTailoredRoomDescription } from "@/hooks/useRooms";
 import ImageUpload from "@/components/admin/ImageUpload";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -390,7 +391,9 @@ export default function AdminHospedagens() {
 
     setRoomForm({
       stripe_price_id: r.stripe_price_id || "",
-      hotel_id: String(r.hotel_id ?? ""), name: r.name ?? "", description: r.description ?? "",
+      hotel_id: String(r.hotel_id ?? ""), 
+      name: r.name ?? "", 
+      description: r.description || getTailoredRoomDescription(r.name ?? ""),
       size_sqm: String(r.size_sqm ?? ""), bed_type: r.bed_type ?? "", bed_count: r.bed_count ?? 1,
       max_occupancy: r.max_occupancy ?? 2, total_units: r.total_units ?? 1, bathroom_type: r.bathroom_type ?? "",
       smoking_allowed: r.smoking_allowed ?? false, price_per_night: String(r.price_per_night ?? ""),
