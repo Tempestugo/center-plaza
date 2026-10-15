@@ -21,12 +21,25 @@ interface AccommodationCardProps {
   isActive?: boolean;
 }
 
-const CAFE_KEYWORDS = ["café da manhã", "cafe da manha", "café da manhã incluso", "breakfast"];
+const CAFE_KEYWORDS = [
+  "café da manhã",
+  "cafe da manha",
+  "café da manhã incluso",
+  "cafe da manha incluso",
+  "café incluso",
+  "cafe incluso",
+  "breakfast",
+  "café matinal",
+  "cafe matinal"
+];
 
-function hasCafe(amenities: string[]): boolean {
-  return amenities.some(a =>
-    CAFE_KEYWORDS.some(kw => a.toLowerCase().includes(kw))
-  );
+function hasCafe(amenities?: string[]): boolean {
+  if (!amenities || !Array.isArray(amenities)) return false;
+  return amenities.some(a => {
+    if (typeof a !== "string") return false;
+    const lower = a.toLowerCase().trim();
+    return CAFE_KEYWORDS.some(kw => lower === kw || lower.includes("café da manhã") || lower.includes("cafe da manha") || lower.includes("breakfast"));
+  });
 }
 
 const AccommodationCard = ({
@@ -67,10 +80,11 @@ const AccommodationCard = ({
       .catch(() => setPromoText(defaultDate));
   }, []);
 
-  const includesCafe = hasCafe(amenities) || true; // Campanha ativa para reservas promocionais
+  // Mostra café da manhã SOMENTE se estiver expressamente selecionado nas comodidades do quarto
+  const includesCafe = hasCafe(amenities);
 
-  const otherAmenities = amenities.filter(
-    a => !CAFE_KEYWORDS.some(kw => a.toLowerCase().includes(kw))
+  const otherAmenities = (amenities || []).filter(
+    a => !hasCafe([a])
   );
 
   const goToDetails = () => {
@@ -112,8 +126,8 @@ const AccommodationCard = ({
           <span className="text-[11px] text-stone-300">({reviewCount})</span>
         </div>
 
-        {/* Faixa âmbar na base da foto — Café incluso com escassez de data */}
-        {isActive && (
+        {/* Faixa âmbar na base da foto — SOMENTE se o quarto tiver café da manhã em suas comodidades */}
+        {isActive && includesCafe && (
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-stone-950 py-1.5 px-3 flex items-center justify-between font-semibold shadow-md">
             <div className="flex items-center gap-1.5 text-xs">
               <Coffee className="w-3.5 h-3.5 shrink-0" />

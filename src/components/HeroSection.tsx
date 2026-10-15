@@ -92,7 +92,7 @@ const HeroSection = () => {
                   <span className="text-[10px] bg-amber-500/25 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full font-medium">Ver quartos ↓</span>
                 </div>
                 <p className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                  Promoção por tempo limitado! {promoText}
+                  Em suítes selecionadas • {promoText}
                 </p>
               </div>
             </button>
