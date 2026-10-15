@@ -82,7 +82,7 @@ export const AuthModal = ({ open, onOpenChange, defaultTab = "login" }: AuthModa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-[calc(100%-2rem)] max-w-md rounded-2xl mx-auto p-5 sm:p-6 shadow-2xl">
         <DialogHeader>
           <DialogTitle className="text-center text-2xl font-bold">
             Bem-vindo ao Center Plaza

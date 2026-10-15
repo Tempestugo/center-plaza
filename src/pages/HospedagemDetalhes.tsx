@@ -144,22 +144,13 @@ if (room.amenities) {
         id: 1,
         name: "Carlos Eduardo Mendes",
         rating: 5,
-        date: "Hospedou-se recentemente",
-        comment: "Excelente estadia no Center Plaza! Quarto muito limpo, cama confortável e ar condicionado gelando bem. O café da manhã superou as expectativas."
+        comment: "Excelente estadia no Center Plaza! Quarto muito limpo, cama confortável, chuveiro com aquecimento perfeito e ar-condicionado gelando bem."
       },
       {
         id: 2,
         name: "Patrícia R. Alencar",
         rating: 5,
-        date: "Hospedou-se recentemente",
-        comment: "Localização imbatível na Bela Vista, a poucos passos do metrô São Joaquim e de excelentes opções de restaurantes. Voltarei com certeza!"
-      },
-      {
-        id: 3,
-        name: "Marcelo F. Souza",
-        rating: 5,
-        date: "Hospedou-se recentemente",
-        comment: "Ótimo custo-benefício para quem precisa de hospedagem prática em São Paulo. Atendimento rápido e prestativo na recepção."
+        comment: "Localização imbatível na Bela Vista, a poucos passos do metrô São Joaquim e de excelentes opções gastronômicas. Equipe muito prestativa na recepção 24h."
       }
     ]
   };
@@ -375,7 +366,6 @@ if (room.amenities) {
                         <div className="flex items-start justify-between mb-2">
                           <div>
                             <h4 className="font-semibold">{review.name}</h4>
-                            <p className="text-sm text-muted-foreground">{review.date}</p>
                           </div>
                           <div className="flex">
                             {[...Array(review.rating)].map((_, i) => (

@@ -15,7 +15,7 @@ export default function DirectBookingBanner() {
           {/* Texto explicativo */}
           <div className="flex-1 text-center lg:text-left space-y-3">
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-white">
-              Reserve direto e economize até <span className="text-primary font-extrabold">15% a menos</span>
+              Reserve por aqui e economize até <span className="text-primary font-extrabold">18% em sua reserva</span>
             </h2>
             <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-xl">
               Plataformas intermediárias cobram taxas e comissões que encarecem a sua diária. 
@@ -26,7 +26,7 @@ export default function DirectBookingBanner() {
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-5 pt-1 text-xs sm:text-sm text-stone-700 dark:text-stone-300 font-medium">
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Até 15% mais barato</span>
+                <span>Até 18% mais barato</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-primary shrink-0" />

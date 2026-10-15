@@ -138,8 +138,27 @@
     @apply border-border;
   }
 
+  html {
+    overflow-x: hidden;
+    max-width: 100%;
+    width: 100%;
+    overscroll-behavior-x: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    overflow-x: hidden;
+    max-width: 100%;
+    width: 100%;
+    position: relative;
+    overscroll-behavior-x: none;
+  }
+
+  #root {
+    overflow-x: hidden;
+    max-width: 100%;
+    width: 100%;
   }
 }
 

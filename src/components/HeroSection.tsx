@@ -5,13 +5,10 @@ import bgHeroImage from "@/assets/bg-hero-hootel.jpg";
 
 const HeroSection = () => {
   const [heroImage, setHeroImage] = useState<string | null>(null);
-  const [promoText, setPromoText] = useState<string>("");
+  const [promoText, setPromoText] = useState<string>("Válido até 30/10");
 
   const getDefaultPromoText = () => {
-    const now = new Date();
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    return `Válido até ${lastDay}/${month}`;
+    return "Válido até 30/10";
   };
 
   useEffect(() => {
@@ -22,8 +19,14 @@ const HeroSection = () => {
 
     fetch('/api/settings/promo_text')
       .then(r => r.json())
-      .then(d => setPromoText(d.value || getDefaultPromoText()))
-      .catch(() => setPromoText(getDefaultPromoText()));
+      .then(d => {
+        if (d.value) {
+          setPromoText(d.value.replace(/31\/10/g, '30/10'));
+        } else {
+          setPromoText("Válido até 30/10");
+        }
+      })
+      .catch(() => setPromoText("Válido até 30/10"));
   }, []);
 
   const scrollToAccommodations = () => {
@@ -78,7 +81,7 @@ const HeroSection = () => {
             <button
               type="button"
               onClick={scrollToAccommodations}
-              className="flex items-center gap-3 p-2.5 -mx-2.5 rounded-xl hover:bg-white/5 active:bg-white/10 transition-all text-left group cursor-pointer"
+              className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 active:bg-white/10 transition-all text-left group cursor-pointer"
             >
               <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform" style={{ 
                 background: 'rgba(212,165,116,0.18)', 
@@ -86,12 +89,12 @@ const HeroSection = () => {
               }}>
                 <Coffee className="w-5 h-5" style={{ color: '#d4a574' }} />
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="text-white font-semibold text-base group-hover:text-amber-200 transition-colors">Café da Manhã Incluso</p>
-                  <span className="text-[10px] bg-amber-500/25 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full font-medium">Ver quartos ↓</span>
+                  <span className="text-[10px] bg-amber-500/25 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full font-medium shrink-0">Ver quartos ↓</span>
                 </div>
-                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.7)' }}>
                   Em suítes selecionadas • {promoText}
                 </p>
               </div>
@@ -101,7 +104,7 @@ const HeroSection = () => {
             <button
               type="button"
               onClick={scrollToLocation}
-              className="flex items-center gap-3 p-2.5 -mx-2.5 rounded-xl hover:bg-white/5 active:bg-white/10 transition-all text-left group cursor-pointer"
+              className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 active:bg-white/10 transition-all text-left group cursor-pointer"
             >
               <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform" style={{ 
                 background: 'rgba(212,165,116,0.18)', 
@@ -109,25 +112,25 @@ const HeroSection = () => {
               }}>
                 <MapPin className="w-5 h-5" style={{ color: '#d4a574' }} />
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="text-white font-semibold text-base group-hover:text-amber-200 transition-colors">R. Maestro Cardim, 418</p>
-                  <span className="text-[10px] bg-white/10 text-stone-300 border border-white/20 px-2 py-0.5 rounded-full font-medium">Ver mapa ↓</span>
+                  <span className="text-[10px] bg-white/10 text-stone-300 border border-white/20 px-2 py-0.5 rounded-full font-medium shrink-0">Ver mapa ↓</span>
                 </div>
-                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.7)' }}>Bela Vista — A 350m do Metrô São Joaquim</p>
+                <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.7)' }}>Bela Vista — A 350m do Metrô São Joaquim</p>
               </div>
             </button>
           </div>
 
-          {/* CTA Button — Posicionado mais para baixo com destaque dourado de alto contraste */}
-          <div className="pt-3 sm:pt-4">
+          {/* CTA Button — Tamanho reduzido, elegante e perfeitamente proporcional */}
+          <div className="pt-2 sm:pt-3">
             <Button 
-              size="xl" 
-              className="w-full sm:w-auto group text-base px-9 py-6 font-bold shadow-2xl transition-all duration-300 hover:scale-[1.03] cursor-pointer bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-stone-950 border border-amber-300/40 shadow-amber-500/30 hover:shadow-amber-500/50"
+              size="lg" 
+              className="w-full sm:w-auto group text-sm sm:text-base px-7 py-3.5 sm:py-4 font-bold shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-stone-950 border border-amber-300/40 shadow-amber-500/25 hover:shadow-amber-500/40 rounded-xl"
               onClick={scrollToAccommodations}
             >
               Ver Acomodações & Preços
-              <ArrowDown className="ml-2 w-5 h-5 group-hover:translate-y-1 transition-transform text-stone-950" />
+              <ArrowDown className="ml-2 w-4 h-4 group-hover:translate-y-0.5 transition-transform text-stone-950" />
             </Button>
           </div>
 

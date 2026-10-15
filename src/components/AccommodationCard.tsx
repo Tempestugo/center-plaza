@@ -57,21 +57,18 @@ const AccommodationCard = ({
   isActive = true,
 }: AccommodationCardProps) => {
   const navigate = useNavigate();
-  const [promoText, setPromoText] = useState<string>("31/10");
+  const [promoText, setPromoText] = useState<string>("30/10");
 
   useEffect(() => {
-    // Buscar data da promoção configurada ou calcular o fim do mês
-    const now = new Date();
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const defaultDate = `${lastDay}/${month}`;
+    // Data da promoção: 30/10
+    const defaultDate = "30/10";
 
     fetch('/api/settings/promo_text')
       .then(r => r.json())
       .then(d => {
         if (d.value) {
-          // Extrair apenas a data caso venha "Válido até DD/MM"
-          const cleanDate = d.value.replace(/válido até\s*/i, '').trim();
+          // Extrair apenas a data caso venha "Válido até DD/MM" e garantir 30/10
+          const cleanDate = d.value.replace(/válido até\s*/i, '').replace(/31\/10/g, '30/10').trim();
           setPromoText(cleanDate || defaultDate);
         } else {
           setPromoText(defaultDate);
