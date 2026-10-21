@@ -30,6 +30,7 @@ import Contato from "@/pages/Contato";
 import PoliticaPrivacidade from "./pages/PoliticaPrivacidade";
 import TermosUso from "./pages/TermosUso";
 import PoliticaCancelamento from "./pages/PoliticaCancelamento";
+import HotelCorporativo from "./pages/HotelCorporativo";
 import FloatingChat from "@/components/FloatingChat";
 
 const queryClient = new QueryClient();
@@ -49,6 +50,7 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/hospedagens" element={<Hospedagens />} />
                 <Route path="/hospedagem/:id" element={<HospedagemDetalhes />} />
+                <Route path="/hotel-corporativo" element={<HotelCorporativo />} />
                 <Route path="/consultar-reserva" element={<ConsultarReserva />} />
                 <Route path="/admin" element={<AdminLogin />} />
                 <Route path="/minha-conta" element={<UserDashboard />} />

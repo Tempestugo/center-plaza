@@ -32,6 +32,11 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
+                <Link to="/hotel-corporativo" className="text-primary-foreground/80 hover:text-accent-warm transition-colors">
+                  Reservas Corporativas
+                </Link>
+              </li>
+              <li>
                 <Link to="/consultar-reserva" className="text-primary-foreground/80 hover:text-accent-warm transition-colors">
                   Consultar Reserva
                 </Link>
