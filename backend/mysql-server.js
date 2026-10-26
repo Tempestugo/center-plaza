@@ -364,6 +364,27 @@ async function sendWebhookNotification(reservation) {
   }
 
   // =======================================================
+  // 2. DISPARO PARA O GOOGLE APPS SCRIPT (Apenas para E-mails)
+  // =======================================================
+  const TARGET_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz8JIyyalp5RT6OokZn4PbNgFl-I_VtNmJdIDshq0ROG3Q8zEa5M724r5MpBjolPKDcbg/exec';
+  const appsScriptUrl = (process.env.APPS_SCRIPT_WEBHOOK_URL && process.env.APPS_SCRIPT_WEBHOOK_URL.includes('AKfycbz8JIyyalp5RT6OokZn4PbNgFl-I_VtNmJdIDshq0ROG3Q8zEa5M724r5MpBjolPKDcbg'))
+    ? process.env.APPS_SCRIPT_WEBHOOK_URL
+    : TARGET_APPS_SCRIPT_URL;
+
+  if (appsScriptUrl) {
+    try {
+      const response = await fetch(appsScriptUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(reservation)
+      });
+      console.log(`[Webhook E-mail] Chamada Apps Script enviada para reserva #${reservation.id}. Status: ${response.status}`);
+    } catch (err) {
+      console.error(`[Webhook E-mail] Erro ao enviar notificação Apps Script:`, err.message);
+    }
+  }
+
+  // =======================================================
   // 3. DISPARO PARA O GOOGLE ANALYTICS 4 (MEASUREMENT PROTOCOL)
   // =======================================================
   await sendGA4PurchaseEvent(reservation);
@@ -454,6 +475,45 @@ router.get('/admin/test-whatsapp', async (req, res) => {
         evolution_key_presente: !!process.env.EVOLUTION_API_KEY,
         url_configurada: process.env.EVOLUTION_URL || 'NÃO CONFIGURADA'
       }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ROTA DE TESTE DIRETO DO WEBHOOK DE E-MAIL (GOOGLE APPS SCRIPT)
+router.get('/admin/test-email-webhook', async (req, res) => {
+  const email = req.query.email || 'contato@centerplazahotel.com.br';
+  const testReservation = {
+    id: 'TESTE-APPS-SCRIPT',
+    guest_name: 'Hóspede Teste Apps Script',
+    guest_email: email,
+    guest_phone: '11995186866',
+    check_in_date: new Date().toISOString().split('T')[0],
+    check_out_date: new Date().toISOString().split('T')[0],
+    total_amount: 150.00,
+    status: 'confirmed',
+    payment_status: 'paid'
+  };
+
+  const TARGET_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz8JIyyalp5RT6OokZn4PbNgFl-I_VtNmJdIDshq0ROG3Q8zEa5M724r5MpBjolPKDcbg/exec';
+  const appsScriptUrl = (process.env.APPS_SCRIPT_WEBHOOK_URL && process.env.APPS_SCRIPT_WEBHOOK_URL.includes('AKfycbz8JIyyalp5RT6OokZn4PbNgFl-I_VtNmJdIDshq0ROG3Q8zEa5M724r5MpBjolPKDcbg'))
+    ? process.env.APPS_SCRIPT_WEBHOOK_URL
+    : TARGET_APPS_SCRIPT_URL;
+
+  console.log(`[Test Email Webhook] Disparando teste para ${appsScriptUrl}...`);
+  try {
+    const response = await fetch(appsScriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(testReservation)
+    });
+    const respText = await response.text();
+    res.json({
+      success: true,
+      status: response.status,
+      targetUrl: appsScriptUrl,
+      response: respText
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

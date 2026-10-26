@@ -2,14 +2,14 @@ import { useRef } from "react";
 import { MapPin, ChevronLeft, ChevronRight, Navigation, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-interface Landmark {
+export interface Landmark {
   title: string;
   distance: string;
   description: string;
   image: string;
 }
 
-const landmarks: Landmark[] = [
+export const landmarks: Landmark[] = [
   {
     title: "Avenida Paulista",
     distance: "1,2 km",

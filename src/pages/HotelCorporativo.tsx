@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -20,12 +20,15 @@ import {
   Sparkles, 
   CheckCircle2, 
   ArrowRight,
-  Train,
-  Utensils,
-  Receipt
+  Receipt,
+  ChevronLeft,
+  ChevronRight,
+  Navigation,
+  ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
 import bgHero from "@/assets/bg-hero-hootel.jpg";
+import { landmarks } from "@/components/LocationSection";
 
 export default function HotelCorporativo() {
   const [form, setForm] = useState({
@@ -92,6 +95,18 @@ ${form.observacoes || "Nenhuma observação informada"}
     window.open(`https://wa.me/551132893757?text=${text}`, '_blank');
   };
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const scroll = (direction: "left" | "right") => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = 320;
+      scrollContainerRef.current.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+    }
+  };
+
   const corporateBenefits = [
     {
       icon: Building2,
@@ -123,13 +138,6 @@ ${form.observacoes || "Nenhuma observação informada"}
       title: "Recepção 24h & Apoio Ágil",
       desc: "Flexibilidade para check-in tardio de voos noturnos, portaria segura 24h e suporte dedicado às rotinas empresariais."
     }
-  ];
-
-  const nearbyLocations = [
-    { icon: Building2, name: "Av. Paulista & Centros Empresariais", dist: "1,2 km" },
-    { icon: Train, name: "Metrô São Joaquim (Linha 1 - Azul)", dist: "350 m (4 min a pé)" },
-    { icon: ShieldCheck, name: "Polo Médico / Beneficência Portuguesa", dist: "400 m" },
-    { icon: Utensils, name: "Polo Gastronômico do Bexiga & Conveniências", dist: "5 min" },
   ];
 
   return (
@@ -164,7 +172,7 @@ ${form.observacoes || "Nenhuma observação informada"}
             </h1>
 
             <p className="text-base sm:text-lg md:text-xl text-stone-200 mb-8 max-w-2xl mx-auto leading-relaxed">
-              Mais de 50 quartos equipados no coração de São Paulo. Conectividade, café da manhã incluso, tarifas corporativas diferenciadas e faturamento facilitado para seu time.
+              Mais de 50 quartos equipados no coração de São Paulo. Conectividade, café da manhã incluso e tarifas corporativas personalizadas.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -227,7 +235,7 @@ ${form.observacoes || "Nenhuma observação informada"}
                 Por que hospedar seus colaboradores no Center Plaza?
               </h2>
               <p className="text-muted-foreground">
-                Oferecemos toda a agilidade e conveniência que a rotina corporativa exige, com custos previsíveis e excelente custo-benefício.
+                Oferecemos toda a agilidade e conveniência que a rotina corporativa exige, com valores previsíveis e excelente custo-benefício.
               </p>
             </div>
 
@@ -247,46 +255,140 @@ ${form.observacoes || "Nenhuma observação informada"}
           </div>
         </section>
 
-        {/* LOCALIZAÇÃO E LOGÍSTICA PARA EMPRESAS */}
-        <section className="py-16 bg-background border-t">
-          <div className="container mx-auto px-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center max-w-5xl mx-auto">
-              <div>
-                <div className="inline-flex items-center gap-2 text-amber-600 mb-3">
-                  <MapPin className="w-5 h-5" />
-                  <span className="text-sm font-semibold uppercase tracking-wider">Logística & Mobilidade</span>
-                </div>
-                <h2 className="text-3xl font-bold mb-4">
-                  Mobilidade sem stress para o seu time
-                </h2>
-                <p className="text-muted-foreground mb-6 leading-relaxed">
-                  Tempo em São Paulo é precioso. O Center Plaza Hotel fica na <strong>Rua Maestro Cardim, 418 (Bela Vista)</strong>, permitindo que seus colaboradores acessem os principais eixos corporativos da cidade em minutos.
-                </p>
+        {/* O QUE TEM POR PERTO - LOCALIZAÇÃO E LOGÍSTICA PARA EMPRESAS */}
+        <section id="localizacao" className="py-16 md:py-24 bg-background border-t">
+          <div className="container mx-auto px-4 max-w-6xl">
+            {/* Cabeçalho */}
+            <div className="text-center mb-12">
+              <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 rounded-full px-4 py-1.5 text-xs font-semibold mb-3">
+                <Navigation className="w-3.5 h-3.5 text-amber-600" />
+                <span>Logística & Mobilidade</span>
+              </div>
+              <h2 className="text-3xl md:text-5xl font-bold mb-4 tracking-tight">
+                O que tem por perto
+              </h2>
+              <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto font-light leading-relaxed">
+                Tempo em São Paulo é precioso. O Center Plaza Hotel fica na <strong>Rua Maestro Cardim, 418 (Bela Vista)</strong>, a 350m do Metrô São Joaquim, permitindo que seus colaboradores acessem os principais eixos corporativos, centros de convenções e polos culturais da cidade em minutos.
+              </p>
+            </div>
 
-                <div className="space-y-3.5 mb-8">
-                  {nearbyLocations.map((loc, i) => (
-                    <div key={i} className="flex items-center justify-between p-3.5 rounded-xl bg-stone-50 dark:bg-stone-900 border">
-                      <div className="flex items-center gap-3">
-                        <loc.icon className="w-5 h-5 text-amber-600" />
-                        <span className="text-sm font-medium">{loc.name}</span>
-                      </div>
-                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
-                        {loc.dist}
-                      </span>
-                    </div>
-                  ))}
+            {/* Carrossel de Pontos de Interesse */}
+            <div className="mb-14">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-bold tracking-tight">
+                    Pontos de Interesse & Facilidades
+                  </h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                    Deslize para ver os pontos turísticos e facilidades nas imediações do hotel
+                  </p>
                 </div>
 
-                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs sm:text-sm text-amber-900 dark:text-amber-200 flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                  <span>
-                    Fácil acesso para táxis, carros de aplicativo e metrô com conexão rápida para centros de convenções (Expo Center Norte, Anhembi e São Paulo Expo).
-                  </span>
+                {/* Controles de rolagem */}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => scroll("left")}
+                    aria-label="Rolar para esquerda"
+                    className="h-9 w-9 rounded-full bg-white dark:bg-stone-900 shadow-sm hover:bg-stone-100"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => scroll("right")}
+                    aria-label="Rolar para direita"
+                    className="h-9 w-9 rounded-full bg-white dark:bg-stone-900 shadow-sm hover:bg-stone-100"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
 
-              {/* MAPA EMBEDDED */}
-              <div className="rounded-2xl overflow-hidden shadow-xl border aspect-[4/3] bg-muted">
+              {/* Cards com fotos reais */}
+              <div
+                ref={scrollContainerRef}
+                className="flex gap-4 overflow-x-auto pb-4 pt-1 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-stone-300 dark:scrollbar-thumb-stone-700"
+                style={{ scrollbarWidth: "thin" }}
+              >
+                {landmarks.map((item, index) => (
+                  <div
+                    key={index}
+                    className="snap-start shrink-0 w-[260px] sm:w-[300px] rounded-2xl overflow-hidden border border-stone-200/80 dark:border-stone-800 bg-white dark:bg-stone-900 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col group"
+                  >
+                    {/* Imagem real */}
+                    <div className="relative h-44 overflow-hidden bg-stone-200 dark:bg-stone-800">
+                      <img
+                        src={item.image}
+                        alt={item.title}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+                      
+                      {/* Badge da distância */}
+                      <span className="absolute bottom-3 left-3 bg-amber-500 text-stone-950 text-xs font-bold px-2.5 py-1 rounded-full shadow-md">
+                        {item.distance}
+                      </span>
+                    </div>
+
+                    {/* Conteúdo descritivo */}
+                    <div className="p-4 flex-1 flex flex-col justify-between">
+                      <div>
+                        <h4 className="font-bold text-base mb-1 group-hover:text-primary transition-colors">
+                          {item.title}
+                        </h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Aviso Logístico para Equipes */}
+            <div className="mb-10 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs sm:text-sm text-amber-900 dark:text-amber-200 flex items-start gap-3 max-w-4xl mx-auto">
+              <CheckCircle2 className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <span>
+                Fácil acesso para táxis, carros de aplicativo e metrô com conexão rápida para centros de convenções (Expo Center Norte, Anhembi e São Paulo Expo).
+              </span>
+            </div>
+
+            {/* Mapa Embed do Google */}
+            <div className="bg-white dark:bg-stone-900 rounded-3xl p-6 sm:p-8 border border-stone-200/80 dark:border-stone-800 shadow-xl">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div>
+                  <div className="flex items-center gap-2 text-primary font-bold text-lg">
+                    <MapPin className="w-5 h-5 text-amber-600" />
+                    <span>Rua Maestro Cardim, 418 — Bela Vista</span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                    São Paulo - SP, CEP 01323-000 • A 350m do Metrô São Joaquim
+                  </p>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 self-start md:self-auto border-stone-300 dark:border-stone-700 hover:bg-stone-100"
+                  asChild
+                >
+                  <a
+                    href="https://maps.google.com/?q=Rua+Maestro+Cardim+418+Bela+Vista+São+Paulo"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Abrir no Google Maps
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </Button>
+              </div>
+
+              <div className="rounded-2xl overflow-hidden shadow-inner border border-stone-200 dark:border-stone-800 aspect-[16/9] md:aspect-[21/9] w-full">
                 <iframe
                   src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3657.1!2d-46.6395!3d-23.5610!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94ce59b0e6e5e1a7%3A0x123456789!2sR.+Maestro+Cardim%2C+418+-+Bela+Vista%2C+S%C3%A3o+Paulo+-+SP%2C+01323-000!5e0!3m2!1spt-BR!2sbr!4v1700000000000!5m2!1spt-BR!2sbr"
                   width="100%"
@@ -294,6 +396,7 @@ ${form.observacoes || "Nenhuma observação informada"}
                   style={{ border: 0 }}
                   allowFullScreen
                   loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
                   title="Localização Corporativa do Center Plaza Hotel"
                 />
               </div>
