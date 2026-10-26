@@ -7,7 +7,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Settings, LogOut, BarChart3, Home, Calendar, TrendingUp, CheckCircle, CalendarDays } from "lucide-react";
+import { Bell, Settings, LogOut, BarChart3, Home, Calendar, TrendingUp, CheckCircle, CalendarDays, MessageSquare } from "lucide-react";
 
 const NAV_ITEMS = [
   { label: "Dashboard",   href: "/admin/dashboard",   icon: BarChart3   },
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { label: "Reservas",    href: "/admin/reservas",     icon: Calendar    },
   { label: "Disponibilidade", href: "/admin/disponibilidade", icon: CalendarDays },
   { label: "Concluídas",  href: "/admin/reservas-concluidas", icon: CheckCircle },
+  { label: "Mensagens & Cotações", href: "/admin/mensagens", icon: MessageSquare },
   { label: "Relatórios",  href: "/admin/relatorios",   icon: TrendingUp  },
 ];
 

@@ -1673,16 +1673,50 @@ router.post('/contact', async (req, res) => {
   try {
     const { name, email, message } = req.body;
     const db = await getDb();
-    await db.execute("INSERT INTO contacts (name,email,message) VALUES (?,?,?)", [name, email, message]);
-    res.json({ message: 'Mensagem recebida com sucesso!' });
+    const [result] = await db.execute("INSERT INTO contacts (name,email,message) VALUES (?,?,?)", [name, email, message]);
+    
+    // Disparo imediato para Webhook do Google Apps Script
+    const TARGET_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz8JIyyalp5RT6OokZn4PbNgFl-I_VtNmJdIDshq0ROG3Q8zEa5M724r5MpBjolPKDcbg/exec';
+    const appsScriptUrl = (process.env.APPS_SCRIPT_WEBHOOK_URL && process.env.APPS_SCRIPT_WEBHOOK_URL.includes('AKfycbz8JIyyalp5RT6OokZn4PbNgFl-I_VtNmJdIDshq0ROG3Q8zEa5M724r5MpBjolPKDcbg'))
+      ? process.env.APPS_SCRIPT_WEBHOOK_URL
+      : TARGET_APPS_SCRIPT_URL;
+
+    const isCorporate = typeof message === 'string' && message.includes('[SOLICITAÇÃO DE RESERVA CORPORATIVA]');
+
+    fetch(appsScriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: result.insertId,
+        type: isCorporate ? 'corporate_quote' : 'contact_message',
+        name,
+        email,
+        message,
+        created_at: new Date().toISOString()
+      })
+    }).then(r => {
+      console.log(`[Webhook Contato] Disparado com sucesso (#${result.insertId}). Status: ${r.status}`);
+    }).catch(err => {
+      console.error('[Webhook Contato] Erro ao disparar webhook:', err.message);
+    });
+
+    res.json({ message: 'Mensagem recebida com sucesso!', id: result.insertId });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.get('/contacts', async (req, res) => {
+router.get('/contacts', requireAuth, async (req, res) => {
   try {
     const db = await getDb();
     const [rows] = await db.query('SELECT * FROM contacts ORDER BY created_at DESC');
     res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/contacts/:id', requireAuth, async (req, res) => {
+  try {
+    const db = await getDb();
+    await db.execute('DELETE FROM contacts WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Mensagem excluída com sucesso' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
