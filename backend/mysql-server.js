@@ -366,17 +366,27 @@ async function sendWebhookNotification(reservation) {
   // =======================================================
   // 2. DISPARO PARA O GOOGLE APPS SCRIPT (Apenas para E-mails)
   // =======================================================
-  const TARGET_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz8JIyyalp5RT6OokZn4PbNgFl-I_VtNmJdIDshq0ROG3Q8zEa5M724r5MpBjolPKDcbg/exec';
-  const appsScriptUrl = (process.env.APPS_SCRIPT_WEBHOOK_URL && process.env.APPS_SCRIPT_WEBHOOK_URL.includes('AKfycbz8JIyyalp5RT6OokZn4PbNgFl-I_VtNmJdIDshq0ROG3Q8zEa5M724r5MpBjolPKDcbg'))
+  const TARGET_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDJPK9zO37UGx-wm1lcVp9coABGtvkMnerpMiCSpD7hBoE2IUIRW2VBVNLJsBYtXFUiQ/exec';
+  const appsScriptUrl = (process.env.APPS_SCRIPT_WEBHOOK_URL && process.env.APPS_SCRIPT_WEBHOOK_URL.includes('AKfycbxDJPK9zO37UGx-wm1lcVp9coABGtvkMnerpMiCSpD7hBoE2IUIRW2VBVNLJsBYtXFUiQ'))
     ? process.env.APPS_SCRIPT_WEBHOOK_URL
     : TARGET_APPS_SCRIPT_URL;
 
   if (appsScriptUrl) {
     try {
+      const payloadToSend = {
+        ...reservation,
+        admin_emails: [
+          'contato@centerplazahotel.com.br',
+          'elcioantoniodesouza@hotmail.com'
+        ],
+        notification_email: 'contato@centerplazahotel.com.br, elcioantoniodesouza@hotmail.com',
+        cc_email: 'elcioantoniodesouza@hotmail.com'
+      };
+
       const response = await fetch(appsScriptUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(reservation)
+        body: JSON.stringify(payloadToSend)
       });
       console.log(`[Webhook E-mail] Chamada Apps Script enviada para reserva #${reservation.id}. Status: ${response.status}`);
     } catch (err) {
@@ -496,8 +506,8 @@ router.get('/admin/test-email-webhook', async (req, res) => {
     payment_status: 'paid'
   };
 
-  const TARGET_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz8JIyyalp5RT6OokZn4PbNgFl-I_VtNmJdIDshq0ROG3Q8zEa5M724r5MpBjolPKDcbg/exec';
-  const appsScriptUrl = (process.env.APPS_SCRIPT_WEBHOOK_URL && process.env.APPS_SCRIPT_WEBHOOK_URL.includes('AKfycbz8JIyyalp5RT6OokZn4PbNgFl-I_VtNmJdIDshq0ROG3Q8zEa5M724r5MpBjolPKDcbg'))
+  const TARGET_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDJPK9zO37UGx-wm1lcVp9coABGtvkMnerpMiCSpD7hBoE2IUIRW2VBVNLJsBYtXFUiQ/exec';
+  const appsScriptUrl = (process.env.APPS_SCRIPT_WEBHOOK_URL && process.env.APPS_SCRIPT_WEBHOOK_URL.includes('AKfycbxDJPK9zO37UGx-wm1lcVp9coABGtvkMnerpMiCSpD7hBoE2IUIRW2VBVNLJsBYtXFUiQ'))
     ? process.env.APPS_SCRIPT_WEBHOOK_URL
     : TARGET_APPS_SCRIPT_URL;
 
@@ -1676,8 +1686,8 @@ router.post('/contact', async (req, res) => {
     const [result] = await db.execute("INSERT INTO contacts (name,email,message) VALUES (?,?,?)", [name, email, message]);
     
     // Disparo imediato para Webhook do Google Apps Script
-    const TARGET_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz8JIyyalp5RT6OokZn4PbNgFl-I_VtNmJdIDshq0ROG3Q8zEa5M724r5MpBjolPKDcbg/exec';
-    const appsScriptUrl = (process.env.APPS_SCRIPT_WEBHOOK_URL && process.env.APPS_SCRIPT_WEBHOOK_URL.includes('AKfycbz8JIyyalp5RT6OokZn4PbNgFl-I_VtNmJdIDshq0ROG3Q8zEa5M724r5MpBjolPKDcbg'))
+    const TARGET_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDJPK9zO37UGx-wm1lcVp9coABGtvkMnerpMiCSpD7hBoE2IUIRW2VBVNLJsBYtXFUiQ/exec';
+    const appsScriptUrl = (process.env.APPS_SCRIPT_WEBHOOK_URL && process.env.APPS_SCRIPT_WEBHOOK_URL.includes('AKfycbxDJPK9zO37UGx-wm1lcVp9coABGtvkMnerpMiCSpD7hBoE2IUIRW2VBVNLJsBYtXFUiQ'))
       ? process.env.APPS_SCRIPT_WEBHOOK_URL
       : TARGET_APPS_SCRIPT_URL;
 
@@ -1692,6 +1702,12 @@ router.post('/contact', async (req, res) => {
         name,
         email,
         message,
+        admin_emails: [
+          'contato@centerplazahotel.com.br',
+          'elcioantoniodesouza@hotmail.com'
+        ],
+        notification_email: 'contato@centerplazahotel.com.br, elcioantoniodesouza@hotmail.com',
+        cc_email: 'elcioantoniodesouza@hotmail.com',
         created_at: new Date().toISOString()
       })
     }).then(r => {
@@ -1829,6 +1845,14 @@ router.post('/create-checkout-session', async (req, res) => {
       payment_method_types: ['card'],
       mode: 'payment',
       customer_email: guest_email,
+      payment_intent_data: {
+        receipt_email: guest_email ? String(guest_email).trim() : undefined,
+        metadata: {
+          reservation_id: reservationId.toString(),
+          guest_name,
+          guest_email,
+        }
+      },
       locale: 'pt-BR',
       line_items: [{
         price_data: {
