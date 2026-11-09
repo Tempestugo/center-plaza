@@ -63,7 +63,7 @@ const Header = () => {
               WhatsApp
             </a>
 
-            {isAuthenticated ? (
+            {isAuthenticated && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
@@ -93,13 +93,6 @@ const Header = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
-              <Button variant="outline" onClick={() => {
-                gtmEvent('click_login');
-                setAuthModalOpen(true);
-              }}>
-                Entrar
-              </Button>
             )}
           </nav>
 
@@ -138,7 +131,7 @@ const Header = () => {
               WhatsApp — Fale Conosco
             </a>
 
-            {isAuthenticated ? (
+            {isAuthenticated && (
               <>
                 {isAdmin && (
                   <Link
@@ -169,18 +162,6 @@ const Header = () => {
                   Sair
                 </Button>
               </>
-            ) : (
-              <Button 
-                variant="outline" 
-                className="w-full mt-2" 
-                onClick={() => {
-                  gtmEvent('click_login');
-                  setAuthModalOpen(true);
-                  setIsMenuOpen(false);
-                }}
-              >
-                Entrar
-              </Button>
             )}
           </nav>
         )}

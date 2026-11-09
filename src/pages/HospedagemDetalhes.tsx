@@ -33,23 +33,32 @@ import {
   Calendar as CalendarIcon,
   CreditCard
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { gtmEvent } from "@/lib/gtm";
 import accommodation1 from "@/assets/accommodation-1.jpg";
 import accommodation2 from "@/assets/accommodation-2.jpg";
 import accommodation3 from "@/assets/accommodation-3.jpg";
 
 const FALLBACK_IMAGES = [accommodation1, accommodation2, accommodation3];
 
+const parseLocalYmd = (ymd: string): Date => {
+  const [y, m, d] = ymd.split("-").map(Number);
+  if (!y || !m || !d) return new Date();
+  return new Date(y, m - 1, d);
+};
+
 const HospedagemDetalhes = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const [checkInStr, setCheckInStr] = useState<string>(todayStr);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [guests, setGuests] = useState(2);
   const [nights, setNights] = useState(3);
+  const [dynamicTotal, setDynamicTotal] = useState<number | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [bookingFlowOpen, setBookingFlowOpen] = useState(false);
@@ -61,6 +70,25 @@ const HospedagemDetalhes = () => {
       fetchRoomDetails();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (!room?.id || !checkInStr || nights < 1) {
+      setDynamicTotal(null);
+      return;
+    }
+    const startDate = parseLocalYmd(checkInStr);
+    const endStr = format(addDays(startDate, nights), "yyyy-MM-dd");
+    roomService
+      .calculatePrice(room.id, checkInStr, endStr)
+      .then((data) => {
+        if (data && typeof data.total_amount === "number") {
+          setDynamicTotal(data.total_amount);
+        } else {
+          setDynamicTotal(null);
+        }
+      })
+      .catch(() => setDynamicTotal(null));
+  }, [room?.id, checkInStr, nights]);
 
   const fetchRoomDetails = async () => {
     try {
@@ -195,15 +223,46 @@ if (room.amenities) {
     setShareModalOpen(true);
   };
 
-  const handleBookNow = () => {
-    if (!isAuthenticated) {
-      setAuthModalOpen(true);
-      return;
-    }
-    setBookingFlowOpen(true);
-  };
+  const baseNightPrice = Number(accommodation.price) || 0;
+  const totalPrice = dynamicTotal !== null ? Number(dynamicTotal) : baseNightPrice * nights;
 
-  const totalPrice = accommodation.price * nights;
+  const checkInDateObj = parseLocalYmd(checkInStr);
+  const checkOutDateObj = addDays(checkInDateObj, nights);
+  const checkOutStr = format(checkOutDateObj, "yyyy-MM-dd");
+  const formattedCheckIn = format(checkInDateObj, "dd/MM/yyyy");
+  const formattedCheckOut = format(checkOutDateObj, "dd/MM/yyyy");
+  const formattedTotal = totalPrice.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  const whatsappMessage = [
+    `Olá! Gostaria de fazer uma reserva no *Center Plaza Hotel*:`,
+    ``,
+    `🏨 *Acomodação:* ${accommodation.name}`,
+    `📅 *Check-in:* ${formattedCheckIn}`,
+    `📅 *Check-out:* ${formattedCheckOut} (${nights} ${nights === 1 ? "noite" : "noites"})`,
+    `👥 *Hóspedes:* ${guests} ${guests === 1 ? "pessoa" : "pessoas"}`,
+    `💰 *Valor estimado:* R$ ${formattedTotal}`,
+    ``,
+    `Podem confirmar a disponibilidade para essas datas?`,
+  ].join("\n");
+
+  const whatsappBookingUrl = `https://wa.me/551132893757?text=${encodeURIComponent(whatsappMessage)}`;
+
+  const handleBookNow = () => {
+    gtmEvent("reserva_whatsapp", {
+      quarto: accommodation.name,
+      preco: baseNightPrice,
+      valor: totalPrice,
+      currency: "BRL",
+      noites: nights,
+      hospedes: guests,
+      check_in: checkInStr,
+      check_out: checkOutStr,
+      reserva_id: `wa_${accommodation.id}_${Date.now()}`,
+    });
+  };
 
   const isRoomActive = room.is_active !== 0 && (room as any).is_active !== false;
 
@@ -276,14 +335,16 @@ if (room.amenities) {
               <Button variant="secondary" size="icon" className="bg-white/90 hover:bg-white" onClick={handleShare}>
                 <Share2 className="h-4 w-4" />
               </Button>
-              <Button 
-                variant="secondary" 
-                size="icon" 
-                className={`bg-white/90 hover:bg-white ${isFavorite(accommodation.id.toString()) ? "text-red-500" : ""}`}
-                onClick={handleFavorite}
-              >
-                <Heart className={`h-4 w-4 ${isFavorite(accommodation.id.toString()) ? "fill-current" : ""}`} />
-              </Button>
+              {isAuthenticated && (
+                <Button 
+                  variant="secondary" 
+                  size="icon" 
+                  className={`bg-white/90 hover:bg-white ${isFavorite(accommodation.id.toString()) ? "text-red-500" : ""}`}
+                  onClick={handleFavorite}
+                >
+                  <Heart className={`h-4 w-4 ${isFavorite(accommodation.id.toString()) ? "fill-current" : ""}`} />
+                </Button>
+              )}
             </div>
           </div>
         </section>
@@ -408,10 +469,16 @@ if (room.amenities) {
                         <input
                           type="date"
                           className="w-full min-w-0 max-w-full box-border pl-9 pr-3 py-2 text-xs sm:text-sm font-medium bg-transparent focus:outline-none [color-scheme:light] dark:[color-scheme:dark]"
-                          defaultValue={new Date().toISOString().split('T')[0]}
-                          min={new Date().toISOString().split('T')[0]}
+                          value={checkInStr}
+                          min={todayStr}
+                          onChange={(e) => {
+                            if (e.target.value) setCheckInStr(e.target.value);
+                          }}
                         />
                       </div>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Check-out previsto: <span className="font-medium text-foreground">{formattedCheckOut}</span>
+                      </p>
                     </div>
 
                     {}
@@ -461,7 +528,7 @@ if (room.amenities) {
                     {}
                     <div className="border-t pt-4">
                       <div className="flex justify-between mb-2">
-                        <span>R$ {accommodation.price} x {nights} noites</span>
+                        <span>R$ {baseNightPrice} x {nights} {nights === 1 ? "noite" : "noites"}</span>
                         <span>R$ {totalPrice}</span>
                       </div>
                       <div className="flex justify-between mb-2 text-muted-foreground">
@@ -476,12 +543,22 @@ if (room.amenities) {
 
                     {isRoomActive ? (
                       <Button 
-                        className="w-full" 
+                        asChild
+                        className="w-full bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold shadow-md border-0 cursor-pointer" 
                         size="lg"
-                        onClick={handleBookNow}
                       >
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        Reservar Agora
+                        <a
+                          href={whatsappBookingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={handleBookNow}
+                        >
+                          <svg className="mr-2 h-5 w-5 fill-current shrink-0" viewBox="0 0 24 24">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+                            <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.523 5.847L0 24l6.347-1.496A11.935 11.935 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.794 9.794 0 01-5.001-1.37l-.36-.214-3.713.876.938-3.591-.235-.371A9.795 9.795 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z" />
+                          </svg>
+                          Reservar pelo WhatsApp
+                        </a>
                       </Button>
                     ) : (
                       <Button 
@@ -494,7 +571,7 @@ if (room.amenities) {
                     )}
 
                     <p className="text-xs text-muted-foreground text-center">
-                      Você não será cobrado ainda
+                      Atendimento imediato via WhatsApp • Sem taxas
                     </p>
                   </div>
                 </CardContent>
@@ -522,10 +599,10 @@ if (room.amenities) {
           hotelId: room.hotel_id,
           name: accommodation.name,
           location: accommodation.location,
-          price: accommodation.price,
+          price: baseNightPrice,
           maxGuests: accommodation.maxGuests,
           image: accommodation.images[0] || FALLBACK_IMAGES[0],
-          amenities: accommodation.amenities,
+          amenities: accommodation.features,
           isActive: isRoomActive
         }}
       />

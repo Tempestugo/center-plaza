@@ -27,6 +27,7 @@ import {
   ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
+import { gtmEvent } from "@/lib/gtm";
 import bgHero from "@/assets/bg-hero-hootel.jpg";
 import { landmarks } from "@/components/LocationSection";
 
@@ -71,6 +72,11 @@ ${form.observacoes || "Nenhuma observação informada"}
 
       if (!res.ok) throw new Error();
 
+      gtmEvent("lead_formulario", {
+        tipo: "corporativo",
+        empresa: form.empresa,
+      });
+
       toast.success("Solicitação corporativa enviada! Nossa equipe entrará em contato rapidamente.");
       setForm({
         empresa: "",
@@ -90,10 +96,9 @@ ${form.observacoes || "Nenhuma observação informada"}
     }
   };
 
-  const openWhatsAppCorporate = () => {
-    const text = encodeURIComponent("Olá! Gostaria de falar com o setor comercial do Center Plaza Hotel sobre tarifas e reservas corporativas para minha empresa.");
-    window.open(`https://wa.me/551132893757?text=${text}`, '_blank');
-  };
+  const whatsappCorporateHref = `https://wa.me/551132893757?text=${encodeURIComponent(
+    "Olá! Gostaria de falar com o setor comercial do Center Plaza Hotel sobre tarifas e reservas corporativas para minha empresa."
+  )}`;
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -190,11 +195,13 @@ ${form.observacoes || "Nenhuma observação informada"}
               </Button>
 
               <Button
+                asChild
                 size="lg"
                 className="w-full sm:w-auto px-8 py-6 text-base font-semibold bg-[#25D366] hover:bg-[#20ba5a] text-white shadow-xl cursor-pointer border-0"
-                onClick={openWhatsAppCorporate}
               >
-                Falar com Consultor Corporativo
+                <a href={whatsappCorporateHref} target="_blank" rel="noopener noreferrer">
+                  Falar com Consultor Corporativo
+                </a>
               </Button>
             </div>
           </div>

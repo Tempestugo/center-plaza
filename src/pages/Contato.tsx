@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MapPin, Phone, Mail, Send } from "lucide-react";
 import { toast } from "sonner";
+import { gtmEvent } from "@/lib/gtm";
 
 export default function Contato() {
   const [loading, setLoading] = useState(false);
@@ -22,6 +23,7 @@ export default function Contato() {
         body: JSON.stringify(form)
       });
       if (!res.ok) throw new Error();
+      gtmEvent("lead_formulario", { tipo: "contato" });
       toast.success("Mensagem enviada com sucesso!");
       setForm({ name: '', email: '', message: '' });
     } catch {
