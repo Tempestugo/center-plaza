@@ -51,6 +51,10 @@ export interface RoomType {
   is_active?: number | boolean;
   is_visible?: number | boolean;
   room_number?: string;
+  stripe_price_id?: string;
+  breakfast_mode?: 'none' | 'included' | 'optional';
+  breakfast_price?: number | null;
+  promo_badge_text?: string | null;
 }
 
 export interface Reservation {

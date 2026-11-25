@@ -15,6 +15,9 @@ export interface AccommodationData {
   description: string;
   featured?: boolean;
   isActive?: boolean;
+  breakfastMode?: 'none' | 'included' | 'optional';
+  breakfastPrice?: number | null;
+  promoBadgeText?: string | null;
 }
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&q=80';
@@ -105,6 +108,9 @@ function mapRoomToAccommodation(
     description: tailoredDesc,
     featured:    index < 3,
     isActive:    room.is_active !== 0 && (room as any).is_active !== false,
+    breakfastMode: (room as any).breakfast_mode || undefined,
+    breakfastPrice: (room as any).breakfast_price != null ? Number((room as any).breakfast_price) : null,
+    promoBadgeText: (room as any).promo_badge_text || null,
   };
 }
 

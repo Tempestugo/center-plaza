@@ -58,6 +58,7 @@ const HospedagemDetalhes = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [guests, setGuests] = useState(2);
   const [nights, setNights] = useState(3);
+  const [withBreakfast, setWithBreakfast] = useState(false);
   const [dynamicTotal, setDynamicTotal] = useState<number | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -78,17 +79,27 @@ const HospedagemDetalhes = () => {
     }
     const startDate = parseLocalYmd(checkInStr);
     const endStr = format(addDays(startDate, nights), "yyyy-MM-dd");
+    const fallbackNightly = Number(room.price_per_night) || 0;
     roomService
       .calculatePrice(room.id, checkInStr, endStr)
       .then((data) => {
-        if (data && typeof data.total_amount === "number") {
-          setDynamicTotal(data.total_amount);
+        if (data && Array.isArray(data.daily_breakdown) && data.daily_breakdown.length > 0) {
+          const sum = data.daily_breakdown.reduce((acc, day) => {
+            const isSpecialHoliday = Boolean(
+              day.label || day.date?.endsWith("-12-30") || day.date?.endsWith("-12-31")
+            );
+            const dayPrice = day.is_custom && isSpecialHoliday ? Number(day.price) : fallbackNightly;
+            return acc + dayPrice;
+          }, 0);
+          setDynamicTotal(Math.round(sum * 100) / 100);
+        } else if (data && typeof data.total_amount === "number") {
+          setDynamicTotal(fallbackNightly * nights);
         } else {
           setDynamicTotal(null);
         }
       })
       .catch(() => setDynamicTotal(null));
-  }, [room?.id, checkInStr, nights]);
+  }, [room?.id, room?.price_per_night, checkInStr, nights]);
 
   const fetchRoomDetails = async () => {
     try {
@@ -224,7 +235,29 @@ if (room.amenities) {
   };
 
   const baseNightPrice = Number(accommodation.price) || 0;
-  const totalPrice = dynamicTotal !== null ? Number(dynamicTotal) : baseNightPrice * nights;
+  const hasCafeInAmenities = amenities.some(
+    (a) => typeof a === "string" && a.toLowerCase().includes("café")
+  );
+  const effectiveBreakfastMode: "none" | "included" | "optional" =
+    room.breakfast_mode === "included" || room.breakfast_mode === "optional" || room.breakfast_mode === "none"
+      ? room.breakfast_mode
+      : hasCafeInAmenities
+      ? "included"
+      : "none";
+
+  const optionalBreakfastNightlyPrice =
+    effectiveBreakfastMode === "optional" && room.breakfast_price != null && Number(room.breakfast_price) > 0
+      ? Number(room.breakfast_price)
+      : null;
+
+  const extraBreakfastPerNight =
+    withBreakfast && optionalBreakfastNightlyPrice !== null
+      ? Math.max(0, optionalBreakfastNightlyPrice - baseNightPrice)
+      : 0;
+
+  const baseStayTotal = dynamicTotal !== null ? Number(dynamicTotal) : baseNightPrice * nights;
+  const totalPrice = Math.round((baseStayTotal + extraBreakfastPerNight * nights) * 100) / 100;
+  const displayedNightPrice = Math.round((totalPrice / nights) * 100) / 100;
 
   const checkInDateObj = parseLocalYmd(checkInStr);
   const checkOutDateObj = addDays(checkInDateObj, nights);
@@ -236,10 +269,18 @@ if (room.amenities) {
     maximumFractionDigits: 2,
   });
 
+  const breakfastSummaryLabel =
+    effectiveBreakfastMode === "included"
+      ? "Incluso na diária"
+      : withBreakfast && optionalBreakfastNightlyPrice !== null
+      ? "Com café da manhã"
+      : "Sem café da manhã";
+
   const whatsappMessage = [
     `Olá! Gostaria de fazer uma reserva no *Center Plaza Hotel*:`,
     ``,
     `🏨 *Acomodação:* ${accommodation.name}`,
+    `☕ *Café da manhã:* ${breakfastSummaryLabel}`,
     `📅 *Check-in:* ${formattedCheckIn}`,
     `📅 *Check-out:* ${formattedCheckOut} (${nights} ${nights === 1 ? "noite" : "noites"})`,
     `👥 *Hóspedes:* ${guests} ${guests === 1 ? "pessoa" : "pessoas"}`,
@@ -253,7 +294,8 @@ if (room.amenities) {
   const handleBookNow = () => {
     gtmEvent("reserva_whatsapp", {
       quarto: accommodation.name,
-      preco: baseNightPrice,
+      cafe_da_manha: breakfastSummaryLabel,
+      preco: displayedNightPrice,
       valor: totalPrice,
       currency: "BRL",
       noites: nights,
@@ -450,17 +492,67 @@ if (room.amenities) {
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-2 mb-1.5">
                         <span className="text-base text-muted-foreground line-through font-medium">
-                          R$ {Math.round(accommodation.price / 0.75).toLocaleString()}
+                          R$ {Math.round(displayedNightPrice / 0.75).toLocaleString("pt-BR")}
                         </span>
                         <span className="text-xs bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 font-bold px-2 py-0.5 rounded-md">
                           -25% OFF
                         </span>
                       </div>
                       <div className="text-3xl sm:text-4xl font-extrabold text-primary mb-0.5">
-                        R$ {accommodation.price}
+                        R$ {displayedNightPrice.toLocaleString("pt-BR")}
                       </div>
-                      <div className="text-xs text-muted-foreground font-medium">por noite</div>
+                      <div className="text-xs text-muted-foreground font-medium">
+                        por noite ({breakfastSummaryLabel.toLowerCase()})
+                      </div>
                     </div>
+
+                    {optionalBreakfastNightlyPrice !== null ? (
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-medium block flex items-center gap-1.5">
+                          <Coffee className="w-4 h-4 text-amber-600" />
+                          Opção de Café da Manhã
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setWithBreakfast(false)}
+                            className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                              !withBreakfast
+                                ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                : "border-input hover:bg-muted/40"
+                            }`}
+                          >
+                            <div className="text-xs font-bold">Sem Café</div>
+                            <div className="text-xs text-muted-foreground">
+                              R$ {baseNightPrice.toLocaleString("pt-BR")}/noite
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setWithBreakfast(true)}
+                            className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                              withBreakfast
+                                ? "border-amber-500 bg-amber-500/10 ring-1 ring-amber-500"
+                                : "border-input hover:bg-muted/40"
+                            }`}
+                          >
+                            <div className="text-xs font-bold text-amber-700 dark:text-amber-400">Com Café</div>
+                            <div className="text-xs text-muted-foreground">
+                              R$ {optionalBreakfastNightlyPrice.toLocaleString("pt-BR")}/noite
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-muted/50 border text-xs font-medium text-muted-foreground">
+                        <Coffee className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span>
+                          {effectiveBreakfastMode === "included"
+                            ? "Café da manhã incluso na diária"
+                            : "Tarifa sem café da manhã"}
+                        </span>
+                      </div>
+                    )}
 
                     <div className="w-full min-w-0">
                       <label className="text-sm font-medium mb-1.5 block">Data de check-in</label>
@@ -528,8 +620,12 @@ if (room.amenities) {
                     {}
                     <div className="border-t pt-4">
                       <div className="flex justify-between mb-2">
-                        <span>R$ {baseNightPrice} x {nights} {nights === 1 ? "noite" : "noites"}</span>
-                        <span>R$ {totalPrice}</span>
+                        <span>R$ {displayedNightPrice.toLocaleString("pt-BR")} x {nights} {nights === 1 ? "noite" : "noites"}</span>
+                        <span>R$ {totalPrice.toLocaleString("pt-BR")}</span>
+                      </div>
+                      <div className="flex justify-between mb-2 text-muted-foreground text-sm">
+                        <span>Regime</span>
+                        <span className="font-medium text-foreground">{breakfastSummaryLabel}</span>
                       </div>
                       <div className="flex justify-between mb-2 text-muted-foreground">
                         <span>Taxa de serviço</span>
@@ -537,7 +633,7 @@ if (room.amenities) {
                       </div>
                       <div className="flex justify-between font-semibold text-lg border-t pt-2">
                         <span>Total</span>
-                        <span>R$ {totalPrice}</span>
+                        <span>R$ {totalPrice.toLocaleString("pt-BR")}</span>
                       </div>
                     </div>
 

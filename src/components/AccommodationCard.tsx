@@ -19,7 +19,17 @@ interface AccommodationCardProps {
   description?: string;
   featured?: boolean;
   isActive?: boolean;
+  breakfastMode?: 'none' | 'included' | 'optional';
+  breakfastPrice?: number | null;
+  promoBadgeText?: string | null;
 }
+
+const getDefaultShortPromoDate = () => {
+  const now = new Date();
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${lastDay}/${month}`;
+};
 
 const CAFE_KEYWORDS = [
   "café da manhã",
@@ -55,20 +65,21 @@ const AccommodationCard = ({
   description,
   featured = false,
   isActive = true,
+  breakfastMode,
+  breakfastPrice,
+  promoBadgeText,
 }: AccommodationCardProps) => {
   const navigate = useNavigate();
-  const [promoText, setPromoText] = useState<string>("30/10");
+  const [promoText, setPromoText] = useState<string>(getDefaultShortPromoDate());
 
   useEffect(() => {
-    // Data da promoção: 30/10
-    const defaultDate = "30/10";
+    const defaultDate = getDefaultShortPromoDate();
 
     fetch('/api/settings/promo_text')
       .then(r => r.json())
       .then(d => {
-        if (d.value) {
-          // Extrair apenas a data caso venha "Válido até DD/MM" e garantir 30/10
-          const cleanDate = d.value.replace(/válido até\s*/i, '').replace(/31\/10/g, '30/10').trim();
+        if (d.value && String(d.value).trim()) {
+          const cleanDate = String(d.value).replace(/válido até\s*/i, '').trim();
           setPromoText(cleanDate || defaultDate);
         } else {
           setPromoText(defaultDate);
@@ -77,8 +88,13 @@ const AccommodationCard = ({
       .catch(() => setPromoText(defaultDate));
   }, []);
 
-  // Mostra café da manhã SOMENTE se estiver expressamente selecionado nas comodidades do quarto
-  const includesCafe = hasCafe(amenities);
+  const effectiveBreakfastMode: 'none' | 'included' | 'optional' =
+    breakfastMode === 'included' || breakfastMode === 'optional' || breakfastMode === 'none'
+      ? breakfastMode
+      : (hasCafe(amenities) ? 'included' : 'none');
+
+  const includesCafe = effectiveBreakfastMode === 'included';
+  const hasOptionalCafe = effectiveBreakfastMode === 'optional' && typeof breakfastPrice === 'number' && breakfastPrice > 0;
 
   const otherAmenities = (amenities || []).filter(
     a => !hasCafe([a])
@@ -123,14 +139,20 @@ const AccommodationCard = ({
           <span className="text-[11px] text-stone-300">({reviewCount})</span>
         </div>
 
-        {/* Faixa âmbar na base da foto — SOMENTE se o quarto tiver café da manhã em suas comodidades */}
-        {isActive && includesCafe && (
+        {/* Faixa âmbar na base da foto — Café incluso, Café opcional ou Destaque customizado do quarto */}
+        {isActive && (includesCafe || hasOptionalCafe || promoBadgeText) && (
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-stone-950 py-1.5 px-3 flex items-center justify-between font-semibold shadow-md">
-            <div className="flex items-center gap-1.5 text-xs">
+            <div className="flex items-center gap-1.5 text-xs truncate pr-2">
               <Coffee className="w-3.5 h-3.5 shrink-0" />
-              <span>Café da manhã incluso</span>
+              <span className="truncate">
+                {promoBadgeText
+                  ? promoBadgeText
+                  : includesCafe
+                  ? "Café da manhã incluso"
+                  : `Opção c/ café: R$ ${Number(breakfastPrice).toLocaleString("pt-BR")}`}
+              </span>
             </div>
-            <div className="flex items-center gap-1 text-[11px] font-bold bg-black/15 px-2 py-0.5 rounded-full">
+            <div className="flex items-center gap-1 text-[11px] font-bold bg-black/15 px-2 py-0.5 rounded-full shrink-0">
               <Clock className="w-3 h-3" />
               <span>Até {promoText}</span>
             </div>
@@ -195,10 +217,17 @@ const AccommodationCard = ({
               </div>
               <div className="flex items-baseline">
                 <span className={`text-2xl sm:text-3xl font-extrabold ${!isActive ? "text-muted-foreground" : "text-primary"}`}>
-                  R$ {price.toLocaleString()}
+                  R$ {Number(price).toLocaleString("pt-BR")}
                 </span>
                 <span className="text-xs text-muted-foreground ml-1 font-medium">/noite</span>
               </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
+                {includesCafe
+                  ? "✓ Com café da manhã incluso"
+                  : hasOptionalCafe
+                  ? `Sem café • Com café: R$ ${Number(breakfastPrice).toLocaleString("pt-BR")}/noite`
+                  : "Tarifa sem café da manhã"}
+              </p>
             </div>
           </div>
 

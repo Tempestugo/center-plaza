@@ -210,8 +210,13 @@ async function initDatabase() {
   try { await db.query("ALTER TABLE room_types ADD COLUMN is_active BOOLEAN DEFAULT 1"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
   try { await db.query("ALTER TABLE room_types ADD COLUMN is_visible BOOLEAN DEFAULT 1"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
   try { await db.query("ALTER TABLE room_types ADD COLUMN total_units INT DEFAULT 1"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+  try { await db.query("ALTER TABLE room_types ADD COLUMN breakfast_mode VARCHAR(30) DEFAULT 'none'"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+  try { await db.query("ALTER TABLE room_types ADD COLUMN breakfast_price DECIMAL(10,2) DEFAULT NULL"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+  try { await db.query("ALTER TABLE room_types ADD COLUMN promo_badge_text VARCHAR(255) DEFAULT NULL"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
   try { await db.query("ALTER TABLE settings MODIFY COLUMN value LONGTEXT"); } catch (e) { }
   try { await db.query("ALTER TABLE reservations ADD COLUMN card_holder_name TEXT"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+  // Limpar tarifas anuais antigas sem rótulo que sobrescreviam o preço base (ex: 205 sobre 206)
+  try { await db.query("DELETE FROM custom_rates WHERE DATEDIFF(end_date, start_date) > 60 AND (label IS NULL OR label = '')"); } catch (e) { }
 
 
 
@@ -364,22 +369,53 @@ async function sendWebhookNotification(reservation) {
   }
 
   // =======================================================
-  // 2. DISPARO PARA O GOOGLE APPS SCRIPT (Apenas para E-mails)
+  // 2. DISPARO PARA O GOOGLE APPS SCRIPT (Conteúdo Definido pelo Site)
   // =======================================================
-  const TARGET_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDJPK9zO37UGx-wm1lcVp9coABGtvkMnerpMiCSpD7hBoE2IUIRW2VBVNLJsBYtXFUiQ/exec';
-  const appsScriptUrl = (process.env.APPS_SCRIPT_WEBHOOK_URL && process.env.APPS_SCRIPT_WEBHOOK_URL.includes('AKfycbxDJPK9zO37UGx-wm1lcVp9coABGtvkMnerpMiCSpD7hBoE2IUIRW2VBVNLJsBYtXFUiQ'))
-    ? process.env.APPS_SCRIPT_WEBHOOK_URL
-    : TARGET_APPS_SCRIPT_URL;
+  const appsScriptUrl = await getAppsScriptWebhookUrl();
 
   if (appsScriptUrl) {
     try {
+      const hotelRecipients = 'contato@centerplazahotel.com.br, elcioantoniodesouza@hotmail.com';
+      const idRes = reservation.id || reservation.reservationId || '0000';
+      const guestName = reservation.guest_name || reservation.guestName || 'Hóspede';
+      const guestEmail = reservation.guest_email || reservation.guestEmail || '';
+      const roomName = reservation.room_type_name || reservation.roomName || reservation.quarto || 'Acomodação';
+      const checkInBR = formatDateBR(reservation.check_in_date || reservation.checkInDate);
+      const checkOutBR = formatDateBR(reservation.check_out_date || reservation.checkOutDate);
+      const numGuests = reservation.number_of_guests || reservation.guests || 1;
+      const totalVal = parseFloat(reservation.total_amount || reservation.totalAmount || 0).toFixed(2);
+      const checkoutUrl = reservation.checkout_url || reservation.checkoutUrl || '';
+      const isConfirmedPaid = reservation.status === 'confirmed' && reservation.payment_status === 'paid';
+
+      const guestSubject = isConfirmedPaid
+        ? `Reserva Confirmada! Center Plaza Hotel - #${idRes}`
+        : `Ação necessária: sua reserva #${idRes} está pendente de pagamento`;
+
+      const guestBody = isConfirmedPaid
+        ? `Olá, ${guestName}!\n\nSeu pagamento foi confirmado com sucesso e sua reserva está garantida no Center Plaza Hotel.\n\n--- DETALHES DA RESERVA ---\nCódigo da Reserva: #${idRes}\nAcomodação: ${roomName}\nCheck-in: ${checkInBR}\nCheck-out: ${checkOutBR}\nHóspedes: ${numGuests}\nValor Pago: R$ ${totalVal}\n\nAgradecemos a preferência e desejamos uma excelente estadia!\n\nCenter Plaza Hotel`
+        : `Olá, ${guestName}!\n\nRecebemos seu pedido de reserva no Center Plaza Hotel.\nPagamento pendente!\n\n--- DETALHES DA RESERVA ---\nCódigo da Reserva: #${idRes}\nAcomodação: ${roomName}\nCheck-in: ${checkInBR}\nCheck-out: ${checkOutBR}\nValor Total: R$ ${totalVal}\n\n${checkoutUrl ? `Para garantir sua estadia e concluir sua reserva, acesse o link abaixo:\n${checkoutUrl}\n\n` : ''}Center Plaza Hotel`;
+
+      const hotelSubject = isConfirmedPaid
+        ? `Pagamento Confirmado - Reserva #${idRes} (${guestName})`
+        : `Nova Pré-Reserva Recebida - #${idRes} (${guestName})`;
+
+      const hotelBody = isConfirmedPaid
+        ? `Olá,\n\nO pagamento da reserva #${idRes} foi confirmado no sistema!\n\nHóspede: ${guestName}\nE-mail: ${guestEmail}\nAcomodação: ${roomName}\nCheck-in: ${checkInBR}\nCheck-out: ${checkOutBR}\nValor Total: R$ ${totalVal}\n\nAcesse o painel administrativo para detalhes:\nhttps://centerplazahotel.com.br/admin/reservas`
+        : `Olá,\n\nUma nova pré-reserva foi criada no sistema e aguarda pagamento!\n\n--- DETALHES DA RESERVA ---\nCódigo da Reserva: #${idRes}\nAcomodação: ${roomName}\nHóspede: ${guestName}\nE-mail: ${guestEmail}\nCheck-in: ${checkInBR}\nCheck-out: ${checkOutBR}\nValor Total: R$ ${totalVal}\n\nAcesse o painel administrativo para visualizar:\nhttps://centerplazahotel.com.br/admin/reservas`;
+
       const payloadToSend = {
         ...reservation,
+        hotelEmail: hotelRecipients,
+        hotelSubject,
+        hotelBody,
+        guestEmail,
+        guestSubject,
+        guestBody,
         admin_emails: [
           'contato@centerplazahotel.com.br',
           'elcioantoniodesouza@hotmail.com'
         ],
-        notification_email: 'contato@centerplazahotel.com.br, elcioantoniodesouza@hotmail.com',
+        notification_email: hotelRecipients,
         cc_email: 'elcioantoniodesouza@hotmail.com'
       };
 
@@ -398,6 +434,29 @@ async function sendWebhookNotification(reservation) {
   // 3. DISPARO PARA O GOOGLE ANALYTICS 4 (MEASUREMENT PROTOCOL)
   // =======================================================
   await sendGA4PurchaseEvent(reservation);
+}
+
+async function getAppsScriptWebhookUrl() {
+  const DEFAULT_URL = 'https://script.google.com/macros/s/AKfycbxDJPK9zO37UGx-wm1lcVp9coABGtvkMnerpMiCSpD7hBoE2IUIRW2VBVNLJsBYtXFUiQ/exec';
+  try {
+    const db = await getDb();
+    const [[row]] = await db.query("SELECT value FROM settings WHERE `key` = 'apps_script_webhook_url'");
+    if (row && row.value && row.value.trim().startsWith('https://script.google.com/')) {
+      return row.value.trim();
+    }
+  } catch (e) { }
+  if (process.env.APPS_SCRIPT_WEBHOOK_URL && process.env.APPS_SCRIPT_WEBHOOK_URL.includes('AKfycbxDJPK9zO37UGx-wm1lcVp9coABGtvkMnerpMiCSpD7hBoE2IUIRW2VBVNLJsBYtXFUiQ')) {
+    return process.env.APPS_SCRIPT_WEBHOOK_URL;
+  }
+  return DEFAULT_URL;
+}
+
+function formatDateBR(dateStr) {
+  if (!dateStr) return '';
+  const s = String(dateStr).split('T')[0];
+  const parts = s.split('-');
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return s;
 }
 
 // Envia evento de compra (purchase) server-side para o Google Analytics 4 (Measurement Protocol)
@@ -578,7 +637,7 @@ async function calculateStayPrice(db, roomTypeId, checkInStr, checkOutStr, fallb
   const nights = dateList.length || 1;
 
   const [rates] = await db.query(
-    "SELECT * FROM custom_rates WHERE (room_type_id = ? OR room_type_id IS NULL) AND start_date <= ? AND end_date >= ? ORDER BY room_type_id DESC, created_at DESC",
+    "SELECT * FROM custom_rates WHERE (room_type_id = ? OR room_type_id IS NULL) AND start_date <= ? AND end_date >= ? AND NOT (DATEDIFF(end_date, start_date) > 60 AND (label IS NULL OR label = '')) ORDER BY room_type_id DESC, created_at DESC",
     [roomTypeId, cOut, cIn]
   );
 
@@ -1081,6 +1140,7 @@ router.get('/rooms/:id/calculate-price', async (req, res) => {
 router.get('/custom-rates', async (req, res) => {
   try {
     const db = await getDb();
+    await db.query("DELETE FROM custom_rates WHERE DATEDIFF(end_date, start_date) > 60 AND (label IS NULL OR label = '')").catch(() => {});
     const [rows] = await db.query(`
       SELECT cr.*, rt.name as room_name
       FROM custom_rates cr
@@ -1215,12 +1275,17 @@ router.post('/rooms', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
     const { hotel_id, name, description, size_sqm, bed_type, bed_count,
-      max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night, is_active, total_units } = req.body;
+      max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night, is_active, total_units,
+      breakfast_mode, breakfast_price, promo_badge_text } = req.body;
     const db = await getDb();
+    const parsedBreakfastPrice = (breakfast_price !== undefined && breakfast_price !== null && breakfast_price !== '')
+      ? parseFloat(breakfast_price)
+      : null;
     const [r] = await db.execute(
-      'INSERT INTO room_types (hotel_id,name,description,size_sqm,bed_type,bed_count,max_occupancy,amenities,bathroom_type,smoking_allowed,price_per_night,is_active,stripe_price_id,total_units) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      'INSERT INTO room_types (hotel_id,name,description,size_sqm,bed_type,bed_count,max_occupancy,amenities,bathroom_type,smoking_allowed,price_per_night,is_active,stripe_price_id,total_units,breakfast_mode,breakfast_price,promo_badge_text) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
       [hotel_id, name, description, size_sqm, bed_type, bed_count, max_occupancy,
-        JSON.stringify(amenities || []), bathroom_type, smoking_allowed ? 1 : 0, price_per_night, is_active !== undefined ? is_active : 1, req.body.stripe_price_id || null, total_units || 1]
+        JSON.stringify(amenities || []), bathroom_type, smoking_allowed ? 1 : 0, price_per_night, is_active !== undefined ? is_active : 1, req.body.stripe_price_id || null, total_units || 1,
+        breakfast_mode || 'none', !isNaN(parsedBreakfastPrice) ? parsedBreakfastPrice : null, promo_badge_text || null]
     );
     const [[room]] = await db.query(
       'SELECT rt.*, h.name as hotel_name FROM room_types rt JOIN hotels h ON rt.hotel_id = h.id WHERE rt.id = ?',
@@ -1264,6 +1329,10 @@ router.patch('/rooms/batch-price', requireAuth, async (req, res) => {
       `UPDATE room_types SET price_per_night = ? WHERE id IN (${placeholders})`,
       [parsedPrice, ...ids]
     );
+    await db.execute(
+      `DELETE FROM custom_rates WHERE room_type_id IN (${placeholders}) AND DATEDIFF(end_date, start_date) > 60 AND (label IS NULL OR label = '')`,
+      [...ids]
+    );
     res.json({ message: `Preço atualizado para ${ids.length} quarto(s) com sucesso`, updatedCount: ids.length });
   } catch (err) {
     res.status(500).json({ error: err.message || 'Erro ao atualizar preços em massa' });
@@ -1305,14 +1374,19 @@ router.put('/rooms/:id', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(401).json({ error: 'Não autorizado' });
   try {
     const { hotel_id, name, description, size_sqm, bed_type, bed_count,
-      max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night, is_active, total_units } = req.body;
+      max_occupancy, amenities, bathroom_type, smoking_allowed, price_per_night, is_active, total_units,
+      breakfast_mode, breakfast_price, promo_badge_text } = req.body;
     const db = await getDb();
 
     const [[current]] = await db.query('SELECT * FROM room_types WHERE id = ?', [req.params.id]);
     if (!current) return res.status(404).json({ error: 'Quarto não encontrado' });
 
+    const nextBreakfastPrice = breakfast_price !== undefined
+      ? (breakfast_price === null || breakfast_price === '' ? null : parseFloat(breakfast_price))
+      : current.breakfast_price;
+
     await db.execute(
-      'UPDATE room_types SET hotel_id=?,name=?,description=?,size_sqm=?,bed_type=?,bed_count=?,max_occupancy=?,amenities=?,bathroom_type=?,smoking_allowed=?,price_per_night=?,is_active=?,is_visible=?,stripe_price_id=?,total_units=? WHERE id=?',
+      'UPDATE room_types SET hotel_id=?,name=?,description=?,size_sqm=?,bed_type=?,bed_count=?,max_occupancy=?,amenities=?,bathroom_type=?,smoking_allowed=?,price_per_night=?,is_active=?,is_visible=?,stripe_price_id=?,total_units=?,breakfast_mode=?,breakfast_price=?,promo_badge_text=? WHERE id=?',
       [
         hotel_id ?? current.hotel_id,
         name ?? current.name,
@@ -1329,9 +1403,20 @@ router.put('/rooms/:id', requireAuth, async (req, res) => {
         req.body.is_visible !== undefined ? (req.body.is_visible ? 1 : 0) : (current.is_visible ?? 1),
         req.body.stripe_price_id !== undefined ? req.body.stripe_price_id : current.stripe_price_id,
         total_units ?? current.total_units ?? 1,
+        breakfast_mode !== undefined ? breakfast_mode : (current.breakfast_mode || 'none'),
+        nextBreakfastPrice !== null && !isNaN(nextBreakfastPrice) ? nextBreakfastPrice : null,
+        promo_badge_text !== undefined ? (promo_badge_text || null) : current.promo_badge_text,
         req.params.id
       ]
     );
+
+    if (price_per_night !== undefined && Number(price_per_night) !== Number(current.price_per_night)) {
+      await db.execute(
+        "DELETE FROM custom_rates WHERE room_type_id = ? AND DATEDIFF(end_date, start_date) > 60 AND (label IS NULL OR label = '')",
+        [req.params.id]
+      );
+    }
+
     const [[room]] = await db.query(
       'SELECT rt.*, h.name as hotel_name FROM room_types rt JOIN hotels h ON rt.hotel_id = h.id WHERE rt.id = ?',
       [req.params.id]);
@@ -1685,13 +1770,50 @@ router.post('/contact', async (req, res) => {
     const db = await getDb();
     const [result] = await db.execute("INSERT INTO contacts (name,email,message) VALUES (?,?,?)", [name, email, message]);
     
-    // Disparo imediato para Webhook do Google Apps Script
-    const TARGET_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDJPK9zO37UGx-wm1lcVp9coABGtvkMnerpMiCSpD7hBoE2IUIRW2VBVNLJsBYtXFUiQ/exec';
-    const appsScriptUrl = (process.env.APPS_SCRIPT_WEBHOOK_URL && process.env.APPS_SCRIPT_WEBHOOK_URL.includes('AKfycbxDJPK9zO37UGx-wm1lcVp9coABGtvkMnerpMiCSpD7hBoE2IUIRW2VBVNLJsBYtXFUiQ'))
-      ? process.env.APPS_SCRIPT_WEBHOOK_URL
-      : TARGET_APPS_SCRIPT_URL;
-
+    // Disparo imediato para Webhook do Google Apps Script com conteúdo definido pelo site
+    const appsScriptUrl = await getAppsScriptWebhookUrl();
     const isCorporate = typeof message === 'string' && message.includes('[SOLICITAÇÃO DE RESERVA CORPORATIVA]');
+    const hotelRecipients = 'contato@centerplazahotel.com.br, elcioantoniodesouza@hotmail.com';
+
+    const hotelSubject = isCorporate
+      ? `Nova Solicitação de Cotação Corporativa - ${name} (#${result.insertId})`
+      : `Nova Mensagem de Contato no Site - ${name} (#${result.insertId})`;
+
+    const hotelBody = [
+      `Olá,`,
+      ``,
+      isCorporate
+        ? `Uma nova solicitação de acordo/cotação corporativa foi recebida pelo site do Center Plaza Hotel!`
+        : `Uma nova mensagem de contato foi enviada pelo site do Center Plaza Hotel!`,
+      ``,
+      `--- DADOS DO CONTATO ---`,
+      `Protocolo: #${result.insertId}`,
+      `Nome / Empresa: ${name}`,
+      `E-mail: ${email}`,
+      ``,
+      `--- MENSAGEM / DETALHES ---`,
+      `${message}`,
+      ``,
+      `Acesse o painel administrativo para responder direto no WhatsApp ou por e-mail:`,
+      `https://centerplazahotel.com.br/admin/mensagens`
+    ].join('\n');
+
+    const guestSubject = isCorporate
+      ? `Recebemos sua Solicitação Corporativa - Center Plaza Hotel`
+      : `Recebemos sua mensagem - Center Plaza Hotel`;
+
+    const guestBody = [
+      `Olá, ${name}!`,
+      ``,
+      isCorporate
+        ? `Recebemos sua solicitação de cotação corporativa no Center Plaza Hotel. Nossa equipe comercial já está analisando os detalhes e entrará em contato em breve.`
+        : `Recebemos sua mensagem no Center Plaza Hotel e nossa equipe retornará o mais breve possível.`,
+      ``,
+      `Caso precise de atendimento imediato, fale conosco pelo WhatsApp: (11) 3289-3757.`,
+      ``,
+      `Atenciosamente,`,
+      `Center Plaza Hotel`
+    ].join('\n');
 
     fetch(appsScriptUrl, {
       method: "POST",
@@ -1702,11 +1824,17 @@ router.post('/contact', async (req, res) => {
         name,
         email,
         message,
+        hotelEmail: hotelRecipients,
+        hotelSubject,
+        hotelBody,
+        guestEmail: email || '',
+        guestSubject,
+        guestBody,
         admin_emails: [
           'contato@centerplazahotel.com.br',
           'elcioantoniodesouza@hotmail.com'
         ],
-        notification_email: 'contato@centerplazahotel.com.br, elcioantoniodesouza@hotmail.com',
+        notification_email: hotelRecipients,
         cc_email: 'elcioantoniodesouza@hotmail.com',
         created_at: new Date().toISOString()
       })

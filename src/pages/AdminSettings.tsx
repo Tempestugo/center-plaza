@@ -23,7 +23,13 @@ export default function AdminSettings() {
 
   // Promo text state
   const [promoText, setPromoText] = useState("");
+  const [heroPromoTitle, setHeroPromoTitle] = useState("");
+  const [heroPromoSubtitle, setHeroPromoSubtitle] = useState("");
   const [savingPromo, setSavingPromo] = useState(false);
+
+  // Apps Script Webhook URL state
+  const [appsScriptUrl, setAppsScriptUrl] = useState("");
+  const [savingWebhook, setSavingWebhook] = useState(false);
 
   // GA4 Measurement Protocol Secret state
   const [ga4ApiSecret, setGa4ApiSecret] = useState("");
@@ -37,11 +43,18 @@ export default function AdminSettings() {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem("admin_token");
-    // Load current promo text
+    // Load current promo text & hero texts
     fetch("/api/settings/promo_text")
       .then(r => r.json())
       .then(d => setPromoText(d.value || ""))
+      .catch(() => {});
+    fetch("/api/settings/hero_promo_title")
+      .then(r => r.json())
+      .then(d => setHeroPromoTitle(d.value || ""))
+      .catch(() => {});
+    fetch("/api/settings/hero_promo_subtitle")
+      .then(r => r.json())
+      .then(d => setHeroPromoSubtitle(d.value || ""))
       .catch(() => {});
     // Load current hero image
     fetch("/api/settings/hero_image")
@@ -52,6 +65,11 @@ export default function AdminSettings() {
     fetch("/api/settings/ga4_api_secret")
       .then(r => r.json())
       .then(d => setGa4ApiSecret(d.value || ""))
+      .catch(() => {});
+    // Load Apps Script Webhook URL
+    fetch("/api/settings/apps_script_webhook_url")
+      .then(r => r.json())
+      .then(d => setAppsScriptUrl(d.value || ""))
       .catch(() => {});
   }, []);
 
@@ -131,21 +149,54 @@ export default function AdminSettings() {
     setSavingPromo(true);
     try {
       const token = localStorage.getItem("admin_token");
-      const res = await fetch("/api/settings/promo_text", {
+      const headers = {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      };
+      await Promise.all([
+        fetch("/api/settings/promo_text", {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({ value: promoText }),
+        }),
+        fetch("/api/settings/hero_promo_title", {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({ value: heroPromoTitle }),
+        }),
+        fetch("/api/settings/hero_promo_subtitle", {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({ value: heroPromoSubtitle }),
+        }),
+      ]);
+      toast.success("Textos e data promocional do banner atualizados!");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao salvar");
+    } finally {
+      setSavingPromo(false);
+    }
+  };
+
+  const handleSaveWebhookUrl = async () => {
+    setSavingWebhook(true);
+    try {
+      const token = localStorage.getItem("admin_token");
+      const res = await fetch("/api/settings/apps_script_webhook_url", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify({ value: promoText }),
+        body: JSON.stringify({ value: appsScriptUrl.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success("Texto promocional atualizado!");
+      toast.success("URL do Webhook do Google Apps Script salva com sucesso!");
     } catch (err: any) {
-      toast.error(err.message || "Erro ao salvar");
+      toast.error(err.message || "Erro ao salvar URL do Webhook");
     } finally {
-      setSavingPromo(false);
+      setSavingWebhook(false);
     }
   };
 
@@ -173,7 +224,9 @@ export default function AdminSettings() {
 
   const handleResetPromo = () => {
     setPromoText("");
-    toast.info("Texto resetado. O banner usará o cálculo automático (último dia do mês). Clique em 'Salvar' para confirmar.");
+    setHeroPromoTitle("");
+    setHeroPromoSubtitle("");
+    toast.info("Textos resetados para o padrão automático (último dia do mês). Clique em 'Salvar' para confirmar.");
   };
 
 
@@ -190,16 +243,34 @@ export default function AdminSettings() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Type className="h-4 w-4 text-amber-600" />
-              Texto Promocional do Banner
+              Destaque Promocional & Data de Validade
             </CardTitle>
             <CardDescription className="text-xs">
-              Texto exibido no banner principal da homepage. Se deixado em branco, será calculado automaticamente como "Válido até [último dia do mês]".
+              Configure o título, subtítulo e data exibidos no banner principal e nos cards dos quartos. Se a data ficar em branco, o site usa automaticamente o último dia do mês vigente ({getDefaultPromoText()}).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label className="flex items-center gap-2 mb-2">
-                <Clock className="h-3.5 w-3.5" /> Texto do Banner
+              <Label className="text-xs mb-1.5 block">Título do Destaque (Banner Principal)</Label>
+              <Input
+                value={heroPromoTitle}
+                onChange={e => setHeroPromoTitle(e.target.value)}
+                placeholder="Opções com Café da Manhã (padrão)"
+                className="text-sm"
+              />
+            </div>
+            <div>
+              <Label className="text-xs mb-1.5 block">Subtítulo do Destaque (Banner Principal)</Label>
+              <Input
+                value={heroPromoSubtitle}
+                onChange={e => setHeroPromoSubtitle(e.target.value)}
+                placeholder="Tarifas especiais com ou sem café (padrão)"
+                className="text-sm"
+              />
+            </div>
+            <div>
+              <Label className="flex items-center gap-2 mb-1.5 text-xs">
+                <Clock className="h-3.5 w-3.5" /> Data / Validade da Promoção (Banner e Cards)
               </Label>
               <Input
                 value={promoText}
@@ -213,12 +284,39 @@ export default function AdminSettings() {
             </div>
             <div className="flex gap-2">
               <Button onClick={handleSavePromo} disabled={savingPromo} className="flex-1 bg-amber-600 hover:bg-amber-700 text-white" size="sm">
-                {savingPromo ? "Salvando..." : "Salvar Texto"}
+                {savingPromo ? "Salvando..." : "Salvar Textos e Data"}
               </Button>
               <Button onClick={handleResetPromo} variant="outline" size="sm">
                 Resetar (Automático)
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* APPS SCRIPT WEBHOOK SECTION */}
+        <Card className="mb-8 border-emerald-200 dark:border-emerald-900/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Mail className="h-4 w-4 text-emerald-600" />
+              Webhook de E-mails (Google Apps Script)
+            </CardTitle>
+            <CardDescription className="text-xs leading-relaxed">
+              URL do Web App do Google Apps Script que recebe os disparos de e-mail (Reservas, Cotações Corporativas e Contato) com assuntos e textos gerados diretamente pelo site.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label className="text-xs mb-1.5 block">URL do Web App (exec)</Label>
+              <Input
+                value={appsScriptUrl}
+                onChange={e => setAppsScriptUrl(e.target.value)}
+                placeholder="https://script.google.com/macros/s/.../exec"
+                className="text-xs font-mono"
+              />
+            </div>
+            <Button onClick={handleSaveWebhookUrl} disabled={savingWebhook} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" size="sm">
+              {savingWebhook ? "Salvando..." : "Salvar Link do Webhook"}
+            </Button>
           </CardContent>
         </Card>
 

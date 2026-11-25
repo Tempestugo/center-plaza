@@ -48,6 +48,9 @@ const EMPTY_ROOM = {
   bed_type: "", bed_count: 1, max_occupancy: 2, total_units: 1,
   bathroom_type: "", smoking_allowed: false, price_per_night: "", room_number: "",
   stripe_price_id: "",
+  breakfast_mode: "none" as "none" | "included" | "optional",
+  breakfast_price: "",
+  promo_badge_text: "",
   amenities: [] as string[],
 };
 
@@ -389,6 +392,12 @@ export default function AdminHospedagens() {
       try { am = JSON.parse(r.amenities); } catch { am = []; }
     }
 
+    const hasCafeAmenity = am.some(a => typeof a === "string" && a.toLowerCase().includes("café"));
+    const initialBreakfastMode: "none" | "included" | "optional" =
+      r.breakfast_mode === "included" || r.breakfast_mode === "optional" || r.breakfast_mode === "none"
+        ? r.breakfast_mode
+        : (hasCafeAmenity ? "included" : "none");
+
     setRoomForm({
       stripe_price_id: r.stripe_price_id || "",
       hotel_id: String(r.hotel_id ?? ""), 
@@ -398,6 +407,9 @@ export default function AdminHospedagens() {
       max_occupancy: r.max_occupancy ?? 2, total_units: r.total_units ?? 1, bathroom_type: r.bathroom_type ?? "",
       smoking_allowed: r.smoking_allowed ?? false, price_per_night: String(r.price_per_night ?? ""),
       room_number: r.room_number ?? "",
+      breakfast_mode: initialBreakfastMode,
+      breakfast_price: r.breakfast_price != null ? String(r.breakfast_price) : "",
+      promo_badge_text: r.promo_badge_text ?? "",
       amenities: am,
     });
 
@@ -423,14 +435,26 @@ export default function AdminHospedagens() {
     e.preventDefault();
     setSaving(true);
     try {
+      const parsedBfPrice = roomForm.breakfast_mode === "optional" && roomForm.breakfast_price !== ""
+        ? parseFloat(roomForm.breakfast_price)
+        : null;
+
+      const syncedAmenities = roomForm.breakfast_mode === "included"
+        ? Array.from(new Set([...roomForm.amenities, "Café da manhã"]))
+        : roomForm.amenities.filter(a => !a.toLowerCase().includes("café da manhã") && !a.toLowerCase().includes("cafe da manha"));
+
       const payload = {
         hotel_id: parseInt(roomForm.hotel_id) || 1, name: roomForm.name,
         description: roomForm.description, size_sqm: parseFloat(roomForm.size_sqm) || 0,
         bed_type: roomForm.bed_type, bed_count: Number(roomForm.bed_count),
         max_occupancy: Number(roomForm.max_occupancy), total_units: Number(roomForm.total_units), bathroom_type: roomForm.bathroom_type,
         smoking_allowed: roomForm.smoking_allowed, price_per_night: parseFloat(roomForm.price_per_night),
-        amenities: roomForm.amenities,
+        capacity: Number(roomForm.max_occupancy),
+        amenities: syncedAmenities,
         stripe_price_id: roomForm.stripe_price_id || undefined,
+        breakfast_mode: roomForm.breakfast_mode,
+        breakfast_price: parsedBfPrice !== null && !isNaN(parsedBfPrice) ? parsedBfPrice : null,
+        promo_badge_text: roomForm.promo_badge_text.trim() || null,
       };
 
       if (roomModal === "create") {
@@ -849,8 +873,44 @@ export default function AdminHospedagens() {
                       <Input value={roomForm.name} onChange={e => setRoomForm(p => ({ ...p, name: e.target.value }))} placeholder="Ex: Suíte Luxo" required />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Preço por Noite (R$)</Label>
+                      <Label>Preço Base por Noite (R$) — Sem Café / Padrão</Label>
                       <Input type="number" step="0.01" min="0" value={roomForm.price_per_night} onChange={e => setRoomForm(p => ({ ...p, price_per_night: e.target.value }))} required />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Modalidade de Café da Manhã</Label>
+                      <Select
+                        value={roomForm.breakfast_mode}
+                        onValueChange={(val: "none" | "included" | "optional") => setRoomForm(p => ({ ...p, breakfast_mode: val }))}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Tarifa Sem Café da Manhã</SelectItem>
+                          <SelectItem value="optional">Seletor Dinâmico (Sem Café ou Com Café)</SelectItem>
+                          <SelectItem value="included">Café da Manhã Já Incluso no Preço Base</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {roomForm.breakfast_mode === "optional" && (
+                      <div className="space-y-1.5">
+                        <Label className="text-amber-700 dark:text-amber-400 font-semibold">Preço da Diária COM Café da Manhã (R$)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="Ex: 245.00"
+                          value={roomForm.breakfast_price}
+                          onChange={e => setRoomForm(p => ({ ...p, breakfast_price: e.target.value }))}
+                          required
+                        />
+                      </div>
+                    )}
+                    <div className="space-y-1.5">
+                      <Label>Faixa Promocional no Card (Opcional)</Label>
+                      <Input
+                        value={roomForm.promo_badge_text}
+                        onChange={e => setRoomForm(p => ({ ...p, promo_badge_text: e.target.value }))}
+                        placeholder="Deixe em branco para exibir automático"
+                      />
                     </div>
                     <div className="space-y-1.5">
                       <Label>Ocupação Máxima</Label>
@@ -1287,8 +1347,44 @@ export default function AdminHospedagens() {
                   <Input value={roomForm.name} onChange={e => setRoomForm(p => ({ ...p, name: e.target.value }))} placeholder="Ex: Suíte Luxo" required />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Preço por Noite (R$)</Label>
+                  <Label>Preço Base por Noite (R$) — Sem Café / Padrão</Label>
                   <Input type="number" step="0.01" min="0" value={roomForm.price_per_night} onChange={e => setRoomForm(p => ({ ...p, price_per_night: e.target.value }))} required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Modalidade de Café da Manhã</Label>
+                  <Select
+                    value={roomForm.breakfast_mode}
+                    onValueChange={(val: "none" | "included" | "optional") => setRoomForm(p => ({ ...p, breakfast_mode: val }))}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Tarifa Sem Café da Manhã</SelectItem>
+                      <SelectItem value="optional">Seletor Dinâmico (Sem Café ou Com Café)</SelectItem>
+                      <SelectItem value="included">Café da Manhã Já Incluso no Preço Base</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {roomForm.breakfast_mode === "optional" && (
+                  <div className="space-y-1.5">
+                    <Label className="text-amber-700 dark:text-amber-400 font-semibold">Preço da Diária COM Café da Manhã (R$)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="Ex: 245.00"
+                      value={roomForm.breakfast_price}
+                      onChange={e => setRoomForm(p => ({ ...p, breakfast_price: e.target.value }))}
+                      required
+                    />
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <Label>Faixa Promocional no Card (Opcional)</Label>
+                  <Input
+                    value={roomForm.promo_badge_text}
+                    onChange={e => setRoomForm(p => ({ ...p, promo_badge_text: e.target.value }))}
+                    placeholder="Deixe em branco para exibir automático"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Ocupação Máxima</Label>

@@ -3,13 +3,18 @@ import { Button } from "@/components/ui/button";
 import { ArrowDown, MapPin, Coffee, Clock } from "lucide-react";
 import bgHeroImage from "@/assets/bg-hero-hootel.jpg";
 
+const getDefaultPromoText = () => {
+  const now = new Date();
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `Válido até ${lastDay}/${month}`;
+};
+
 const HeroSection = () => {
   const [heroImage, setHeroImage] = useState<string | null>(null);
-  const [promoText, setPromoText] = useState<string>("Válido até 30/10");
-
-  const getDefaultPromoText = () => {
-    return "Válido até 30/10";
-  };
+  const [promoText, setPromoText] = useState<string>(getDefaultPromoText());
+  const [heroPromoTitle, setHeroPromoTitle] = useState<string>("Opções com Café da Manhã");
+  const [heroPromoSubtitle, setHeroPromoSubtitle] = useState<string>("Tarifas especiais com ou sem café");
 
   useEffect(() => {
     fetch('/api/settings/hero_image')
@@ -20,13 +25,31 @@ const HeroSection = () => {
     fetch('/api/settings/promo_text')
       .then(r => r.json())
       .then(d => {
-        if (d.value) {
-          setPromoText(d.value.replace(/31\/10/g, '30/10'));
+        if (d.value && String(d.value).trim()) {
+          setPromoText(String(d.value).trim());
         } else {
-          setPromoText("Válido até 30/10");
+          setPromoText(getDefaultPromoText());
         }
       })
-      .catch(() => setPromoText("Válido até 30/10"));
+      .catch(() => setPromoText(getDefaultPromoText()));
+
+    fetch('/api/settings/hero_promo_title')
+      .then(r => r.json())
+      .then(d => {
+        if (d.value && String(d.value).trim()) {
+          setHeroPromoTitle(String(d.value).trim());
+        }
+      })
+      .catch(() => {});
+
+    fetch('/api/settings/hero_promo_subtitle')
+      .then(r => r.json())
+      .then(d => {
+        if (d.value && String(d.value).trim()) {
+          setHeroPromoSubtitle(String(d.value).trim());
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const scrollToAccommodations = () => {
@@ -91,11 +114,11 @@ const HeroSection = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-white font-semibold text-base group-hover:text-amber-200 transition-colors">Café da Manhã Incluso</p>
+                  <p className="text-white font-semibold text-base group-hover:text-amber-200 transition-colors">{heroPromoTitle}</p>
                   <span className="text-[10px] bg-amber-500/25 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full font-medium shrink-0">Ver quartos ↓</span>
                 </div>
                 <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                  Em suítes selecionadas • {promoText}
+                  {heroPromoSubtitle} • {promoText}
                 </p>
               </div>
             </button>
