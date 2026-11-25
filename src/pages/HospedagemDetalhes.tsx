@@ -239,20 +239,25 @@ if (room.amenities) {
     (a) => typeof a === "string" && a.toLowerCase().includes("café")
   );
   const effectiveBreakfastMode: "none" | "included" | "optional" =
-    room.breakfast_mode === "included" || room.breakfast_mode === "optional" || room.breakfast_mode === "none"
-      ? room.breakfast_mode
-      : hasCafeInAmenities
+    room.breakfast_mode === "included"
       ? "included"
-      : "none";
+      : room.breakfast_mode === "none" && !room.breakfast_price
+      ? (hasCafeInAmenities ? "included" : "optional")
+      : (room.breakfast_mode || (hasCafeInAmenities ? "included" : "optional"));
 
-  const optionalBreakfastNightlyPrice =
-    effectiveBreakfastMode === "optional" && room.breakfast_price != null && Number(room.breakfast_price) > 0
+  const rawBreakfastPrice =
+    room.breakfast_price != null && Number(room.breakfast_price) > 0
       ? Number(room.breakfast_price)
-      : null;
+      : 35;
+
+  const breakfastAddonPerNight =
+    rawBreakfastPrice > baseNightPrice
+      ? Math.round((rawBreakfastPrice - baseNightPrice) * 100) / 100
+      : rawBreakfastPrice;
 
   const extraBreakfastPerNight =
-    withBreakfast && optionalBreakfastNightlyPrice !== null
-      ? Math.max(0, optionalBreakfastNightlyPrice - baseNightPrice)
+    effectiveBreakfastMode === "optional" && withBreakfast
+      ? breakfastAddonPerNight
       : 0;
 
   const baseStayTotal = dynamicTotal !== null ? Number(dynamicTotal) : baseNightPrice * nights;
@@ -276,7 +281,7 @@ if (room.amenities) {
   const breakfastSummaryLabel =
     effectiveBreakfastMode === "included"
       ? "Incluso na diária"
-      : withBreakfast && optionalBreakfastNightlyPrice !== null
+      : withBreakfast
       ? "Com café da manhã"
       : "Sem café da manhã";
 
@@ -511,43 +516,43 @@ if (room.amenities) {
                       </div>
                     </div>
 
-                    {optionalBreakfastNightlyPrice !== null ? (
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-medium block flex items-center gap-1.5">
-                          <Coffee className="w-4 h-4 text-amber-600" />
-                          Opção de Café da Manhã
-                        </label>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setWithBreakfast(false)}
-                            className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
-                              !withBreakfast
-                                ? "border-primary bg-primary/5 ring-1 ring-primary"
-                                : "border-input hover:bg-muted/40"
-                            }`}
-                          >
-                            <div className="text-xs font-bold">Sem Café</div>
-                            <div className="text-xs text-muted-foreground">
-                              R$ {baseNightPrice.toLocaleString("pt-BR")}/noite
+                    {effectiveBreakfastMode === "optional" ? (
+                      <label
+                        htmlFor="include-breakfast-checkbox"
+                        className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all select-none ${
+                          withBreakfast
+                            ? "border-amber-500 bg-amber-500/10 ring-1 ring-amber-500"
+                            : "border-input hover:bg-muted/40"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <input
+                            id="include-breakfast-checkbox"
+                            type="checkbox"
+                            checked={withBreakfast}
+                            onChange={(e) => setWithBreakfast(e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 accent-amber-600 cursor-pointer"
+                          />
+                          <div>
+                            <div className="text-sm font-semibold flex items-center gap-1.5">
+                              <Coffee className="w-4 h-4 text-amber-600" />
+                              Incluir café da manhã
                             </div>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setWithBreakfast(true)}
-                            className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
-                              withBreakfast
-                                ? "border-amber-500 bg-amber-500/10 ring-1 ring-amber-500"
-                                : "border-input hover:bg-muted/40"
-                            }`}
-                          >
-                            <div className="text-xs font-bold text-amber-700 dark:text-amber-400">Com Café</div>
-                            <div className="text-xs text-muted-foreground">
-                              R$ {optionalBreakfastNightlyPrice.toLocaleString("pt-BR")}/noite
+                            <div className="text-[11px] text-muted-foreground">
+                              + R$ {breakfastAddonPerNight.toLocaleString("pt-BR")}/diária (R$ {(baseNightPrice + breakfastAddonPerNight).toLocaleString("pt-BR")}/noite)
                             </div>
-                          </button>
+                          </div>
                         </div>
-                      </div>
+                        <span
+                          className={`text-xs font-bold px-2 py-0.5 rounded shrink-0 ${
+                            withBreakfast
+                              ? "bg-amber-500 text-stone-950"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          + R$ {(breakfastAddonPerNight * nights).toLocaleString("pt-BR")}
+                        </span>
+                      </label>
                     ) : (
                       <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-muted/50 border text-xs font-medium text-muted-foreground">
                         <Coffee className="w-3.5 h-3.5 text-amber-600 shrink-0" />
