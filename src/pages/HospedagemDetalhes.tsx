@@ -59,6 +59,7 @@ const HospedagemDetalhes = () => {
   const [guests, setGuests] = useState(2);
   const [nights, setNights] = useState(3);
   const [withBreakfast, setWithBreakfast] = useState(false);
+  const [defaultBreakfastPrice, setDefaultBreakfastPrice] = useState<number>(35);
   const [dynamicTotal, setDynamicTotal] = useState<number | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -70,6 +71,17 @@ const HospedagemDetalhes = () => {
     if (id) {
       fetchRoomDetails();
     }
+    fetch("/api/settings/default_breakfast_price")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.value !== undefined && d.value !== null && String(d.value).trim() !== "") {
+          const parsed = parseFloat(String(d.value));
+          if (!isNaN(parsed) && parsed >= 0) {
+            setDefaultBreakfastPrice(parsed);
+          }
+        }
+      })
+      .catch(() => {});
   }, [id]);
 
   useEffect(() => {
@@ -248,7 +260,7 @@ if (room.amenities) {
   const rawBreakfastPrice =
     room.breakfast_price != null && Number(room.breakfast_price) > 0
       ? Number(room.breakfast_price)
-      : 35;
+      : defaultBreakfastPrice;
 
   const breakfastAddonPerNight =
     rawBreakfastPrice > baseNightPrice
@@ -288,13 +300,13 @@ if (room.amenities) {
   const whatsappMessage = [
     `Olá! Gostaria de fazer uma reserva no *Center Plaza Hotel*:`,
     ``,
-    `🏨 *Acomodação:* ${accommodation.name}`,
-    `☕ *Regime:* ${breakfastSummaryLabel}`,
-    `📅 *Check-in:* ${formattedCheckIn}`,
-    `📅 *Check-out:* ${formattedCheckOut} (${nights} ${nights === 1 ? "noite" : "noites"})`,
-    `👥 *Hóspedes:* ${guests} ${guests === 1 ? "pessoa" : "pessoas"}`,
-    `💵 *Valor da diária:* R$ ${formattedNightly}/noite`,
-    `💰 *Valor total (${nights} ${nights === 1 ? "diária" : "diárias"}):* R$ ${formattedTotal}`,
+    `• *Acomodação:* ${accommodation.name}`,
+    `• *Regime:* ${breakfastSummaryLabel}`,
+    `• *Check-in:* ${formattedCheckIn}`,
+    `• *Check-out:* ${formattedCheckOut} (${nights} ${nights === 1 ? "noite" : "noites"})`,
+    `• *Hóspedes:* ${guests} ${guests === 1 ? "pessoa" : "pessoas"}`,
+    `• *Valor da diária:* R$ ${formattedNightly}/noite`,
+    `• *Valor total (${nights} ${nights === 1 ? "diária" : "diárias"}):* R$ ${formattedTotal}`,
     ``,
     `Podem confirmar a disponibilidade para essas datas?`,
   ].join("\n");

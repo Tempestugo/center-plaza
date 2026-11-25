@@ -22,7 +22,7 @@ import {
   CheckCircle, XCircle, LayoutGrid, List, RefreshCw,
   DollarSign, CheckSquare, Square, Layers, Power, PowerOff,
   Calendar, Lock, Unlock, Users, ChevronLeft, ChevronRight, CalendarDays, ShieldAlert, Building2, Sparkles,
-  Eye, EyeOff
+  Eye, EyeOff, Coffee
 } from "lucide-react";
 
 const BED_TYPE_OCCUPANCY: Record<string, number> = {
@@ -101,8 +101,45 @@ export default function AdminHospedagens() {
   const [batchProcessing, setBatchProcessing] = useState(false);
   const [bulkPriceModalOpen, setBulkPriceModalOpen] = useState(false);
   const [bulkPriceInput, setBulkPriceInput] = useState("");
+  const [defaultBreakfastPrice, setDefaultBreakfastPrice] = useState("35");
+  const [savingBreakfast, setSavingBreakfast] = useState(false);
+
+  const handleSaveDefaultBreakfast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsed = parseFloat(defaultBreakfastPrice);
+    if (isNaN(parsed) || parsed < 0) {
+      toast.error("Informe um valor válido para o café da manhã");
+      return;
+    }
+    setSavingBreakfast(true);
+    try {
+      const token = localStorage.getItem("admin_token");
+      const res = await fetch("/api/settings/default_breakfast_price", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ value: String(parsed) }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success(`Valor do café da manhã atualizado para R$ ${parsed.toLocaleString("pt-BR")}!`);
+    } catch {
+      toast.error("Erro ao salvar valor do café da manhã");
+    } finally {
+      setSavingBreakfast(false);
+    }
+  };
 
   const loadRooms = useCallback(async () => {
+    fetch("/api/settings/default_breakfast_price")
+      .then(r => r.json())
+      .then(d => {
+        if (d.value !== undefined && d.value !== null && String(d.value).trim() !== "") {
+          setDefaultBreakfastPrice(String(d.value));
+        }
+      })
+      .catch(() => {});
     setLoading(true);
     try {
       let data: RoomType[];
@@ -544,6 +581,40 @@ export default function AdminHospedagens() {
           <h2 className="text-2xl font-bold tracking-tight">Hospedagens</h2>
           <p className="text-muted-foreground text-sm mt-0.5">Gerencie a disponibilidade e altere quartos individualmente ou em massa</p>
         </div>
+
+        <Card className="border-amber-300 dark:border-amber-800 bg-amber-50/40 dark:bg-amber-950/20">
+          <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                <Coffee className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold">Valor Padrão do Café da Manhã (Adicional por Diária)</h3>
+                <p className="text-xs text-muted-foreground">
+                  Valor somado automaticamente na calculadora dos quartos quando o cliente marca &ldquo;Incluir café da manhã&rdquo;.
+                </p>
+              </div>
+            </div>
+            <form onSubmit={handleSaveDefaultBreakfast} className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-36">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">R$</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={defaultBreakfastPrice}
+                  onChange={e => setDefaultBreakfastPrice(e.target.value)}
+                  className="pl-8 h-9 text-sm font-semibold bg-background"
+                  placeholder="35.00"
+                  required
+                />
+              </div>
+              <Button type="submit" size="sm" disabled={savingBreakfast} className="h-9 bg-amber-600 hover:bg-amber-700 text-white shrink-0">
+                {savingBreakfast ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar Valor"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
         <div className="grid gap-4 grid-cols-3">
           {[

@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Home, Calendar, DollarSign, TrendingUp, MapPin, Loader2, RefreshCw } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Users, Home, Calendar, DollarSign, TrendingUp, MapPin, Loader2, RefreshCw, Coffee } from "lucide-react";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -35,6 +37,8 @@ const AdminDashboard = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [roomCount,    setRoomCount]    = useState(0);
   const [loading, setLoading]           = useState(true);
+  const [breakfastPrice, setBreakfastPrice] = useState<string>("35");
+  const [savingBreakfast, setSavingBreakfast] = useState<boolean>(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -50,7 +54,42 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false);
     }
+    fetch("/api/settings/default_breakfast_price")
+      .then(r => r.json())
+      .then(d => {
+        if (d.value !== undefined && d.value !== null && String(d.value).trim() !== "") {
+          setBreakfastPrice(String(d.value));
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  const handleSaveBreakfastPrice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsed = parseFloat(breakfastPrice);
+    if (isNaN(parsed) || parsed < 0) {
+      toast.error("Informe um valor válido para o café da manhã");
+      return;
+    }
+    setSavingBreakfast(true);
+    try {
+      const token = localStorage.getItem("admin_token");
+      const res = await fetch("/api/settings/default_breakfast_price", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ value: String(parsed) }),
+      });
+      if (!res.ok) throw new Error("Falha ao salvar");
+      toast.success(`Valor do café da manhã atualizado para R$ ${parsed.toLocaleString("pt-BR")}!`);
+    } catch {
+      toast.error("Erro ao salvar valor do café da manhã");
+    } finally {
+      setSavingBreakfast(false);
+    }
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -140,6 +179,41 @@ const AdminDashboard = () => {
             Bem-vindo ao painel de controle do Center Plaza
           </p>
         </div>
+
+        {/* Configuração rápida do Valor do Café da Manhã no Painel Principal */}
+        <Card className="border-amber-300 dark:border-amber-800 bg-amber-50/40 dark:bg-amber-950/20">
+          <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                <Coffee className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold">Valor do Café da Manhã (Adicional por Diária)</h3>
+                <p className="text-xs text-muted-foreground">
+                  Define o valor somado automaticamente na calculadora dos quartos quando o cliente marca a opção &ldquo;Incluir café da manhã&rdquo;.
+                </p>
+              </div>
+            </div>
+            <form onSubmit={handleSaveBreakfastPrice} className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-36">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">R$</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={breakfastPrice}
+                  onChange={e => setBreakfastPrice(e.target.value)}
+                  className="pl-8 h-9 text-sm font-semibold bg-background"
+                  placeholder="35.00"
+                  required
+                />
+              </div>
+              <Button type="submit" size="sm" disabled={savingBreakfast} className="h-9 bg-amber-600 hover:bg-amber-700 text-white shrink-0">
+                {savingBreakfast ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar Valor"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
         {}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
