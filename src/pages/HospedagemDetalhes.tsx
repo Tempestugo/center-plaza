@@ -57,7 +57,7 @@ const HospedagemDetalhes = () => {
   const [checkInStr, setCheckInStr] = useState<string>(todayStr);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [guests, setGuests] = useState(2);
-  const [nights, setNights] = useState(3);
+  const [nights, setNights] = useState(1);
   const [withBreakfast, setWithBreakfast] = useState(false);
   const [defaultBreakfastPrice, setDefaultBreakfastPrice] = useState<number>(35);
   const [dynamicTotal, setDynamicTotal] = useState<number | null>(null);
@@ -247,15 +247,8 @@ if (room.amenities) {
   };
 
   const baseNightPrice = Number(accommodation.price) || 0;
-  const hasCafeInAmenities = amenities.some(
-    (a) => typeof a === "string" && a.toLowerCase().includes("café")
-  );
   const effectiveBreakfastMode: "none" | "included" | "optional" =
-    room.breakfast_mode === "included"
-      ? "included"
-      : room.breakfast_mode === "none" && !room.breakfast_price
-      ? (hasCafeInAmenities ? "included" : "optional")
-      : (room.breakfast_mode || (hasCafeInAmenities ? "included" : "optional"));
+    room.breakfast_mode === "included" ? "included" : "optional";
 
   const rawBreakfastPrice =
     room.breakfast_price != null && Number(room.breakfast_price) > 0
@@ -551,7 +544,7 @@ if (room.amenities) {
                               Incluir café da manhã
                             </div>
                             <div className="text-[11px] text-muted-foreground">
-                              + R$ {breakfastAddonPerNight.toLocaleString("pt-BR")}/diária (R$ {(baseNightPrice + breakfastAddonPerNight).toLocaleString("pt-BR")}/noite)
+                              Diária com café: R$ {(baseNightPrice + breakfastAddonPerNight).toLocaleString("pt-BR")}/noite
                             </div>
                           </div>
                         </div>
@@ -562,7 +555,7 @@ if (room.amenities) {
                               : "bg-muted text-muted-foreground"
                           }`}
                         >
-                          + R$ {(breakfastAddonPerNight * nights).toLocaleString("pt-BR")}
+                          + R$ {breakfastAddonPerNight.toLocaleString("pt-BR")}/diária
                         </span>
                       </label>
                     ) : (

@@ -89,12 +89,10 @@ const AccommodationCard = ({
   }, []);
 
   const effectiveBreakfastMode: 'none' | 'included' | 'optional' =
-    breakfastMode === 'included' || breakfastMode === 'optional' || breakfastMode === 'none'
-      ? breakfastMode
-      : (hasCafe(amenities) ? 'included' : 'none');
+    breakfastMode === 'included' ? 'included' : 'optional';
 
   const includesCafe = effectiveBreakfastMode === 'included';
-  const hasOptionalCafe = effectiveBreakfastMode === 'optional' && typeof breakfastPrice === 'number' && breakfastPrice > 0;
+  const hasOptionalCafe = effectiveBreakfastMode === 'optional';
 
   const otherAmenities = (amenities || []).filter(
     a => !hasCafe([a])
@@ -140,7 +138,7 @@ const AccommodationCard = ({
         </div>
 
         {/* Faixa âmbar na base da foto — Café incluso, Café opcional ou Destaque customizado do quarto */}
-        {isActive && (includesCafe || hasOptionalCafe || promoBadgeText) && (
+        {isActive && (includesCafe || hasCafe(amenities) || promoBadgeText) && (
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-stone-950 py-1.5 px-3 flex items-center justify-between font-semibold shadow-md">
             <div className="flex items-center gap-1.5 text-xs truncate pr-2">
               <Coffee className="w-3.5 h-3.5 shrink-0" />
@@ -149,7 +147,7 @@ const AccommodationCard = ({
                   ? promoBadgeText
                   : includesCafe
                   ? "Café da manhã incluso"
-                  : `Opção c/ café: R$ ${Number(breakfastPrice).toLocaleString("pt-BR")}`}
+                  : "Opção com café da manhã"}
               </span>
             </div>
             <div className="flex items-center gap-1 text-[11px] font-bold bg-black/15 px-2 py-0.5 rounded-full shrink-0">
@@ -224,9 +222,7 @@ const AccommodationCard = ({
               <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
                 {includesCafe
                   ? "✓ Com café da manhã incluso"
-                  : hasOptionalCafe
-                  ? `Sem café • Com café: R$ ${Number(breakfastPrice).toLocaleString("pt-BR")}/noite`
-                  : "Tarifa sem café da manhã"}
+                  : "Tarifa sem café • Opção c/ café na reserva"}
               </p>
             </div>
           </div>
