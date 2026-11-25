@@ -264,6 +264,10 @@ if (room.amenities) {
   const checkOutStr = format(checkOutDateObj, "yyyy-MM-dd");
   const formattedCheckIn = format(checkInDateObj, "dd/MM/yyyy");
   const formattedCheckOut = format(checkOutDateObj, "dd/MM/yyyy");
+  const formattedNightly = displayedNightPrice.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
   const formattedTotal = totalPrice.toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -280,11 +284,12 @@ if (room.amenities) {
     `Olá! Gostaria de fazer uma reserva no *Center Plaza Hotel*:`,
     ``,
     `🏨 *Acomodação:* ${accommodation.name}`,
-    `☕ *Café da manhã:* ${breakfastSummaryLabel}`,
+    `☕ *Regime:* ${breakfastSummaryLabel}`,
     `📅 *Check-in:* ${formattedCheckIn}`,
     `📅 *Check-out:* ${formattedCheckOut} (${nights} ${nights === 1 ? "noite" : "noites"})`,
     `👥 *Hóspedes:* ${guests} ${guests === 1 ? "pessoa" : "pessoas"}`,
-    `💰 *Valor estimado:* R$ ${formattedTotal}`,
+    `💵 *Valor da diária:* R$ ${formattedNightly}/noite`,
+    `💰 *Valor total (${nights} ${nights === 1 ? "diária" : "diárias"}):* R$ ${formattedTotal}`,
     ``,
     `Podem confirmar a disponibilidade para essas datas?`,
   ].join("\n");

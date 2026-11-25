@@ -437,7 +437,7 @@ async function sendWebhookNotification(reservation) {
 }
 
 async function getAppsScriptWebhookUrl() {
-  const DEFAULT_URL = 'https://script.google.com/macros/s/AKfycbxDJPK9zO37UGx-wm1lcVp9coABGtvkMnerpMiCSpD7hBoE2IUIRW2VBVNLJsBYtXFUiQ/exec';
+  const DEFAULT_URL = 'https://script.google.com/macros/s/AKfycbwotXDrK8KoDZcOVhdsPyrNHfMVKYy62y2idnQ2J2b_AdQqfe31TLRofNF9xKv2uPz_tw/exec';
   try {
     const db = await getDb();
     const [[row]] = await db.query("SELECT value FROM settings WHERE `key` = 'apps_script_webhook_url'");
@@ -445,7 +445,7 @@ async function getAppsScriptWebhookUrl() {
       return row.value.trim();
     }
   } catch (e) { }
-  if (process.env.APPS_SCRIPT_WEBHOOK_URL && process.env.APPS_SCRIPT_WEBHOOK_URL.includes('AKfycbxDJPK9zO37UGx-wm1lcVp9coABGtvkMnerpMiCSpD7hBoE2IUIRW2VBVNLJsBYtXFUiQ')) {
+  if (process.env.APPS_SCRIPT_WEBHOOK_URL && process.env.APPS_SCRIPT_WEBHOOK_URL.includes('AKfycbwotXDrK8KoDZcOVhdsPyrNHfMVKYy62y2idnQ2J2b_AdQqfe31TLRofNF9xKv2uPz_tw')) {
     return process.env.APPS_SCRIPT_WEBHOOK_URL;
   }
   return DEFAULT_URL;
@@ -565,10 +565,7 @@ router.get('/admin/test-email-webhook', async (req, res) => {
     payment_status: 'paid'
   };
 
-  const TARGET_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDJPK9zO37UGx-wm1lcVp9coABGtvkMnerpMiCSpD7hBoE2IUIRW2VBVNLJsBYtXFUiQ/exec';
-  const appsScriptUrl = (process.env.APPS_SCRIPT_WEBHOOK_URL && process.env.APPS_SCRIPT_WEBHOOK_URL.includes('AKfycbxDJPK9zO37UGx-wm1lcVp9coABGtvkMnerpMiCSpD7hBoE2IUIRW2VBVNLJsBYtXFUiQ'))
-    ? process.env.APPS_SCRIPT_WEBHOOK_URL
-    : TARGET_APPS_SCRIPT_URL;
+  const appsScriptUrl = await getAppsScriptWebhookUrl();
 
   console.log(`[Test Email Webhook] Disparando teste para ${appsScriptUrl}...`);
   try {
