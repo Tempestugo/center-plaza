@@ -128,16 +128,12 @@ const AccommodationCard = ({
           />
         </div>
 
-        {/* Badge top-left: esgotado, Black Friday ou destaque */}
+        {/* Badge top-left: esgotado ou destaque (quando não for Black Friday, pois Black Friday já tem a faixa no topo) */}
         {!isActive ? (
           <Badge className="absolute top-4 left-4 bg-rose-600 text-white font-semibold shadow-md">
             🔴 Reservas Esgotadas
           </Badge>
-        ) : isBlackFridayRoom ? (
-          <Badge className="absolute top-4 left-4 bg-stone-950 text-amber-400 border border-amber-400/60 font-extrabold shadow-lg tracking-wide">
-            🔥 BLACK FRIDAY • 3ª DIÁRIA GRÁTIS
-          </Badge>
-        ) : featured ? (
+        ) : !isBlackFridayRoom && featured ? (
           <Badge className="absolute top-4 left-4 bg-amber-500 text-stone-950 font-bold shadow-md">
             ⭐ Mais Reservado
           </Badge>
