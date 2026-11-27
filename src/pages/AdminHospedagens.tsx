@@ -275,7 +275,7 @@ export default function AdminHospedagens() {
     const isCurrentlyBf = Number(room.black_friday_promo) === 1;
     const newVal = isCurrentlyBf ? 0 : 1;
     try {
-      await roomService.update(room.id, { ...room, black_friday_promo: newVal } as any);
+      await roomService.update(room.id, { black_friday_promo: newVal } as any);
       setRooms(prev => prev.map(r => r.id === room.id ? { ...r, black_friday_promo: newVal } : r));
       toast.success(newVal === 1 ? `Black Friday (3ª Diária Grátis) ativada em "${room.name}"!` : `Black Friday desativada em "${room.name}"`);
     } catch (err: any) {

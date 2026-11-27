@@ -108,11 +108,17 @@ const AccommodationCard = ({
   return (
     <Card
       onClick={goToDetails}
-      className={`card-elegant group overflow-hidden h-full flex flex-col cursor-pointer transition-all duration-300 hover:shadow-2xl hover:-translate-y-1.5 border border-stone-200/80 dark:border-stone-800
-        ${!isActive ? "opacity-90 bg-muted/20" : "bg-card"}
-        ${isActive ? "ring-1 ring-amber-400/40 hover:ring-amber-400" : ""}
+      className={`card-elegant group overflow-hidden h-full flex flex-col cursor-pointer transition-all duration-300 hover:shadow-2xl hover:-translate-y-1.5
+        ${!isActive ? "opacity-90 bg-muted/20 border border-stone-200/80 dark:border-stone-800" : "bg-card"}
+        ${isActive && isBlackFridayRoom ? "border-2 border-amber-500 ring-2 ring-amber-400/50 shadow-[0_0_28px_rgba(245,158,11,0.22)]" : isActive ? "border border-stone-200/80 dark:border-stone-800 ring-1 ring-amber-400/40 hover:ring-amber-400" : ""}
       `}
     >
+      {isActive && isBlackFridayRoom && (
+        <div className="bg-gradient-to-r from-stone-950 via-neutral-900 to-stone-950 text-amber-400 px-4 py-1.5 text-[11px] font-extrabold tracking-wider uppercase flex items-center justify-between border-b border-amber-500/40">
+          <span>🔥 BLACK FRIDAY CENTER PLAZA</span>
+          <span className="bg-amber-400 text-stone-950 px-2 py-0.5 rounded font-black text-[10px]">3ª DIÁRIA GRÁTIS</span>
+        </div>
+      )}
       <div className="relative">
         <div className="image-overlay h-64 overflow-hidden">
           <img
@@ -268,14 +274,18 @@ const AccommodationCard = ({
             </Button>
             {isActive ? (
               <Button
-                className="flex-1 text-xs sm:text-sm cursor-pointer font-bold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 shadow-md"
+                className={`flex-1 text-xs sm:text-sm cursor-pointer font-bold shadow-md ${
+                  isBlackFridayRoom
+                    ? "bg-stone-950 hover:bg-stone-900 text-amber-400 border border-amber-400/60"
+                    : "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950"
+                }`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  gtmEvent("click_reservar", { quarto: name, preco: price });
+                  gtmEvent("click_reservar", { quarto: name, preco: price, black_friday: isBlackFridayRoom });
                   goToDetails();
                 }}
               >
-                Reservar
+                {isBlackFridayRoom ? "🔥 Aproveitar Oferta" : "Reservar"}
               </Button>
             ) : (
               <Button

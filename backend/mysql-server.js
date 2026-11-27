@@ -1022,7 +1022,7 @@ router.get('/rooms', async (req, res) => {
   try {
     const db = await getDb();
     const [rows] = await db.query(
-      'SELECT rt.*, h.name as hotel_name FROM room_types rt JOIN hotels h ON rt.hotel_id = h.id WHERE rt.is_visible IS NULL OR rt.is_visible = 1 ORDER BY rt.created_at DESC');
+      'SELECT rt.*, h.name as hotel_name FROM room_types rt JOIN hotels h ON rt.hotel_id = h.id WHERE rt.is_visible IS NULL OR rt.is_visible = 1 ORDER BY COALESCE(rt.black_friday_promo, 0) DESC, rt.created_at DESC');
     res.json(await roomsWithImages(db, rows));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
