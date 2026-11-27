@@ -59,6 +59,7 @@ const HospedagemDetalhes = () => {
   const [guests, setGuests] = useState(2);
   const [nights, setNights] = useState(1);
   const [withBreakfast, setWithBreakfast] = useState(false);
+  const [applyBlackFriday, setApplyBlackFriday] = useState(false);
   const [defaultBreakfastPrice, setDefaultBreakfastPrice] = useState<number>(35);
   const [dynamicTotal, setDynamicTotal] = useState<number | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -266,15 +267,38 @@ if (room.amenities) {
       : 0;
 
   const baseStayTotal = dynamicTotal !== null ? Number(dynamicTotal) : baseNightPrice * nights;
-  const totalPrice = Math.round((baseStayTotal + extraBreakfastPerNight * nights) * 100) / 100;
-  const displayedNightPrice = Math.round((totalPrice / nights) * 100) / 100;
+  const subtotalPrice = Math.round((baseStayTotal + extraBreakfastPerNight * nights) * 100) / 100;
+  const displayedNightPrice = Math.round((subtotalPrice / nights) * 100) / 100;
 
   const checkInDateObj = parseLocalYmd(checkInStr);
   const checkOutDateObj = addDays(checkInDateObj, nights);
   const checkOutStr = format(checkOutDateObj, "yyyy-MM-dd");
   const formattedCheckIn = format(checkInDateObj, "dd/MM/yyyy");
   const formattedCheckOut = format(checkOutDateObj, "dd/MM/yyyy");
+
+  const hasBlackFridayPromo = Number((room as any).black_friday_promo) === 1;
+  const checkInMonth = checkInDateObj.getMonth() + 1; // 1 = Jan, 2 = Feb
+  const isJanFebStay = checkInMonth === 1 || checkInMonth === 2;
+  const isEligibleForFreeThirdNight = hasBlackFridayPromo && isJanFebStay && nights >= 3;
+  const blackFridayDiscount = isEligibleForFreeThirdNight ? displayedNightPrice : 0;
+  const totalPrice = Math.max(0, Math.round((subtotalPrice - blackFridayDiscount) * 100) / 100);
+
+  const handleToggleBlackFridayPromo = (checked: boolean) => {
+    setApplyBlackFriday(checked);
+    if (checked) {
+      if (nights < 3) setNights(3);
+      if (checkInMonth !== 1 && checkInMonth !== 2) {
+        const nextJanYear = new Date().getMonth() >= 2 ? new Date().getFullYear() + 1 : new Date().getFullYear();
+        setCheckInStr(`${nextJanYear}-01-01`);
+      }
+    }
+  };
+
   const formattedNightly = displayedNightPrice.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const formattedDiscount = blackFridayDiscount.toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -290,19 +314,29 @@ if (room.amenities) {
       ? "Com café da manhã"
       : "Sem café da manhã";
 
-  const whatsappMessage = [
+  const whatsappLines = [
     `Olá! Gostaria de fazer uma reserva no *Center Plaza Hotel*:`,
     ``,
     `• *Acomodação:* ${accommodation.name}`,
+    ...(hasBlackFridayPromo
+      ? [
+          `• *Campanha:* Black Friday - 3ª Diária por nossa conta (Reservas de 01/01 a 28/02)`,
+        ]
+      : []),
     `• *Regime:* ${breakfastSummaryLabel}`,
     `• *Check-in:* ${formattedCheckIn}`,
     `• *Check-out:* ${formattedCheckOut} (${nights} ${nights === 1 ? "noite" : "noites"})`,
     `• *Hóspedes:* ${guests} ${guests === 1 ? "pessoa" : "pessoas"}`,
     `• *Valor da diária:* R$ ${formattedNightly}/noite`,
+    ...(blackFridayDiscount > 0
+      ? [`• *Benefício Black Friday (3ª diária grátis):* - R$ ${formattedDiscount}`]
+      : []),
     `• *Valor total (${nights} ${nights === 1 ? "diária" : "diárias"}):* R$ ${formattedTotal}`,
     ``,
     `Podem confirmar a disponibilidade para essas datas?`,
-  ].join("\n");
+  ];
+
+  const whatsappMessage = whatsappLines.join("\n");
 
   const whatsappBookingUrl = `https://wa.me/551132893757?text=${encodeURIComponent(whatsappMessage)}`;
 
@@ -521,6 +555,38 @@ if (room.amenities) {
                       </div>
                     </div>
 
+                    {hasBlackFridayPromo && (
+                      <label
+                        htmlFor="black-friday-promo-checkbox"
+                        className={`flex items-start justify-between p-3 rounded-lg border cursor-pointer transition-all select-none ${
+                          applyBlackFriday || isEligibleForFreeThirdNight
+                            ? "border-amber-400 bg-stone-950 text-white ring-1 ring-amber-400 shadow-md"
+                            : "border-amber-500/50 bg-stone-950/90 text-white hover:bg-stone-950"
+                        }`}
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <input
+                            id="black-friday-promo-checkbox"
+                            type="checkbox"
+                            checked={applyBlackFriday || isEligibleForFreeThirdNight}
+                            onChange={(e) => handleToggleBlackFridayPromo(e.target.checked)}
+                            className="mt-0.5 h-4 w-4 rounded border-amber-400 text-amber-500 focus:ring-amber-500 accent-amber-500 cursor-pointer"
+                          />
+                          <div className="space-y-0.5">
+                            <div className="text-xs font-extrabold text-amber-400 uppercase tracking-wide">
+                              Black Friday • 3ª Diária Grátis
+                            </div>
+                            <div className="text-[11px] text-stone-200 leading-snug">
+                              Na compra de 2 diárias, a <strong>3ª sai por nossa conta</strong>! Válido até o fim deste mês para reservas de <strong>01/01 a 28/02</strong>.
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-amber-400 text-stone-950 shrink-0 ml-2">
+                          3ª GRÁTIS
+                        </span>
+                      </label>
+                    )}
+
                     {effectiveBreakfastMode === "optional" ? (
                       <label
                         htmlFor="include-breakfast-checkbox"
@@ -636,8 +702,14 @@ if (room.amenities) {
                     <div className="border-t pt-4">
                       <div className="flex justify-between mb-2">
                         <span>R$ {displayedNightPrice.toLocaleString("pt-BR")} x {nights} {nights === 1 ? "noite" : "noites"}</span>
-                        <span>R$ {totalPrice.toLocaleString("pt-BR")}</span>
+                        <span>R$ {subtotalPrice.toLocaleString("pt-BR")}</span>
                       </div>
+                      {blackFridayDiscount > 0 && (
+                        <div className="flex justify-between mb-2 text-amber-600 dark:text-amber-400 font-semibold text-sm">
+                          <span>Black Friday (3ª diária grátis)</span>
+                          <span>- R$ {blackFridayDiscount.toLocaleString("pt-BR")}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between mb-2 text-muted-foreground text-sm">
                         <span>Regime</span>
                         <span className="font-medium text-foreground">{breakfastSummaryLabel}</span>

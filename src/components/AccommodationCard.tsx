@@ -22,6 +22,7 @@ interface AccommodationCardProps {
   breakfastMode?: 'none' | 'included' | 'optional';
   breakfastPrice?: number | null;
   promoBadgeText?: string | null;
+  blackFridayPromo?: boolean;
 }
 
 const getDefaultShortPromoDate = () => {
@@ -68,8 +69,10 @@ const AccommodationCard = ({
   breakfastMode,
   breakfastPrice,
   promoBadgeText,
+  blackFridayPromo,
 }: AccommodationCardProps) => {
   const navigate = useNavigate();
+  const isBlackFridayRoom = Boolean(blackFridayPromo);
   const [promoText, setPromoText] = useState<string>(getDefaultShortPromoDate());
 
   useEffect(() => {
@@ -119,10 +122,14 @@ const AccommodationCard = ({
           />
         </div>
 
-        {/* Badge top-left: esgotado ou destaque */}
+        {/* Badge top-left: esgotado, Black Friday ou destaque */}
         {!isActive ? (
           <Badge className="absolute top-4 left-4 bg-rose-600 text-white font-semibold shadow-md">
             🔴 Reservas Esgotadas
+          </Badge>
+        ) : isBlackFridayRoom ? (
+          <Badge className="absolute top-4 left-4 bg-stone-950 text-amber-400 border border-amber-400/60 font-extrabold shadow-lg tracking-wide">
+            🔥 BLACK FRIDAY • 3ª DIÁRIA GRÁTIS
           </Badge>
         ) : featured ? (
           <Badge className="absolute top-4 left-4 bg-amber-500 text-stone-950 font-bold shadow-md">
@@ -137,8 +144,18 @@ const AccommodationCard = ({
           <span className="text-[11px] text-stone-300">({reviewCount})</span>
         </div>
 
-        {/* Faixa âmbar na base da foto — Café incluso, Café opcional ou Destaque customizado do quarto */}
-        {isActive && (includesCafe || hasCafe(amenities) || promoBadgeText) && (
+        {/* Faixa na base da foto — Black Friday (3ª diária por nossa conta) ou Café/Promo */}
+        {isActive && isBlackFridayRoom ? (
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-stone-950 via-stone-900 to-stone-950 text-amber-400 border-t border-amber-500/40 py-1.5 px-3 flex items-center justify-between font-bold shadow-md">
+            <div className="flex items-center gap-1.5 text-xs truncate pr-2">
+              <span>🎁 3ª Diária por nossa conta (01/01 a 28/02)</span>
+            </div>
+            <div className="flex items-center gap-1 text-[10px] font-extrabold bg-amber-500 text-stone-950 px-2 py-0.5 rounded-full shrink-0">
+              <Clock className="w-3 h-3" />
+              <span>Até {promoText}</span>
+            </div>
+          </div>
+        ) : isActive && (includesCafe || hasCafe(amenities) || promoBadgeText) ? (
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-stone-950 py-1.5 px-3 flex items-center justify-between font-semibold shadow-md">
             <div className="flex items-center gap-1.5 text-xs truncate pr-2">
               <Coffee className="w-3.5 h-3.5 shrink-0" />
@@ -155,7 +172,7 @@ const AccommodationCard = ({
               <span>Até {promoText}</span>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
 
       <CardContent className="p-5 sm:p-6 flex flex-col flex-1">
@@ -199,6 +216,17 @@ const AccommodationCard = ({
               </span>
             )}
           </div>
+
+          {isActive && isBlackFridayRoom && (
+            <div className="mt-3 p-2.5 rounded-lg bg-stone-950 text-white border border-amber-500/40 shadow-sm">
+              <p className="text-[11px] font-extrabold text-amber-400 uppercase tracking-wide flex items-center gap-1">
+                🔥 Black Friday Center Plaza
+              </p>
+              <p className="text-[11px] text-stone-200 leading-snug mt-0.5">
+                Na compra de 2 diárias, a <strong className="text-amber-300">3ª diária sai por nossa conta</strong>! Válido até {promoText} para reservas de <strong>01/01 a 28/02</strong>.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="mt-5 pt-3.5 border-t border-border/80">

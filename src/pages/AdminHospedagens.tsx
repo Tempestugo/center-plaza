@@ -51,6 +51,7 @@ const EMPTY_ROOM = {
   breakfast_mode: "none" as "none" | "included" | "optional",
   breakfast_price: "",
   promo_badge_text: "",
+  black_friday_promo: false,
   amenities: [] as string[],
 };
 
@@ -269,6 +270,21 @@ export default function AdminHospedagens() {
     }
   };
 
+  const toggleBlackFriday = async (room: RoomType) => {
+    setTogglingId(room.id);
+    const isCurrentlyBf = Number(room.black_friday_promo) === 1;
+    const newVal = isCurrentlyBf ? 0 : 1;
+    try {
+      await roomService.update(room.id, { ...room, black_friday_promo: newVal } as any);
+      setRooms(prev => prev.map(r => r.id === room.id ? { ...r, black_friday_promo: newVal } : r));
+      toast.success(newVal === 1 ? `Black Friday (3ª Diária Grátis) ativada em "${room.name}"!` : `Black Friday desativada em "${room.name}"`);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao alterar promoção Black Friday");
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   const fmtDate = (dStr: string) => {
     if (!dStr) return "";
     const parts = dStr.split("T")[0].split("-");
@@ -447,6 +463,7 @@ export default function AdminHospedagens() {
       breakfast_mode: initialBreakfastMode,
       breakfast_price: r.breakfast_price != null ? String(r.breakfast_price) : "",
       promo_badge_text: r.promo_badge_text ?? "",
+      black_friday_promo: Number(r.black_friday_promo) === 1,
       amenities: am,
     });
 
@@ -492,6 +509,7 @@ export default function AdminHospedagens() {
         breakfast_mode: roomForm.breakfast_mode,
         breakfast_price: parsedBfPrice !== null && !isNaN(parsedBfPrice) ? parsedBfPrice : null,
         promo_badge_text: roomForm.promo_badge_text.trim() || null,
+        black_friday_promo: roomForm.black_friday_promo ? 1 : 0,
       };
 
       if (roomModal === "create") {
@@ -730,6 +748,17 @@ export default function AdminHospedagens() {
                       {togglingId === room.id
                         ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
                         : <Switch checked={room.is_visible !== 0 && room.is_visible !== false} onCheckedChange={() => toggleVisibility(room)} className="scale-75" title={room.is_visible !== 0 && room.is_visible !== false ? "Ocultar do catálogo" : "Exibir no catálogo"} />
+                      }
+                    </div>
+
+                    {/* Promoção Black Friday (3ª Diária Grátis) */}
+                    <div className="flex items-center justify-between pt-0.5">
+                      <span className={`font-medium flex items-center gap-1 ${Number(room.black_friday_promo) === 1 ? "text-amber-600 font-bold" : "text-stone-400"}`}>
+                        <Sparkles className="w-3 h-3" /> Black Friday (3ª Grátis)
+                      </span>
+                      {togglingId === room.id
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                        : <Switch checked={Number(room.black_friday_promo) === 1} onCheckedChange={() => toggleBlackFriday(room)} className="scale-75" title="Ativar/Desativar Black Friday: 3ª Diária por nossa conta (01/01 a 28/02)" />
                       }
                     </div>
                   </div>
@@ -981,6 +1010,21 @@ export default function AdminHospedagens() {
                         value={roomForm.promo_badge_text}
                         onChange={e => setRoomForm(p => ({ ...p, promo_badge_text: e.target.value }))}
                         placeholder="Deixe em branco para exibir automático"
+                      />
+                    </div>
+                    <div className="col-span-1 md:col-span-2 p-3.5 rounded-lg border border-amber-500/50 bg-stone-950 text-white flex items-center justify-between gap-4">
+                      <div className="space-y-0.5">
+                        <div className="text-sm font-bold text-amber-400 flex items-center gap-1.5">
+                          <Sparkles className="w-4 h-4" />
+                          Promoção Black Friday — 3ª Diária por Nossa Conta
+                        </div>
+                        <p className="text-xs text-stone-300">
+                          Exibe o destaque de Black Friday neste quarto: na compra de 2 diárias, a 3ª diária sai grátis (válido até o fim deste mês para reservas de 01/01 a 28/02) e envia essa condição na mensagem do WhatsApp.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={roomForm.black_friday_promo}
+                        onCheckedChange={(checked) => setRoomForm(p => ({ ...p, black_friday_promo: checked }))}
                       />
                     </div>
                     <div className="space-y-1.5">

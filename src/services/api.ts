@@ -55,6 +55,7 @@ export interface RoomType {
   breakfast_mode?: 'none' | 'included' | 'optional';
   breakfast_price?: number | null;
   promo_badge_text?: string | null;
+  black_friday_promo?: number | boolean;
 }
 
 export interface Reservation {

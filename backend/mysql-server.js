@@ -213,6 +213,10 @@ async function initDatabase() {
   try { await db.query("ALTER TABLE room_types ADD COLUMN breakfast_mode VARCHAR(30) DEFAULT 'none'"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
   try { await db.query("ALTER TABLE room_types ADD COLUMN breakfast_price DECIMAL(10,2) DEFAULT NULL"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
   try { await db.query("ALTER TABLE room_types ADD COLUMN promo_badge_text VARCHAR(255) DEFAULT NULL"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+  try {
+    await db.query("ALTER TABLE room_types ADD COLUMN black_friday_promo BOOLEAN DEFAULT 0");
+    await db.query("UPDATE room_types SET black_friday_promo = 1 WHERE id = 1");
+  } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
   try { await db.query("ALTER TABLE settings MODIFY COLUMN value LONGTEXT"); } catch (e) { }
   try { await db.query("ALTER TABLE reservations ADD COLUMN card_holder_name TEXT"); } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
   // Limpar tarifas anuais antigas sem rótulo que sobrescreviam o preço base (ex: 205 sobre 206)
@@ -1279,10 +1283,10 @@ router.post('/rooms', requireAuth, async (req, res) => {
       ? parseFloat(breakfast_price)
       : null;
     const [r] = await db.execute(
-      'INSERT INTO room_types (hotel_id,name,description,size_sqm,bed_type,bed_count,max_occupancy,amenities,bathroom_type,smoking_allowed,price_per_night,is_active,stripe_price_id,total_units,breakfast_mode,breakfast_price,promo_badge_text) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      'INSERT INTO room_types (hotel_id,name,description,size_sqm,bed_type,bed_count,max_occupancy,amenities,bathroom_type,smoking_allowed,price_per_night,is_active,stripe_price_id,total_units,breakfast_mode,breakfast_price,promo_badge_text,black_friday_promo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
       [hotel_id, name, description, size_sqm, bed_type, bed_count, max_occupancy,
         JSON.stringify(amenities || []), bathroom_type, smoking_allowed ? 1 : 0, price_per_night, is_active !== undefined ? is_active : 1, req.body.stripe_price_id || null, total_units || 1,
-        breakfast_mode || 'none', !isNaN(parsedBreakfastPrice) ? parsedBreakfastPrice : null, promo_badge_text || null]
+        breakfast_mode || 'none', !isNaN(parsedBreakfastPrice) ? parsedBreakfastPrice : null, promo_badge_text || null, req.body.black_friday_promo ? 1 : 0]
     );
     const [[room]] = await db.query(
       'SELECT rt.*, h.name as hotel_name FROM room_types rt JOIN hotels h ON rt.hotel_id = h.id WHERE rt.id = ?',
@@ -1383,7 +1387,7 @@ router.put('/rooms/:id', requireAuth, async (req, res) => {
       : current.breakfast_price;
 
     await db.execute(
-      'UPDATE room_types SET hotel_id=?,name=?,description=?,size_sqm=?,bed_type=?,bed_count=?,max_occupancy=?,amenities=?,bathroom_type=?,smoking_allowed=?,price_per_night=?,is_active=?,is_visible=?,stripe_price_id=?,total_units=?,breakfast_mode=?,breakfast_price=?,promo_badge_text=? WHERE id=?',
+      'UPDATE room_types SET hotel_id=?,name=?,description=?,size_sqm=?,bed_type=?,bed_count=?,max_occupancy=?,amenities=?,bathroom_type=?,smoking_allowed=?,price_per_night=?,is_active=?,is_visible=?,stripe_price_id=?,total_units=?,breakfast_mode=?,breakfast_price=?,promo_badge_text=?,black_friday_promo=? WHERE id=?',
       [
         hotel_id ?? current.hotel_id,
         name ?? current.name,
@@ -1403,6 +1407,7 @@ router.put('/rooms/:id', requireAuth, async (req, res) => {
         breakfast_mode !== undefined ? breakfast_mode : (current.breakfast_mode || 'none'),
         nextBreakfastPrice !== null && !isNaN(nextBreakfastPrice) ? nextBreakfastPrice : null,
         promo_badge_text !== undefined ? (promo_badge_text || null) : current.promo_badge_text,
+        req.body.black_friday_promo !== undefined ? (req.body.black_friday_promo ? 1 : 0) : (current.black_friday_promo ? 1 : 0),
         req.params.id
       ]
     );
